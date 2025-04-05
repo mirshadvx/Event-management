@@ -1,0 +1,21 @@
+# Frontend
+client/node_modules/
+client/.env
+client/build/
+
+# Backend
+server/venv/
+server/.env
+**/__pycache__
+server/*.sqlite3
+**/migrations/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# General
+.DS_Store
+.vscode/
+.idea/
+
+server/users/evenxo-g-auth-firebase-adminsdk.json

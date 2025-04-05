@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-confetti-boom": "^1.1.2",
+    "react-image-crop": "^11.0.7"
+  }
+}
