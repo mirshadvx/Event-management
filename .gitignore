@@ -19,3 +19,6 @@ server/*.sqlite3
 .idea/
 
 server/users/evenxo-g-auth-firebase-adminsdk.json
+
+*.log
+server/general.log

@@ -16,7 +16,7 @@ import json
 from django.core.mail import send_mail
 from .models import (Profile, UserSettings, SocialMediaLink, Wallet, WalletTransaction, Booking,
                      PasswordResetToken)
-from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan
+from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan, UserSubscription
 from event.models import Event, TicketPurchase, Ticket
 # import firebase_admin.auth as firebase_auth
 from django.contrib.auth import get_user_model
@@ -915,21 +915,139 @@ class ResetPasswordView(APIView):
         user.save()
         reset_token.delete()
         return Response({"success": True, "message": "Password reset successfully"}, status=status.HTTP_200_OK )
-    
-    
+
 
 class SubscriptionCheckout(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        user = request.user
         try:
             plans = SubscriptionPlan.objects.all()
             serializer = SubscriptionPlanSerializer(plans, many=True)
             return Response({"success": True, "plans": serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.info(e)
-            return Response({"success": False, "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error fetching plans: {str(e)}")
+            return Response({"success": False, "message": "Failed to load plans"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+        plan_id = data.get("plan_id")
+        payment_method = data.get("payment_method")
+
+        if not plan_id or not payment_method:
+            return Response({
+                "success": False,
+                "message": "Missing required fields: plan_id and payment_method"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            plan = SubscriptionPlan.objects.get(id=plan_id)
+
+            existing = UserSubscription.objects.filter(
+                user=user, 
+                is_active=True, 
+                end_date__gt=timezone.now()
+            ).first()
+
+            if existing:
+                return Response({
+                    "success": False,
+                    "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+          
+            if payment_method == "stripe" and data.get("create_intent"):
+                intent = stripe.PaymentIntent.create(
+                    amount=int(plan.price * 100),
+                    currency="inr",
+                    metadata={"user_id": str(user.id), "plan_id": str(plan.id)},
+                    description=f"Subscription to {plan.name}"
+                )
+                return Response({
+                    "success": True,
+                    "client_secret": intent.client_secret,
+                    "intent_id": intent.id
+                }, status=status.HTTP_200_OK)
+
+         
+            if payment_method == "stripe":
+                intent_id = data.get("payment_intent_id")
+                if not intent_id:
+                    return Response({
+                        "success": False,
+                        "message": "Missing payment intent ID"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                intent = stripe.PaymentIntent.retrieve(intent_id)
+                if intent.status != "succeeded":
+                    return Response({
+                        "success": False,
+                        "message": "Payment not completed",
+                        "intent_status": intent.status
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+          
+            elif payment_method == "wallet":
+                wallet = Wallet.objects.get(user=user)
+                if wallet.balance < plan.price:
+                    return Response({
+                        "success": False,
+                        "message": "Insufficient wallet balance"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                wallet.balance -= plan.price
+                wallet.save()
+
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    transaction_type="PAYMENT",
+                    amount=plan.price,
+                    description=f"Subscription for {plan.name}"
+                )
+            else:
+                return Response({
+                    "success": False,
+                    "message": "Invalid payment method"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         
-    def post(self, reqeust):
-        
+            end_date = timezone.now() + timedelta(days=30)
+            subscription, _ = UserSubscription.objects.update_or_create(
+                user=user,
+                defaults={
+                    "plan": plan,
+                    "start_date": timezone.now(),
+                    "end_date": end_date,
+                    "is_active": True,
+                }
+            )
+
+            return Response({
+                "success": True,
+                "subscription_id": subscription.id,
+                "message": "Subscription activated successfully"
+            }, status=status.HTTP_201_CREATED)
+
+        except SubscriptionPlan.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Plan not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Wallet.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Wallet not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error: {str(e)}")
+            return Response({
+                "success": False,
+                "message": f"Payment error: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Unhandled subscription error: {str(e)}")
+            return Response({
+                "success": False,
+                "message": "An unexpected error occurred"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
