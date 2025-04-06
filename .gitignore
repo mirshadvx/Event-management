@@ -22,3 +22,7 @@ server/users/evenxo-g-auth-firebase-adminsdk.json
 
 *.log
 server/general.log
+
+server/celerybeat-schedule.bak
+server/celerybeat-schedule.dat
+server/celerybeat-schedule.dir

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from decouple import config
 load_dotenv()
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'event',
     'django_rest_passwordreset',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -225,7 +227,7 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 # CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-# CELERY_RESULT_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
@@ -258,3 +260,18 @@ LOGGING = {
         }
     },
 }
+
+CELERY_BEAT_SCHEDULE = {
+    'distribute-revenue-every-minute': {
+        'task': 'users.tasks.distribute_event_revenue',
+        'schedule': crontab(minute='*/2'),
+    },
+}
+
+# this works the every midnight to call the task distribute_event_revenue function
+# CELERY_BEAT_SCHEDULE = {
+#     'distribute-revenue-every-midnight': {
+#         'task': 'users.tasks.distribute_event_revenue',
+#         'schedule': crontab(hour=0, minute=0),
+#     },
+# }

@@ -1,6 +1,6 @@
 from django.db import models
 from users.models import Profile
-from event.models import TicketPurchase
+from event.models import TicketPurchase, Event
 from django.utils import timezone
 
 class OrganizerRequest(models.Model):
@@ -130,3 +130,18 @@ class UserSubscription(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.plan.name}"
+    
+class RevenueDistribution(models.Model):
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name="revenue_distribution")
+    admin_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    total_revenue = models.DecimalField(max_digits=15, decimal_places=2)
+    total_participants = models.IntegerField()
+    admin_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    organizer_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    distributed_at = models.DateTimeField(auto_now_add=True)
+    is_distributed = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Revenue for {self.event.event_title}"
+    
+    

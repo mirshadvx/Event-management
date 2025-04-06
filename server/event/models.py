@@ -46,6 +46,7 @@ class Event(models.Model):
     is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    revenue_distributed = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.event_title} by {self.organizer.username}"
@@ -93,34 +94,6 @@ class TicketPurchase(models.Model):
 
     def __str__(self):
         return f"{self.quantity} {self.ticket.ticket_type} tickets for {self.event.event_title}  -- {self.buyer.username}"
-    #  qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True)  # Store QR code
-    
-    # def generate_qr_code(self):
-    #     """Generate and save a QR code containing ticket details."""
-    #     qr_data = f"{self.unique_id}|{self.event.id}|{self.ticket.ticket_type}|{self.buyer.id}|{self.quantity}"
-    #     qr = qrcode.make(qr_data)
-
-    #     buffer = BytesIO()
-    #     qr.save(buffer, format="PNG")
-    #     filename = f"qr_{self.unique_id}.png"
-
-    #     self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=False)
-
-    # def save(self, *args, **kwargs):
-    #     """Generate QR code before saving if it doesn't exist."""
-    #     if not self.qr_code:
-    #         self.generate_qr_code()
-    #     super().save(*args, **kwargs)
-
-    # def remaining_tickets(self):
-    #     """Return number of remaining tickets."""
-    #     return self.quantity - self.used_tickets
-
-    # def __str__(self):
-    #     return f"{self.buyer.username} - {self.quantity} {self.ticket.ticket_type} tickets for {self.event.event_title}"
-    
-    
-
 
 class Like(models.Model):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='likes')
