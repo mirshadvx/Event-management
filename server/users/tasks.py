@@ -10,6 +10,7 @@ from django.db import transaction
 from decimal import Decimal
 from Admin.models import RevenueDistribution
 from users.models import WalletTransaction
+from .filters import EventFilterDistribution
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,14 @@ def distribute_event_revenue():
     print("Task running at:", timezone.now())
     logging.debug("distibute event revenuse is triggered", timezone.now())
     
-    events = Event.objects.filter(
-        revenue_distributed = False,
-        end_date__lt = timezone.now().date(),
-        is_published = True
-    )
+    filter_data = {
+        'revenue_distributed': False,
+        'end_date__lt': timezone.now().date(),
+        'is_published': True,
+    }
+    
+    event_filter = EventFilterDistribution(filter_data, queryset=Event.objects.all())
+    events = event_filter.qs
     
     for event in events:
         try:
