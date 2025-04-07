@@ -1,6 +1,6 @@
 # backend/serializers.py
 from rest_framework import serializers
-from .models import OrganizerRequest, Coupon, Badge, UserBadge
+from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
 from users.models import Profile, SocialMediaLink
 import cloudinary.uploader
 
@@ -91,3 +91,30 @@ class BadgeProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ['username', 'email']
+        
+
+class RevenueDistributionSerializer(serializers.ModelSerializer):
+    event_title = serializers.CharField(source='event.event_title')
+    event_type = serializers.CharField(source='event.event_type')
+    organizer = serializers.CharField(source='event.organizer.username')
+    
+    class Meta:
+        model = RevenueDistribution
+        fields = [
+            'id',
+            'event_title',
+            'event_type',
+            'organizer',
+            'admin_percentage',
+            'total_revenue',
+            'total_participants',
+            'admin_amount',
+            'organizer_amount',
+            'distributed_at',
+            'is_distributed'
+        ]
+        
+class RevenueSummarySerializer(serializers.Serializer):
+    total_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)
+    today_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)
+    monthly_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)

@@ -5,13 +5,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
-from .models import OrganizerRequest, Coupon, Badge, UserBadge
+from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
 from users.models import Profile
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
-                          BadgeSerializer, UserBadgeSerializer)
+                          BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -19,8 +19,11 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-
-
+from .filters import RevenueDistributionFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from .serializers import RevenueDistributionSerializer
+from django.db.models import Sum
+from datetime import datetime
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -473,3 +476,46 @@ class UserBadgeListView(APIView):
         serializer = UserBadgeSerializer(page, many=True)
         
         return paginator.get_paginated_response(serializer.data)
+
+
+class RevenueDistributionPagiantion(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+    
+class RevenueDistributionListView(generics.ListAPIView):
+    queryset = RevenueDistribution.objects.all()
+    serializer_class = RevenueDistributionSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = RevenueDistributionFilter
+    pagination_class = RevenueDistributionPagiantion
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.select_related('event', 'event__organizer').order_by('-distributed_at')
+    
+class RevenueSummaryView(APIView):
+    def get(self, request):
+        queryset = RevenueDistribution.objects.all()
+        
+        filterset = RevenueDistributionFilter(request.GET, queryset=queryset)
+        if filterset.is_valid():
+            queryset = filterset.qs
+   
+        total_revenue = queryset.aggregate(Sum('total_revenue'))['total_revenue__sum'] or 0
+        today_revenue = queryset.filter(
+            distributed_at__date=datetime.now().date()
+        ).aggregate(Sum('total_revenue'))['total_revenue__sum'] or 0
+        monthly_revenue = queryset.filter(
+            distributed_at__year=datetime.now().year,
+            distributed_at__month=datetime.now().month
+        ).aggregate(Sum('total_revenue'))['total_revenue__sum'] or 0
+        
+        data = {
+            'total_revenue': total_revenue,
+            'today_revenue': today_revenue,
+            'monthly_revenue': monthly_revenue,
+        }
+        
+        serializer = RevenueSummarySerializer(data)
+        return Response(serializer.data)

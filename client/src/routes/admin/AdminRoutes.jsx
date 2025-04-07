@@ -7,6 +7,7 @@ import Organizer_Request from "@/components/layout/admin/Organizer_Request";
 import Coupon_layout from "@/components/layout/admin/Coupon_layout";
 import Achievements_layout from "@/components/layout/admin/Achivements_layout";
 import Refund_management from "@/components/layout/admin/Refund_management";
+import Revenue_Overview from "@/components/layout/admin/finance/Revenue_Overview";
 
 function fun() {
     return <h1>hit out let</h1>;
@@ -28,6 +29,7 @@ const AdminRoutes = () => {
             <Route path="coupons" element={<Coupon_layout />} />
             <Route path="achievements" element={<Achievements_layout />} />
             <Route path="refund" element={<Refund_management />} />
+            <Route path="finance/revenue" element={<Revenue_Overview />} />
             <Route index element={fun()} />
         </Route>
     );

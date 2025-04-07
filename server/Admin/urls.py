@@ -4,7 +4,8 @@ from .views import (admin_login,OrganizerRequestList,
     OrganizerRequestBulkUpdate,
     OrganizerRequestUserDetails,
     UserListView, UserUpdateStatusView, UserBulkUpdateStatusView, CouponList,
-    CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView)
+    CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView,
+    RevenueDistributionListView, RevenueSummaryView)
 
 urlpatterns = [
     path('login/', admin_login, name="admin_login"),
@@ -23,4 +24,6 @@ urlpatterns = [
     path('badges/', BadgeListCreateView.as_view(), name='badge-list-create'),
     path('badges/<int:pk>/', BadgeDetailView.as_view(), name='badge-detail'),
     path('user-badges/', UserBadgeListView.as_view(), name='user-badge-list'),
+    path('revenue-distributions/', RevenueDistributionListView.as_view(), name='revenue-distribution-list'),
+    path('revenue-summary/', RevenueSummaryView.as_view(), name='revenue-summary'),
 ]
