@@ -5,7 +5,7 @@ from .views import (admin_login,OrganizerRequestList,
     OrganizerRequestUserDetails,
     UserListView, UserUpdateStatusView, UserBulkUpdateStatusView, CouponList,
     CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView,
-    RevenueDistributionListView, RevenueSummaryView)
+    RevenueDistributionListView, RevenueSummaryView, TransactionHistoryListView)
 
 urlpatterns = [
     path('login/', admin_login, name="admin_login"),
@@ -26,4 +26,5 @@ urlpatterns = [
     path('user-badges/', UserBadgeListView.as_view(), name='user-badge-list'),
     path('revenue-distributions/', RevenueDistributionListView.as_view(), name='revenue-distribution-list'),
     path('revenue-summary/', RevenueSummaryView.as_view(), name='revenue-summary'),
+    path('transaction-history/', TransactionHistoryListView.as_view(), name='transaction-history'),
 ]

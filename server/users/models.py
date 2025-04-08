@@ -112,7 +112,7 @@ class PasswordResetToken(models.Model):
     def save(self, *args, **kwargs):
         if not self.expires_at:
             from django.utils import timezone
-            self.expires_at = timezone.now() + timezone.timedelta(hours=1)  # Token expires in 1 hour
+            self.expires_at = timezone.now() + timezone.timedelta(hours=1)
         super().save(*args, **kwargs)
 
     def is_expired(self):

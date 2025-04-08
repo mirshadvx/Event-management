@@ -24,7 +24,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
     const financeItems = [
         { name: "Revenue Overview", path: "finance/revenue" },
-        { name: "Transaction History", path: "finance/transactions" },
+        { name: "Transaction History", path: "finance/transactions-history" },
         { name: "Refund History", path: "finance/refunds" },
     ];
 

@@ -1,8 +1,9 @@
 # backend/serializers.py
 from rest_framework import serializers
 from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
-from users.models import Profile, SocialMediaLink
+from users.models import Profile, SocialMediaLink, Booking
 import cloudinary.uploader
+from event.models import TicketPurchase
 
 class SocialMediaLinkSerializer(serializers.ModelSerializer):
     class Meta:
@@ -118,3 +119,21 @@ class RevenueSummarySerializer(serializers.Serializer):
     total_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)
     today_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)
     monthly_revenue = serializers.DecimalField(max_digits=15, decimal_places=2)
+
+class TicketPurchaseSrializer(serializers.ModelSerializer):
+    ticket_type = serializers.CharField(source='ticket.ticket_type')
+    
+    class Meta:
+        model = TicketPurchase
+        fields = ['ticket_type', 'quantity', 'total_price']
+    
+class BookingSerializerHistory(serializers.ModelSerializer):
+    ticket_purchases = TicketPurchaseSrializer(many=True)
+    username = serializers.CharField(source='user.username')
+    event_title = serializers.CharField(source='event.event_title')
+    
+    class Meta:
+        model = Booking
+        fields = ['booking_id','username', 'event_title', 'payment_method', 'subtotal', 'discount', 'total',
+                  'created_at', 'ticket_purchases']
+    

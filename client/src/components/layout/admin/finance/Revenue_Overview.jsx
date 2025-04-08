@@ -20,7 +20,7 @@ const Revenue_Overview = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [revenueData, setRevenueData] = useState([]);
     const [totalItems, setTotalItems] = useState(0);
-    const [totalRevenue, setTotalRevenue] = useState(0);
+    const [totalRevenue, setTotalRevenue] = useState(0);    
     const [todayRevenue, setTodayRevenue] = useState(0);
     const [monthlyRevenue, setMonthlyRevenue] = useState(0);
     const [startDate, setStartDate] = useState("");

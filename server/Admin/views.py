@@ -9,9 +9,10 @@ from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
-from users.models import Profile
+from users.models import Profile, Booking
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
-                          BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer)
+                          BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
+                          BookingSerializerHistory)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -19,11 +20,12 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-from .filters import RevenueDistributionFilter
+from .filters import RevenueDistributionFilter, BookingFilterHistory
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum
 from datetime import datetime
+from .paginations import BookingPaginationHistory
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -519,3 +521,13 @@ class RevenueSummaryView(APIView):
         
         serializer = RevenueSummarySerializer(data)
         return Response(serializer.data)
+    
+class TransactionHistoryListView(generics.ListAPIView):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializerHistory
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = BookingFilterHistory
+    pagination_class = BookingPaginationHistory
+    
+    def get_queryset(self):
+        return Booking.objects.select_related('user', 'event').prefetch_related('ticket_purchases').order_by('-created_at')
