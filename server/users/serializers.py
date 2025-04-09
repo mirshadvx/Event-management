@@ -126,24 +126,75 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = ["id", "ticket_type", "price", "quantity", "description", "sold_quantity"]
         
+# class ProfileTicketPurchaseSerializer(serializers.ModelSerializer):
+#     ticket_type = serializers.CharField(source="ticket.ticket_type", read_only=True)
+#     class Meta:
+#         model = TicketPurchase
+#         fields = ["id", "quantity", "ticket_type"]
 class ProfileTicketPurchaseSerializer(serializers.ModelSerializer):
     ticket_type = serializers.CharField(source="ticket.ticket_type", read_only=True)
+
     class Meta:
         model = TicketPurchase
-        fields = ["id", "quantity", "ticket_type"]
+        fields = ["id", "quantity", "ticket_type", "total_price"]
+        
+
 
 class ProfileBooking_idSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ["booking_id"]
         
-class ProfileEventJoinedSerializer(serializers.ModelSerializer):
+# class ProfileEventJoinedSerializer(serializers.ModelSerializer):
+#     organizer_username = serializers.CharField(source="organizer.username", read_only=True)
+#     organizer_profile_picture = serializers.CharField(source="organizer.profile_picture", read_only=True)
+#     like_count = serializers.SerializerMethodField()
+#     liked = serializers.SerializerMethodField()
+#     tickets = serializers.SerializerMethodField()
+#     booking_id = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Event
+#         fields = [
+#             "id", "event_title", "event_type", "description",
+#             "venue_name", "address", "city",
+#             "start_date", "end_date", "start_time", "end_time",
+#             "visibility", "capacity", "age_restriction",
+#             "special_instructions", "event_banner",
+#             "organizer_username", "organizer_profile_picture",
+#             "like_count", "liked", "tickets", "booking_id"
+#         ]
+    
+#     def get_like_count(self, obj):
+#         return obj.likes.count()
+
+#     def get_liked(self, obj):
+#         request = self.context.get("request")
+#         if request and request.user.is_authenticated:
+#             return obj.likes.filter(user=request.user).exists()
+#         return False
+
+#     def get_tickets(self, obj):
+#         request = self.context.get("request")
+#         if not request or not request.user.is_authenticated:
+#             return []
+
+#         user_ticket_purchases = TicketPurchase.objects.filter(buyer=request.user, event=obj)
+#         return ProfileTicketPurchaseSerializer(user_ticket_purchases, many=True).data
+    
+#     def get_booking_id(self, obj):
+#         request = self.context.get("request")
+#         if not request or not request.user.is_authenticated:
+#             return None
+        
+#         booking = Booking.objects.filter(user=request.user, event=obj).first()
+#         return str(booking.booking_id) if booking else None
+
+class ProfileEventSerializer(serializers.ModelSerializer):
     organizer_username = serializers.CharField(source="organizer.username", read_only=True)
     organizer_profile_picture = serializers.CharField(source="organizer.profile_picture", read_only=True)
     like_count = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
-    tickets = serializers.SerializerMethodField()
-    booking_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -154,9 +205,9 @@ class ProfileEventJoinedSerializer(serializers.ModelSerializer):
             "visibility", "capacity", "age_restriction",
             "special_instructions", "event_banner",
             "organizer_username", "organizer_profile_picture",
-            "like_count", "liked", "tickets", "booking_id"
+            "like_count", "liked"
         ]
-    
+
     def get_like_count(self, obj):
         return obj.likes.count()
 
@@ -166,22 +217,17 @@ class ProfileEventJoinedSerializer(serializers.ModelSerializer):
             return obj.likes.filter(user=request.user).exists()
         return False
 
-    def get_tickets(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return []
+class ProfileEventJoinedSerializer(serializers.ModelSerializer):
+    event = ProfileEventSerializer(read_only=True)
+    tickets = ProfileTicketPurchaseSerializer(source="ticket_purchases", many=True, read_only=True)
+    booking_id = serializers.UUIDField()
 
-        user_ticket_purchases = TicketPurchase.objects.filter(buyer=request.user, event=obj)
-        return ProfileTicketPurchaseSerializer(user_ticket_purchases, many=True).data
-    
-    def get_booking_id(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-        
-        booking = Booking.objects.filter(user=request.user, event=obj).first()
-        return str(booking.booking_id) if booking else None
-    
+    class Meta:
+        model = Booking
+        fields = [
+            "booking_id", "event", "payment_method", "subtotal", 
+            "discount", "total", "created_at", "tickets"
+        ]
     
 class WalletTransactionSerializer(serializers.ModelSerializer):
     class Meta:

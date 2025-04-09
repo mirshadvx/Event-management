@@ -66,7 +66,7 @@ const Transaction_History = () => {
         <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
             <Card>
                 <CardHeader>
-                    <CardTitle>Transaction History</CardTitle>
+                    <CardTitle>Transaction History/Payment Gateways</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">

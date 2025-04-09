@@ -552,8 +552,8 @@ class RefundHistoryListView(generics.ListAPIView):
                 'booking__ticket_purchases__ticket',
                 'booking__ticket_purchases__event'
             ).order_by('-created_at')
-            logger.debug(f"Queryset count: {queryset.count()}")
+            logger.debug(f"RefundHistoryListView view{queryset.count()}")
             return queryset
         except Exception as e:
-            logger.error(f"Error in get_queryset: {str(e)}")
+            logger.error(f"RefundHistoryListView {str(e)}")
             return WalletTransaction.objects.none()

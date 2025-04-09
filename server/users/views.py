@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import (UserRegistrationSerializer, OTPVarificationSerializer, UserProfileSerializer,
                           ProfileEventJoinedSerializer, WalletSerializer, WalletTransactionSerializer,
-                          SubscriptionPlanSerializer)
+                          SubscriptionPlanSerializer, ProfileEventJoinedSerializer)
 from rest_framework import status
 import redis
 from decouple import config
@@ -654,36 +654,29 @@ class CheckoutAPIView(APIView):
                 booking.delete()
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def joined_events(request):
     try:
-        print("entereddddd")
         user = request.user
-        print(f"Authenticated user: {user.username}")
         current_time = datetime.now()
-        
-        future_events = TicketPurchase.objects.filter(
-            buyer=user, 
-            event__start_date__gt=current_time.date()
-        ).values_list('event', flat=True).distinct()
-        print(f"Future events IDs: {list(future_events)}")
 
-        today_events = TicketPurchase.objects.filter(
-            buyer=user,
+        # Get bookings for future events or today's events with future start times
+        future_bookings = Booking.objects.filter(
+            user=user,
+            event__start_date__gt=current_time.date()
+        ).select_related('event').prefetch_related('ticket_purchases__ticket')
+
+        today_bookings = Booking.objects.filter(
+            user=user,
             event__start_date=current_time.date(),
             event__start_time__gt=current_time.time()
-        ).values_list('event', flat=True).distinct()
-        print(f"Today events IDs: {list(today_events)}")
-        
-        all_future_events = future_events.union(today_events)
+        ).select_related('event').prefetch_related('ticket_purchases__ticket')
 
-        events = Event.objects.filter(id__in=all_future_events)
-        print(f"Events count: {events.count()}")
+        # Combine and order bookings
+        all_bookings = (future_bookings | today_bookings).distinct().order_by('-created_at')
 
-        serializer = ProfileEventJoinedSerializer(events, many=True, context={'request': request})
-        print("Serialized data prepared")
+        serializer = ProfileEventJoinedSerializer(all_bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
     except Exception as e:
