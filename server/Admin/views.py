@@ -9,10 +9,10 @@ from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
 from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
-from users.models import Profile, Booking
+from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
-                          BookingSerializerHistory)
+                          BookingSerializerHistory, RefundHistorySerializer)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -20,12 +20,15 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-from .filters import RevenueDistributionFilter, BookingFilterHistory
+from .filters import RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum
 from datetime import datetime
-from .paginations import BookingPaginationHistory
+from .paginations import BookingPaginationHistory, RefundHistoryPagination
+
+import logging
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -531,3 +534,26 @@ class TransactionHistoryListView(generics.ListAPIView):
     
     def get_queryset(self):
         return Booking.objects.select_related('user', 'event').prefetch_related('ticket_purchases').order_by('-created_at')
+
+class RefundHistoryListView(generics.ListAPIView):
+    serializer_class = RefundHistorySerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = RefundHistoryFilter
+    pagination_class = RefundHistoryPagination
+
+    def get_queryset(self):
+        try:
+            queryset = WalletTransaction.objects.filter(
+                transaction_type='REFUND'
+            ).select_related(
+                'wallet__user',
+                'booking__event'
+            ).prefetch_related(
+                'booking__ticket_purchases__ticket',
+                'booking__ticket_purchases__event'
+            ).order_by('-created_at')
+            logger.debug(f"Queryset count: {queryset.count()}")
+            return queryset
+        except Exception as e:
+            logger.error(f"Error in get_queryset: {str(e)}")
+            return WalletTransaction.objects.none()

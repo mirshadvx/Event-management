@@ -19,13 +19,13 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         { name: "Events", icon: <MdEvent className="w-6 h-6" />, path: "events" },
         { name: "Coupons", icon: <TicketPercent className="w-6 h-6" />, path: "coupons" },
         { name: "Achievements", icon: <BarChart className="w-6 h-6" />, path: "achievements" },
-        { name: "Refund", icon: <TicketX className="w-6 h-6" />, path: "refund" },
+        { name: "Ticket purchases", icon: <TicketX className="w-6 h-6" />, path: "ticket-purchase" },
     ];
 
     const financeItems = [
         { name: "Revenue Overview", path: "finance/revenue" },
         { name: "Transaction History", path: "finance/transactions-history" },
-        { name: "Refund History", path: "finance/refunds" },
+        { name: "Refund History", path: "finance/refunds-history" },
     ];
 
     const additionalItems = [

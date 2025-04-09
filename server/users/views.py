@@ -567,9 +567,10 @@ class CheckoutAPIView(APIView):
                 wallet.save()
                 WalletTransaction.objects.create(
                     wallet=wallet,
+                    booking=booking,
                     transaction_type='PAYMENT',
                     amount=Decimal(total),
-                    description=f"Payment for {event.event_title} tickets (Booking {booking.booking_id})"
+                    description=f"Payment for {event.event_title} tickets (Booking {booking.booking_id})",
                 )
             elif payment_method == 'stripe':
                 if not stripe_payment_method_id:

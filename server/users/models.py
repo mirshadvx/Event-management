@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
+# from .models import Booking
 # from event.models import Event
 
 class Profile(AbstractUser):
@@ -73,6 +74,7 @@ class WalletTransaction(models.Model):
     description = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     transaction_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
 
     def __str__(self):
         return f"{self.transaction_type} of ₹{self.amount} for {self.wallet.user.username}"

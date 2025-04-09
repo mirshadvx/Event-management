@@ -1,7 +1,7 @@
 # backend/serializers.py
 from rest_framework import serializers
 from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
-from users.models import Profile, SocialMediaLink, Booking
+from users.models import Profile, SocialMediaLink, Booking, WalletTransaction
 import cloudinary.uploader
 from event.models import TicketPurchase
 
@@ -136,4 +136,39 @@ class BookingSerializerHistory(serializers.ModelSerializer):
         model = Booking
         fields = ['booking_id','username', 'event_title', 'payment_method', 'subtotal', 'discount', 'total',
                   'created_at', 'ticket_purchases']
-    
+        
+
+class TicketPurchaseSerializer(serializers.ModelSerializer):
+    ticket_type = serializers.CharField(source='ticket.ticket_type')
+    event_title = serializers.CharField(source='event.event_title')
+
+    class Meta:
+        model = TicketPurchase
+        fields = ['id', 'quantity', 'total_price', 'purchased_at', 'ticket_type', 'event_title']
+
+
+class RefundHistorySerializer(serializers.ModelSerializer):
+    event_title = serializers.CharField(source='booking.event.event_title', allow_null=True)
+    ticket_details = serializers.SerializerMethodField()
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WalletTransaction
+        fields = ['id', 'transaction_id', 'transaction_type', 'amount', 'created_at', 
+                 'event_title', 'ticket_details', 'user']
+
+    def get_ticket_details(self, obj):
+        if obj.booking and hasattr(obj.booking, 'ticket_purchases'):
+            print(obj.booking)
+            ticket_purchases = obj.booking.ticket_purchases.all()
+            print(ticket_purchases)
+            return TicketPurchaseSerializer(ticket_purchases, many=True).data
+        return []
+
+    def get_user(self, obj):
+        if obj.wallet and obj.wallet.user:
+            return {
+                'id': obj.wallet.user.id,
+                'username': obj.wallet.user.username
+            }
+        return None

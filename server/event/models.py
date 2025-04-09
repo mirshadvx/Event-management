@@ -1,5 +1,5 @@
 from django.db import models
-from users.models import Profile
+from users.models import Profile, Booking
 import uuid
 
 class Event(models.Model):
@@ -91,6 +91,8 @@ class TicketPurchase(models.Model):
     purchased_at = models.DateTimeField(auto_now_add=True)
     unique_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     unique_qr_code = models.CharField(max_length=36, unique=True, default=uuid.uuid4) 
+    
+
 
     def __str__(self):
         return f"{self.quantity} {self.ticket.ticket_type} tickets for {self.event.event_title}  -- {self.buyer.username}"
@@ -115,3 +117,6 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} commented on {self.event.event_title}"
+    
+    
+# booking = models.ForeignKey('users.Booking', on_delete=models.CASCADE, related_name='ticket_purchases', null=True, blank=True)

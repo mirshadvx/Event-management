@@ -1,7 +1,7 @@
 import django_filters
 from .models import RevenueDistribution
 from event.models import Event
-from users.models import Booking
+from users.models import Booking, WalletTransaction
 from django.db.models import Q
 from datetime import datetime, timedelta
 
@@ -96,3 +96,19 @@ class BookingFilterHistory(django_filters.FilterSet):
         elif name == 'end_date':
             return queryset.filter(created_at__date__lte=value)
         return queryset
+    
+class RefundHistoryFilter(django_filters.FilterSet):
+    search = django_filters.CharFilter(method='filter_search')
+    start_date = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
+    event_type = django_filters.CharFilter(field_name='booking__event__event_type')
+
+    class Meta:
+        model = WalletTransaction
+        fields = ['search', 'start_date', 'end_date', 'event_type']
+
+    def filter_search(self, queryset, name, value):
+        return queryset.filter(
+            Q(wallet__user__username__icontains=value) |
+            Q(booking__event__event_title__icontains=value)
+        )
