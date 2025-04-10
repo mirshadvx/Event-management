@@ -64,15 +64,10 @@ class Badge(models.Model):
             choices=(("Orgnanzer","Orgnizer"),
                      ("User","User"),),
         )
-    criteria_type = models.CharField(
-        max_length=50,
-        choices=(
-            ("event_attended", "Events Attended"),
+    criteria_type = models.CharField(max_length=50,choices=(("event_attended", "Events Attended"),
             ("event_created", "Events Created"),
-            ("feedback_given", "Feedback Given"),
-        ),
-        help_text="What action unlocks this badge"
-    )
+            ("feedback_given", "Feedback Given"),))
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name

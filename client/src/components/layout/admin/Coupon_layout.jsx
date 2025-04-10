@@ -123,25 +123,6 @@ const CouponLayout = () => {
         }
     };
 
-    // const createCoupon = async (formData) => {
-    //   setError(null);
-    //   try {
-    //     const response = await adminApi.post("/coupons/", formData);
-    //     console.log(response);
-    //     await fetchCoupons();
-    //     if (response.status === 201) {
-    //       toast.success("Created New Coupon", { duration: 3000, className: "text-white p-4 rounded-md" });
-    //     } else {
-    //       throw new Error("Unexpected response status");
-    //     }
-    //   } catch (err) {
-    //     console.log("errrorrroro   :",err);
-    //     const errorMessage = err.response?.data?.code[0] || "Failed to create coupon";
-    //     setError(errorMessage); // Set the specific error message from backend
-    //     toast.error(errorMessage, { duration: 3000, className: "text-white p-4 rounded-md" });
-    //   }
-    // };
-
     const createCoupon = async (formData) => {
         setError(null);
         try {

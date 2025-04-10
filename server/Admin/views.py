@@ -391,12 +391,11 @@ class BadgeListCreateView(APIView):
     pagination_class = CustomPagination
 
     def get(self, request):
-        # Get filter parameters
         role = request.query_params.get('role', 'all')
         category = request.query_params.get('category', 'all')
         criteria_type = request.query_params.get('criteria_type', 'all')
+        is_active = request.query_params.get('is_active', None)
         
-        # Build queryset with filters
         badges = Badge.objects.all()
         if role != 'all':
             badges = badges.filter(applicable_role=role)
@@ -404,6 +403,8 @@ class BadgeListCreateView(APIView):
             badges = badges.filter(category=category)
         if criteria_type != 'all':
             badges = badges.filter(criteria_type=criteria_type)
+        if is_active is not None:
+            badges = badges.filter(is_active=is_active.lower() == 'true')
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(badges, request)
@@ -412,15 +413,12 @@ class BadgeListCreateView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        print('***',request.data)
         mutable_data = request.data.copy()
         icon = request.FILES.get("icon")
-        print(icon,"####")
         if icon:
             try:
                 upload_result = cloudinary.uploader.upload(icon)
                 mutable_data["icon"] = upload_result["url"]
-                print("**",mutable_data)
             except Exception as e:
                 return Response({"error":"Icon upload failed"}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -552,7 +550,9 @@ class RefundHistoryListView(generics.ListAPIView):
                 'booking__ticket_purchases__ticket',
                 'booking__ticket_purchases__event'
             ).order_by('-created_at')
-            logger.debug(f"RefundHistoryListView view{queryset.count()}")
+            logger.info(f"RefundHistoryListView view{queryset.count()}")
+            for i in queryset:
+                print("**",i)
             return queryset
         except Exception as e:
             logger.error(f"RefundHistoryListView {str(e)}")

@@ -72,13 +72,19 @@ class CouponSerializer(serializers.ModelSerializer):
 #         instance.save()
 #         return instance
 
-class BadgeSerializer(serializers.ModelSerializer):
-    icon = serializers.URLField(required=False, allow_blank=True)
+# class BadgeSerializer(serializers.ModelSerializer):
+#     icon = serializers.URLField(required=False, allow_blank=True)
 
+#     class Meta:
+#         model = Badge
+#         fields = ['id', 'name', 'description', 'category', 'icon', 'target_count', 
+#                  'applicable_role', 'criteria_type']
+
+class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
         fields = ['id', 'name', 'description', 'category', 'icon', 'target_count', 
-                 'applicable_role', 'criteria_type']
+                 'applicable_role', 'criteria_type', 'is_active']
 
 class UserBadgeSerializer(serializers.ModelSerializer):
     badge = BadgeSerializer()
