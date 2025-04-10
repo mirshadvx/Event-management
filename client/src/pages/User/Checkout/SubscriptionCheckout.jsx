@@ -32,7 +32,9 @@ const CheckoutForm = ({ plan, onSuccess }) => {
             });
 
             if (!intentResponse.data.success) {
-                throw new Error(intentResponse.data.message);
+                setError(intentResponse.data.message);
+                setProcessing(false);
+                return;
             }
 
             const result = await stripe.confirmCardPayment(intentResponse.data.client_secret, {
@@ -62,7 +64,8 @@ const CheckoutForm = ({ plan, onSuccess }) => {
                 setError(confirmationResponse.data.message);
             }
         } catch (err) {
-            setError(err.message || "An error occurred during payment");
+            const errorMessage = err.response?.data?.message || err.message || "An error occurred during payment";
+            setError(errorMessage);
         } finally {
             setProcessing(false);
         }
@@ -92,7 +95,7 @@ const CheckoutForm = ({ plan, onSuccess }) => {
                 disabled={!stripe || processing}
                 className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-                {processing ? "Processing..." : `Pay $${Number(plan.price).toFixed(2)}`}
+                {processing ? "Processing..." : `Pay ${Number(plan.price).toFixed(2)}`}
             </button>
         </form>
     );
@@ -105,7 +108,7 @@ const SubscriptionCheckout = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
-    const navigate = useNavigate()
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchPlans = async () => {
@@ -228,8 +231,10 @@ const SubscriptionCheckout = () => {
 
                         {/* Action buttons */}
                         <div className="flex flex-col sm:flex-row gap-4 w-full">
-                            <button className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-lg transition-all flex items-center justify-center"
-                            onClick={()=> navigate("/")}>
+                            <button
+                                className="flex-1 bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-lg transition-all flex items-center justify-center"
+                                onClick={() => navigate("/")}
+                            >
                                 Back to Home
                             </button>
                         </div>
@@ -257,7 +262,7 @@ const SubscriptionCheckout = () => {
             <div className="max-w-6xl mx-auto mb-6">
                 <button className="flex items-center text-white hover:text-green-400 transition-colors">
                     <ArrowLeft size={20} className="mr-2" />
-                    <span>Back</span>
+                    <span onClick={() => navigate("/")}>Back</span>
                 </button>
             </div>
 
