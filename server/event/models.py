@@ -91,7 +91,7 @@ class TicketPurchase(models.Model):
     purchased_at = models.DateTimeField(auto_now_add=True)
     unique_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     unique_qr_code = models.CharField(max_length=36, unique=True, default=uuid.uuid4) 
-    
+    booking_id = models.CharField(max_length=50, null=True, blank=True)
 
 
     def __str__(self):

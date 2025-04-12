@@ -101,7 +101,7 @@ class RefundHistoryFilter(django_filters.FilterSet):
     search = django_filters.CharFilter(method='filter_search')
     start_date = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
     end_date = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
-    event_type = django_filters.CharFilter(field_name='booking__event__event_type')
+    event_type = django_filters.CharFilter(method='filter_event_type')
 
     class Meta:
         model = WalletTransaction
@@ -110,5 +110,12 @@ class RefundHistoryFilter(django_filters.FilterSet):
     def filter_search(self, queryset, name, value):
         return queryset.filter(
             Q(wallet__user__username__icontains=value) |
-            Q(booking__event__event_title__icontains=value)
-        )
+            Q(booking__event__event_title__icontains=value) |
+            Q(refund_details__event__event_title__icontains=value)
+        ).distinct()
+    
+    def filter_event_type(self, queryset, name, value):
+        return queryset.filter(
+            Q(booking__event__event_type=value) |
+            Q(refund_details__event__event_type=value)
+        ).distinct()

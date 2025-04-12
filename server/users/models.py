@@ -120,3 +120,15 @@ class PasswordResetToken(models.Model):
     def is_expired(self):
         from django.utils import timezone
         return timezone.now() > self.expires_at
+    
+class TicketRefund(models.Model):
+    wallet_transaction = models.ForeignKey(WalletTransaction, on_delete=models.CASCADE, related_name='refund_details')
+    ticket_type = models.CharField(max_length=50)
+    quantity = models.PositiveIntegerField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    event = models.ForeignKey('event.Event', on_delete=models.SET_NULL, null=True, related_name='refunds')
+    booking = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, related_name='refunds')
+    refunded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Refund of {self.quantity} {self.ticket_type} tickets - ₹{self.amount}"

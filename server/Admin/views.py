@@ -532,7 +532,6 @@ class TransactionHistoryListView(generics.ListAPIView):
 
 class RefundHistoryListView(generics.ListAPIView):
     serializer_class = RefundHistorySerializer
-    filter_backends = [DjangoFilterBackend]
     filterset_class = RefundHistoryFilter
     pagination_class = RefundHistoryPagination
 
@@ -544,14 +543,11 @@ class RefundHistoryListView(generics.ListAPIView):
                 'wallet__user',
                 'booking__event'
             ).prefetch_related(
-                'booking__ticket_purchases__ticket',
-                'booking__ticket_purchases__event'
+                'refund_details'
             ).order_by('-created_at')
-            logger.info(f"RefundHistoryListView view{queryset.count()}")
-            for i in queryset:
-                print("**",i)
             return queryset
         except Exception as e:
             logger.error(f"RefundHistoryListView {str(e)}")
             return WalletTransaction.objects.none()
+
 

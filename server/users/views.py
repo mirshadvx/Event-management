@@ -15,7 +15,7 @@ import random
 import json
 from django.core.mail import send_mail
 from .models import (Profile, UserSettings, SocialMediaLink, Wallet, WalletTransaction, Booking,
-                     PasswordResetToken)
+                     PasswordResetToken, TicketRefund)
 from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan, UserSubscription
 from event.models import Event, TicketPurchase, Ticket
 # import firebase_admin.auth as firebase_auth
@@ -630,7 +630,8 @@ class CheckoutAPIView(APIView):
                         quantity=quantity,
                         used_tickets=0,
                         total_price=Decimal(ticket.price) * quantity,
-                        unique_qr_code=qr_code
+                        unique_qr_code=qr_code,
+                        booking_id=str(booking.booking_id)
                     )
                     booking.ticket_purchases.add(purchase)
                     ticket_purchases.append({
@@ -671,19 +672,20 @@ def joined_events(request):
         user = request.user
         current_time = datetime.now()
 
-        # Get bookings for future events or today's events with future start times
         future_bookings = Booking.objects.filter(
             user=user,
-            event__start_date__gt=current_time.date()
+            event__start_date__gt=current_time.date(),
+            ticket_purchases__isnull=False
         ).select_related('event').prefetch_related('ticket_purchases__ticket')
 
         today_bookings = Booking.objects.filter(
             user=user,
             event__start_date=current_time.date(),
-            event__start_time__gt=current_time.time()
+            event__start_time__gt=current_time.time(),
+            ticket_purchases__isnull=False
         ).select_related('event').prefetch_related('ticket_purchases__ticket')
 
-        # Combine and order bookings
+       
         all_bookings = (future_bookings | today_bookings).distinct().order_by('-created_at')
 
         serializer = ProfileEventJoinedSerializer(all_bookings, many=True, context={'request': request})
@@ -723,7 +725,8 @@ def cancel_ticket(request):
 
         wallet = get_object_or_404(Wallet, user=user)
 
-        total_all_ticket_count = TicketPurchase.objects.filter(event=event,buyer=user).aggregate(Sum('quantity'))['quantity__sum'] or 0
+        total_all_ticket_count = TicketPurchase.objects.filter(event=event,buyer=user,booking_id=booking_id).aggregate(Sum('quantity'))['quantity__sum'] or 0
+        print(total_all_ticket_count, "IIIIIIIIIIIIIIIIIIII")
         
         refund_amount = Decimal('0.00')
         total_cancel_ticket_count = 0
@@ -765,64 +768,54 @@ def cancel_ticket(request):
             
             canceled_tickets.append({
                 "ticket_id": ticket_id,
+                "ticket_type": ticket.ticket_type,
                 "quantity": cancel_quantity,
                 "refund_amount": float(refund_for_ticket)
             })
         
         booking = get_object_or_404(Booking, user=user, booking_id=booking_id, event=event_id)
+        final_refund_amount = refund_amount
+        
         if booking.track_discount > 0:
             price_per_unit_refund_decrease = booking.track_discount / total_all_ticket_count
-            actual_refund_amount = refund_amount - (total_cancel_ticket_count * price_per_unit_refund_decrease)
+            final_refund_amount = refund_amount - (total_cancel_ticket_count * price_per_unit_refund_decrease)
             
-            print("refund :",refund_amount, total_all_ticket_count, actual_refund_amount, price_per_unit_refund_decrease,
-                booking.track_discount, total_cancel_ticket_count)
-                
-            if actual_refund_amount > 0:
-                wallet.balance += actual_refund_amount
-                wallet.save()
-                
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    transaction_type='REFUND',
-                    amount=actual_refund_amount,
-                    description=f"Refund of canceled ticket {booking.event.event_title}"
-                )
-            
-            new_track_discount = booking.track_discount - round(total_cancel_ticket_count * price_per_unit_refund_decrease,2)
-            booking.track_discount = new_track_discount
+            new_track_discount = booking.track_discount - round(total_cancel_ticket_count * price_per_unit_refund_decrease, 2)
+            booking.track_discount = max(0, new_track_discount)
             booking.save()
-            print(new_track_discount,"&&&")
-            return Response({
-                "success": True,
-                "message": "Tickets canceled successfully.",
-                "total_refund": float(actual_refund_amount),
-            }, status=status.HTTP_200_OK)
-        else:
-            if refund_amount > 0:
-                wallet.balance += refund_amount
-                wallet.save()
-                
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    transaction_type='REFUND',
-                    amount=refund_amount,
-                    description=f"Refund of canceled ticket {booking.event.event_title}"
+        
+        if final_refund_amount > 0:
+            wallet.balance += final_refund_amount
+            wallet.save()
+            
+            transaction = WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='REFUND',
+                amount=final_refund_amount,
+                description=f"Refund for canceled tickets from {event.event_title}",
+                booking=booking
+            )
+            
+            for ticket_info in canceled_tickets:
+                TicketRefund.objects.create(
+                    wallet_transaction=transaction,
+                    ticket_type=ticket_info['ticket_type'],
+                    quantity=ticket_info['quantity'],
+                    amount=Decimal(str(ticket_info['refund_amount'])),
+                    event=event,
+                    booking=booking
                 )
             
-            # new_track_discount = booking.track_discount - round(total_cancel_ticket_count * price_per_unit_refund_decrease,2)
-            # booking.track_discount = new_track_discount
-            # booking.save()
-            # print(new_track_discount,"&&&")
-            return Response({
-                "success": True,
-                "message": "Tickets canceled successfully.",
-                "total_refund": float(refund_amount),
-            }, status=status.HTTP_200_OK)
-        
+        return Response({
+            "success": True,
+            "message": "Tickets canceled successfully.",
+            "total_refund": float(final_refund_amount),
+            "canceled_tickets": canceled_tickets
+        }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        print(e)
-        return Response({"error":"Failed the cancel ticket"},status=status.HTTP_400_BAD_REQUEST)
+        logger.error(f"Error in cancel_ticket: {str(e)}")
+        return Response({"error": "Failed to cancel ticket"}, status=status.HTTP_400_BAD_REQUEST)
 
 class StandardPagination(PageNumberPagination):
     page_size = 6

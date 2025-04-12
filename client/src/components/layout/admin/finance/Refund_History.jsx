@@ -187,7 +187,7 @@ const Refund_History = () => {
                                             <td className="p-4">
                                                 {refund.ticket_details.map((ticket) => (
                                                     <div key={ticket.id}>
-                                                        {ticket.quantity} x {ticket.ticket_type} ({parseFloat(ticket.total_price).toFixed(2)})
+                                                        {ticket.quantity} x {ticket.ticket_type} ({ticket.amount})
                                                     </div>
                                                 ))}
                                             </td>

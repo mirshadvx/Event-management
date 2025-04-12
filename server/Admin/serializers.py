@@ -1,7 +1,7 @@
 # backend/serializers.py
 from rest_framework import serializers
 from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
-from users.models import Profile, SocialMediaLink, Booking, WalletTransaction
+from users.models import Profile, SocialMediaLink, Booking, WalletTransaction, TicketRefund
 import cloudinary.uploader
 from event.models import TicketPurchase
 
@@ -144,17 +144,14 @@ class BookingSerializerHistory(serializers.ModelSerializer):
                   'created_at', 'ticket_purchases']
         
 
-class TicketPurchaseSerializer(serializers.ModelSerializer):
-    ticket_type = serializers.CharField(source='ticket.ticket_type')
-    event_title = serializers.CharField(source='event.event_title')
-
+class TicketRefundSerializer(serializers.ModelSerializer):
     class Meta:
-        model = TicketPurchase
-        fields = ['id', 'quantity', 'total_price', 'purchased_at', 'ticket_type', 'event_title']
+        model = TicketRefund
+        fields = ['ticket_type', 'quantity', 'amount']
 
 
 class RefundHistorySerializer(serializers.ModelSerializer):
-    event_title = serializers.CharField(source='booking.event.event_title', allow_null=True)
+    event_title = serializers.SerializerMethodField()
     ticket_details = serializers.SerializerMethodField()
     user = serializers.SerializerMethodField()
 
@@ -163,12 +160,18 @@ class RefundHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'transaction_id', 'transaction_type', 'amount', 'created_at', 
                  'event_title', 'ticket_details', 'user']
 
+    def get_event_title(self, obj):
+        refund_details = obj.refund_details.first()
+        if refund_details and refund_details.event:
+            return refund_details.event.event_title
+        elif obj.booking and obj.booking.event:
+            return obj.booking.event.event_title
+        return None
+
     def get_ticket_details(self, obj):
-        if obj.booking and hasattr(obj.booking, 'ticket_purchases'):
-            print(obj.booking)
-            ticket_purchases = obj.booking.ticket_purchases.all()
-            print(ticket_purchases)
-            return TicketPurchaseSerializer(ticket_purchases, many=True).data
+        refund_details = obj.refund_details.all()
+        if refund_details.exists():
+            return TicketRefundSerializer(refund_details, many=True).data
         return []
 
     def get_user(self, obj):
