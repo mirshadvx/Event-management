@@ -336,26 +336,19 @@ class OrganizerRequestHandle(APIView):
     permission_classes = [IsAuthenticated] 
     
     def post(self, request):
-        print("entered req orga")
         try:
             user = request.user
-            obj = OrganizerRequest.objects.filter(user=user)
+            existing_request = OrganizerRequest.objects.filter(user=user).first()
 
-            if obj.exists():
-                existing_request = obj.first()
-                if existing_request.admin_notes:
-                    return Response(
-                        {"success": False, "message": existing_request.admin_notes},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+            if existing_request:
                 return Response(
-                    {"success": False, "message": "You have already submitted an organizer request."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"success": True, "message": "Organizer request reinitialized successfully."},
+                    status=status.HTTP_200_OK
                 )
 
             OrganizerRequest.objects.create(user=user)
             return Response(
-                {"success": True, "message": "Organizer request submitted successfully"},
+                {"success": True, "message": "Organizer request submitted successfully."},
                 status=status.HTTP_201_CREATED
             )
 
@@ -365,6 +358,23 @@ class OrganizerRequestHandle(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
             
+class OrganizerRequestStatus(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            organizer_request_data = OrganizerRequest.objects.get(user=request.user)
+            return Response({
+                "success": True,
+                "status": organizer_request_data.status,
+                "admin_notes": organizer_request_data.admin_notes,
+                "organizerVarified": request.user.organizerVerified,
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": "failed to load details",
+            }, status=status.HTTP_400_BAD_REQUEST)
             
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

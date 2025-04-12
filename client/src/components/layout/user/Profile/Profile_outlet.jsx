@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { get_ProfileData } from "@/store/user/userSlice";
 import {
     Edit2,
@@ -21,6 +21,7 @@ import EditProfileModal from "@/components/common/user/Profile/profile/EditProfi
 import ImageEditModal from "@/components/common/user/Profile/profile/ImageEditModal";
 import { toast } from "sonner";
 import api from "@/services/api";
+import { CheckOrganizerStatus } from "@/services/api";
 
 const Profile_outlet = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -44,6 +45,12 @@ const Profile_outlet = () => {
             twoFactorAuth: true,
         },
     });
+    const [userOrgaVeri, setuserOrgaVeri] = useState(false);
+    const [organizerStatus, setOrganizerStatus] = useState(null);
+    const [adminNotes, setAdminNotes] = useState("");
+    const [organizerVerified, setOrganizerVerified] = useState(false);
+    const wsRef = useRef();
+    const baseWebSocketURL = import.meta.env.VITE_WEBSOCKET_URL;
 
     useEffect(() => {
         if (!user && !loading) {
@@ -67,15 +74,67 @@ const Profile_outlet = () => {
                     twoFactorAuth: user.settings?.two_factor_auth || false,
                 },
             });
+            setuserOrgaVeri(user.organizerVerified);
+            setOrganizerVerified(user.organizerVerified || false);
+            fetchOrganiserStatus();
         }
     }, [user, loading, dispatch]);
 
-    // useEffect(() => {
-    //     if (performance.navigation.type === 1) {
-    //         console.log("Page was refreshed!");
-    //         // Call your function here
-    //     }
-    // }, []);
+    const fetchOrganiserStatus = async () => {
+        try {
+            const response = await CheckOrganizerStatus();
+            setOrganizerStatus(response.data.status);
+            setAdminNotes(response.data.admin_notes);
+            setOrganizerVerified(response.data.organizerVerified);
+        } catch (error) {
+            console.log(error);
+            setOrganizerStatus(null);
+            setAdminNotes("");
+        }
+    };
+
+    useEffect(() => {
+        if (user) {
+            wsRef.current = new WebSocket(`${baseWebSocketURL}/ws/organizer/${user.id}/`);
+
+            wsRef.current.onopen = () => {
+                console.log("web socket connected");
+            };
+            wsRef.current.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.type === "status_update") {
+                    setOrganizerStatus(data.status);
+                    setAdminNotes(data.admin_notes);
+                    setOrganizerVerified(data.organizerVerified);
+                    if (data.status === "approved") {
+                        toast.success("Your organizer request has been approved!", {
+                            duration: 3000,
+                            className: "text-white p-4 rounded-md",
+                        });
+                    } else if (data.status === "rejected") {
+                        toast.error(`Your organizer request was rejected. ${data.admin_notes || ""}`, {
+                            duration: 5000,
+                            className: "text-white p-4 rounded-md",
+                        });
+                    }
+                }
+            };
+
+            wsRef.current.onclose = () => {
+                console.log("WebSocket disconnected");
+            };
+
+            wsRef.current.onerror = (error) => {
+                console.error("WebSocket error:", error);
+            };
+        }
+
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
+    }, [user]);
 
     const transformSocialLinks = (links) => {
         const result = {};
@@ -187,14 +246,15 @@ const Profile_outlet = () => {
 
         try {
             const response = await api.post("users/request-organizer/");
+            const message = response.data.message || "Organizer request sent successfully!";
 
             if (response.data.success) {
-                toast.success("Organizer request sent successfully!", {
+                toast.success(message, {
                     duration: 3000,
                     className: "text-white p-4 rounded-md",
                 });
             } else {
-                toast.error(response.data.message || "Request failed. Please try again.", {
+                toast.error(message || "Request failed. Please try again.", {
                     duration: 3000,
                     className: "text-white p-4 rounded-md",
                 });
@@ -255,7 +315,11 @@ const Profile_outlet = () => {
                                 )}
                             </div>
                             <p className="text-[#10b981] text-lg">{userData.title}</p>
-
+                            {organizerStatus === "rejected" && adminNotes && (
+                                <div className="mt-4 p-3 bg-red-900/20 rounded-lg text-red-300 text-sm">
+                                    {adminNotes && `Reason for Reject: ${adminNotes}`}
+                                </div>
+                            )}
                             <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-4">
                                 {statCards.map((stat, index) => (
                                     <div
@@ -278,13 +342,21 @@ const Profile_outlet = () => {
                             <Edit2 size={18} />
                             Edit Profile
                         </button>
-                        {!user?.organizerVerified && (
+                        {!organizerVerified && organizerStatus !== "pending" && !userOrgaVeri && (
                             <button
                                 onClick={() => SubmitOrganizerRequest()}
                                 className="rounded-lg px-5 py-3 flex items-center justify-center gap-2 font-medium transition-all duration-200 hover:shadow-lg w-full bg-[#f59e0b] text-[#252543] hover:bg-[#d97706] cursor-pointer"
                             >
-                                <span>Request Organizer</span>
+                                <span>
+                                    {organizerStatus === "rejected" ? "ReInitiate Organizer Request" : "Request Organizer"}
+                                </span>
                             </button>
+                        )}
+
+                        {organizerStatus === "pending" && (
+                            <div className="rounded-lg px-1 py-3 flex items-center justify-center gap-2 font-medium transition-all duration-200 hover:shadow-lg w-full bg-blue-900 text-[#252543] hover:bg-[#d97706] cursor-pointer">
+                                <div className="text-yellow-300 text-sm">Organizer request pending approval</div>
+                            </div>
                         )}
                     </div>
                 </div>

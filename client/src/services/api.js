@@ -21,7 +21,7 @@ export const refreshToken = () => api.post("users/token/refresh/");
 export const logout = () => api.post("users/logout/");
 export const checkAuth = () => api.post("users/authenticated/");
 export const getProfile = () => api.get("users/profile/");
-export const CheckOrganizerStatus = () => api.get("users/check-organizer-status/");
+export const CheckOrganizerStatus = () => api.get("users/organizer-request-status/");
 export const forgotPassword = (data) => api.post("users/password-reset/", data)
 export const resetPassword = (data) => api.post("users/password-reset/confirm/", data)
 

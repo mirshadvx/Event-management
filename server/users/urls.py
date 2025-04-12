@@ -7,7 +7,8 @@ from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
                     get_user_profile, OrganizerRequestHandle, UpdateProfileInfo,
                     UpdateProfilePicture, CheckOrganizerStatus, CheckoutAPIView,
                     ApplyCouponAPIView,joined_events,cancel_ticket, WalletDetail,
-                    ForgotPasswordView,ResetPasswordView, SubscriptionCheckout)
+                    ForgotPasswordView,ResetPasswordView, SubscriptionCheckout,
+                    OrganizerRequestStatus)
 
 urlpatterns = [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -19,9 +20,10 @@ urlpatterns = [
     path('google-login/', google_login, name='google_login'),
     path('profile/',get_user_profile.as_view(), name='profile'),
     path('request-organizer/',OrganizerRequestHandle.as_view(),name='request_organizer'),
+    path('organizer-request-status/', OrganizerRequestStatus.as_view(),name='organizer_reqeust_status'),
     path('update-profile-info/',UpdateProfileInfo, name='update_profile_info'),
     path('update-profile-picture/',UpdateProfilePicture,name="update_profile_picture"),
-    path('check-organizer-status/', CheckOrganizerStatus.as_view(), name='check_organizer_status'),
+    # path('check-organizer-status/', CheckOrganizerStatus.as_view(), name='check_organizer_status'),
     # checkout
     path('checkout/', CheckoutAPIView.as_view(), name='checkout'),
     path('apply-coupon/', ApplyCouponAPIView.as_view(), name='apply-coupon'),

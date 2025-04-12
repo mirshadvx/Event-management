@@ -26,6 +26,8 @@ from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum
 from datetime import datetime
 from .paginations import BookingPaginationHistory, RefundHistoryPagination
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 import logging
 logger = logging.getLogger(__name__)
@@ -74,15 +76,12 @@ class OrganizerRequestList(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        # Get query parameters
         search = request.query_params.get('search', None)
         status_filter = request.query_params.get('status', None)
-        pagination_type = request.query_params.get('pagination', 'page')  # 'page' or 'limit'
+        pagination_type = request.query_params.get('pagination', 'page') 
 
-        # Base queryset
         queryset = OrganizerRequest.objects.all()
-
-        # Apply filters
+ 
         if search:
             queryset = queryset.filter(
                 user__username__icontains=search
@@ -93,13 +92,11 @@ class OrganizerRequestList(APIView):
         if status_filter and status_filter != 'all':
             queryset = queryset.filter(status=status_filter)
 
-        # Apply pagination
         if pagination_type == 'limit':
             paginator = StandardLimitOffsetPagination()
         else:
             paginator = StandardPageNumberPagination()
-
-        # Paginate the queryset
+            
         page = paginator.paginate_queryset(queryset, request)
         serializer = OrganizerRequestSerializer(page, many=True)
         
@@ -115,6 +112,7 @@ class OrganizerRequestUpdateStatus(APIView):
             organizer_request = OrganizerRequest.objects.get(pk=pk)
             new_status = request.data.get('status')
             admin_notes = request.data.get('admin_notes', '')
+            current_status = organizer_request.status
             print('admin status ', new_status)
 
             valid_statuses = dict(OrganizerRequest._meta.get_field('status').choices)
@@ -124,34 +122,33 @@ class OrganizerRequestUpdateStatus(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
+            if current_status == 'approved':
+                return Response({'error': 'User is already approved. Status cannot be changed.'}, status=status.HTTP_400_BAD_REQUEST)
+                
             with transaction.atomic():
-                # Update OrganizerRequest
                 organizer_request.status = new_status
                 organizer_request.handled_at = timezone.now()
                 organizer_request.admin_notes = admin_notes
                 organizer_request.save()
 
-                # Update related user's Profile
-                # Assuming organizer_request has a user field linking to Profile
-                user_profile = organizer_request.user  # Adjust this based on your actual field name
+                user_profile = organizer_request.user
                 
                 if new_status == 'approved': 
                     user_profile.organizerVerified = True
                 elif new_status == 'rejected':
                     user_profile.organizerVerified = False
                 user_profile.save()
-
-            # organizer_request.status = new_status
-            # organizer_request.handled_at = timezone.now()
-            # organizer_request.admin_notes = admin_notes
-            # organizer_request.save()
-            
-            # profile = organizer_request.user
-            # if new_status == 'approved':
-            #     profile.organizerVerified = True
-            # elif new_status == 'rejected':
-            #     profile.organizerVerified = False
-            # profile.save()
+                
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f"organizer_{user_profile.id}",
+                    {
+                        "type": "status_update",
+                        "status": new_status,
+                        "admin_notes": admin_notes,
+                        "organizerVerified": user_profile.organizerVerified,
+                        }
+                )
                    
             serializer = OrganizerRequestSerializer(organizer_request)
             return Response(serializer.data)
@@ -182,7 +179,7 @@ class OrganizerRequestBulkUpdate(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        requests = OrganizerRequest.objects.filter(id__in=ids)
+        requests = OrganizerRequest.objects.filter(id__in=ids).exclude(status="approved")
         updated_count = requests.update(
             status=new_status,
             handled_at=timezone.now()
@@ -557,3 +554,4 @@ class RefundHistoryListView(generics.ListAPIView):
         except Exception as e:
             logger.error(f"RefundHistoryListView {str(e)}")
             return WalletTransaction.objects.none()
+

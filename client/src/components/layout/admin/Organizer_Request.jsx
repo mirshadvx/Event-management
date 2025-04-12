@@ -366,7 +366,7 @@ const OrganizerRequest = () => {
                                                 )}
                                             </DialogContent>
                                         </Dialog>
-                                        <DropdownMenu>
+                                        {data.status !== "approved" && <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="sm" disabled={loading}>
                                                     <CiBoxList className="h-5 w-5" />
@@ -388,7 +388,8 @@ const OrganizerRequest = () => {
                                                     Reject
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        </DropdownMenu>}
+                                        
                                     </td>
                                 </tr>
                             ))
