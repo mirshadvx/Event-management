@@ -1,6 +1,7 @@
 # backend/serializers.py
 from rest_framework import serializers
-from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
+from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution,
+                     SubscriptionPlan)
 from users.models import Profile, SocialMediaLink, Booking, WalletTransaction, TicketRefund
 import cloudinary.uploader
 from event.models import TicketPurchase
@@ -44,42 +45,6 @@ class CouponSerializer(serializers.ModelSerializer):
         model = Coupon
         fields = "__all__"
         
-        
-
-# class BadgeSerializer(serializers.ModelSerializer):
-#     icon = serializers.ImageField(required=False)  # Changed to ImageField for file upload
-
-#     class Meta:
-#         model = Badge
-#         fields = ['id', 'name', 'description', 'category', 'icon', 'target_count', 
-#                  'applicable_role', 'criteria_type']
-
-#     def create(self, validated_data):
-#         icon_file = validated_data.pop('icon', None)
-#         if icon_file:
-#             upload_result = cloudinary.uploader.upload(icon_file)
-#             validated_data['icon'] = upload_result['secure_url']
-#         return Badge.objects.create(**validated_data)
-    
-#     def update(self, instance, validated_data):
-#         icon_file = validated_data.pop('icon', None)
-#         if icon_file:
-#             upload_result = cloudinary.uploader.upload(icon_file)
-#             print("******",upload_result)
-#             instance.icon = upload_result['secure_url']
-#         for attr, value in validated_data.items():
-#             setattr(instance, attr, value)
-#         instance.save()
-#         return instance
-
-# class BadgeSerializer(serializers.ModelSerializer):
-#     icon = serializers.URLField(required=False, allow_blank=True)
-
-#     class Meta:
-#         model = Badge
-#         fields = ['id', 'name', 'description', 'category', 'icon', 'target_count', 
-#                  'applicable_role', 'criteria_type']
-
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
@@ -181,3 +146,11 @@ class RefundHistorySerializer(serializers.ModelSerializer):
                 'username': obj.wallet.user.username
             }
         return None
+    
+        
+class SubscriptionPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPlan
+        fields = '__all__'
+        
+        

@@ -1,11 +1,16 @@
 from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (admin_login,OrganizerRequestList,
     OrganizerRequestUpdateStatus,
     OrganizerRequestBulkUpdate,
     OrganizerRequestUserDetails,
     UserListView, UserUpdateStatusView, UserBulkUpdateStatusView, CouponList,
     CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView,
-    RevenueDistributionListView, RevenueSummaryView, TransactionHistoryListView, RefundHistoryListView)
+    RevenueDistributionListView, RevenueSummaryView, TransactionHistoryListView, RefundHistoryListView,
+    SubscriptionPlanViewset)
+
+router = DefaultRouter()
+router.register(r'subscription-plans', SubscriptionPlanViewset, basename='subscription-plan')
 
 urlpatterns = [
     path('login/', admin_login, name="admin_login"),
@@ -28,4 +33,5 @@ urlpatterns = [
     path('revenue-summary/', RevenueSummaryView.as_view(), name='revenue-summary'),
     path('transaction-history/', TransactionHistoryListView.as_view(), name='transaction-history'),
     path('refund-history/', RefundHistoryListView.as_view(), name='refund-history'),
+    path('', include(router.urls)),
 ]

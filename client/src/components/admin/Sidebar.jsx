@@ -8,9 +8,11 @@ import { TicketPercent, TicketX } from "lucide-react";
 import { MdEvent } from "react-icons/md";
 import { BsBank2 } from "react-icons/bs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TbCalendarRepeat } from "react-icons/tb";
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
     const [financeOpen, setFinanceOpen] = useState(false);
+    const [subscriptionOpen, setSubcriptionOpen] = useState(false);
 
     const navItems = [
         { name: "Dashboard", icon: <GoGraph className="w-6 h-6" />, path: "dashboard" },
@@ -27,9 +29,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         { name: "Transaction History", path: "finance/transactions-history" },
         { name: "Refund History", path: "finance/refunds-history" },
     ];
-
+    const subscriptionItems = [
+        { name: "plan", path: "subscription/plan" },
+        { name: "plan users", path: "subscription/plan-users" },
+    ];
     const additionalItems = [
-        { name: "Subscription", icon: <CreditCard className="w-6 h-6" />, path: "subscription" },
+        // { name: "Subscription", icon: <CreditCard className="w-6 h-6" />, path: "subscription" },
         { name: "Settings", icon: <Settings className="w-6 h-6" />, path: "settings" },
     ];
 
@@ -87,6 +92,43 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                         {!collapsed && financeOpen && (
                             <div className="ml-6 mt-1 space-y-1">
                                 {financeItems.map((item) => (
+                                    <NavLink
+                                        key={item.name}
+                                        to={`/admin/${item.path}`}
+                                        className={({ isActive }) =>
+                                            `block p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm ${
+                                                isActive ? "bg-gray-200 dark:bg-gray-700" : ""
+                                            }`
+                                        }
+                                    >
+                                        {item.name}
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={() => !collapsed && setSubcriptionOpen(!subscriptionOpen)}
+                            className={`w-full flex items-center p-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                                collapsed ? "justify-center" : "justify-between"
+                            }`}
+                        >
+                            <div className="flex items-center">
+                                <TbCalendarRepeat className="w-6 h-6" />
+                                {!collapsed && <span className="ml-3">Subscription</span>}
+                            </div>
+                            {!collapsed && (
+                                <ChevronDown
+                                    className={`h-4 w-4 transition-transform ${subscriptionOpen ? "rotate-180" : ""}`}
+                                />
+                            )}
+                        </button>
+
+                        {!collapsed && subscriptionOpen && (
+                            <div className="ml-6 mt-1 space-y-1">
+                                {subscriptionItems.map((item) => (
                                     <NavLink
                                         key={item.name}
                                         to={`/admin/${item.path}`}

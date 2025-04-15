@@ -5,14 +5,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework import viewsets, status, generics
+from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
-from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution
+from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan
 from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
-                          BookingSerializerHistory, RefundHistorySerializer)
+                          BookingSerializerHistory, RefundHistorySerializer, SubscriptionPlanSerializer)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -28,6 +28,7 @@ from datetime import datetime
 from .paginations import BookingPaginationHistory, RefundHistoryPagination
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from rest_framework.viewsets import ModelViewSet
 
 import logging
 logger = logging.getLogger(__name__)
@@ -550,4 +551,6 @@ class RefundHistoryListView(generics.ListAPIView):
             logger.error(f"RefundHistoryListView {str(e)}")
             return WalletTransaction.objects.none()
 
-
+class SubscriptionPlanViewset(ModelViewSet):
+    queryset = SubscriptionPlan.objects.all()
+    serializer_class = SubscriptionPlanSerializer

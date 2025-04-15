@@ -195,7 +195,7 @@ CORS_ALLOW_CREDENTIALS = True
 SIMPLE_JWT = {
     'LEEWAY': 100,  # Allows 10 seconds of clock difference    
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),  # Set token expiry time
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=2),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,  
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",

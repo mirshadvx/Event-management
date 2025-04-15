@@ -11,6 +11,7 @@ import Revenue_Overview from "@/components/layout/admin/finance/Revenue_Overview
 import Transaction_History from "@/components/layout/admin/finance/Transaction_History";
 import Refund_History from "@/components/layout/admin/finance/Refund_History";
 import Ticket_Purchases from "@/components/layout/admin/Ticket_Purchases";
+import Plan from "@/components/layout/admin/subscription/plan";
 
 function fun() {
     return <h1>hit out let</h1>;
@@ -35,6 +36,7 @@ const AdminRoutes = () => {
             <Route path="finance/revenue" element={<Revenue_Overview />} />
             <Route path="finance/transactions-history" element={<Transaction_History />} />
             <Route path="finance/refunds-history" element={<Refund_History />} />
+            <Route path="subscription/plan" element={<Plan />} />
             <Route index element={fun()} />
         </Route>
     );
