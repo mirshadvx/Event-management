@@ -203,4 +203,8 @@ class WalletSerializer(serializers.ModelSerializer):
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionPlan
-        fields = ["id", "name" , "price", "features"]
+        fields = [
+            "id", "name", "price", "event_join_limit", "event_creation_limit",
+            "email_notification", "group_chat", "personal_chat", "advanced_analytics",
+            "ticket_scanning", "live_streaming", "active"
+        ]

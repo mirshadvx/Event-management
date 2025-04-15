@@ -4,102 +4,11 @@ import api from "@/services/api";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle, XCircle } from "lucide-react";
+import CheckoutForm from "@/components/common/user/checkout/CheckoutForm";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
-const CheckoutForm = ({ plan, onSuccess }) => {
-    const stripe = useStripe();
-    const elements = useElements();
-    const [error, setError] = useState(null);
-    const [processing, setProcessing] = useState(false);
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        setProcessing(true);
-        setError(null);
-
-        if (!stripe || !elements) {
-            setError("Payment system not initialized");
-            setProcessing(false);
-            return;
-        }
-
-        try {
-            const intentResponse = await api.post("/users/subscription-checkout/", {
-                plan_id: plan.id,
-                payment_method: "stripe",
-                create_intent: true,
-            });
-
-            if (!intentResponse.data.success) {
-                setError(intentResponse.data.message);
-                setProcessing(false);
-                return;
-            }
-
-            const result = await stripe.confirmCardPayment(intentResponse.data.client_secret, {
-                payment_method: {
-                    card: elements.getElement(CardElement),
-                    billing_details: {
-                        name: "Customer",
-                    },
-                },
-            });
-
-            if (result.error) {
-                setError(result.error.message);
-                setProcessing(false);
-                return;
-            }
-
-            const confirmationResponse = await api.post("/users/subscription-checkout/", {
-                plan_id: plan.id,
-                payment_method: "stripe",
-                payment_intent_id: result.paymentIntent.id,
-            });
-
-            if (confirmationResponse.data.success) {
-                onSuccess();
-            } else {
-                setError(confirmationResponse.data.message);
-            }
-        } catch (err) {
-            const errorMessage = err.response?.data?.message || err.message || "An error occurred during payment";
-            setError(errorMessage);
-        } finally {
-            setProcessing(false);
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <CardElement
-                className="bg-white/10 p-4 rounded-lg text-white"
-                options={{
-                    style: {
-                        base: {
-                            color: "#ffffff",
-                            "::placeholder": {
-                                color: "#aab7c4",
-                            },
-                        },
-                        invalid: {
-                            color: "#ef4444",
-                        },
-                    },
-                }}
-            />
-            {error && <div className="text-red-500">{error}</div>}
-            <button
-                type="submit"
-                disabled={!stripe || processing}
-                className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-                {processing ? "Processing..." : `Pay ${Number(plan.price).toFixed(2)}`}
-            </button>
-        </form>
-    );
-};
 
 const SubscriptionCheckout = () => {
     const [plans, setPlans] = useState([]);
@@ -130,7 +39,6 @@ const SubscriptionCheckout = () => {
                 setLoading(false);
             }
         };
-
         fetchPlans();
     }, []);
 
@@ -159,7 +67,7 @@ const SubscriptionCheckout = () => {
         setSuccess(true);
     };
 
-    if (loading && !plans.length) {
+    if (loading && plans.length === 0) {
         return (
             <div className="min-h-screen bg-indigo-950 flex items-center justify-center">
                 <p className="text-white">Loading plans...</p>
@@ -168,6 +76,7 @@ const SubscriptionCheckout = () => {
     }
 
     const selectedPlanData = plans.find((p) => p.id === selectedPlan);
+    
     if (success) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-indigo-950 to-purple-900 flex items-center justify-center p-4">
@@ -255,14 +164,15 @@ const SubscriptionCheckout = () => {
         );
     }
 
-    // const selectedPlanData = plans.find((p) => p.id === selectedPlan);
-
     return (
         <div className="min-h-screen bg-indigo-950 text-white py-8 px-4 md:px-8">
             <div className="max-w-6xl mx-auto mb-6">
-                <button className="flex items-center text-white hover:text-green-400 transition-colors">
+                <button 
+                    className="flex items-center text-white hover:text-green-400 transition-colors"
+                    onClick={() => navigate("/")}
+                >
                     <ArrowLeft size={20} className="mr-2" />
-                    <span onClick={() => navigate("/")}>Back</span>
+                    <span>Back</span>
                 </button>
             </div>
 
@@ -293,10 +203,29 @@ const SubscriptionCheckout = () => {
                                             </span>
                                         </div>
                                         <ul className="space-y-2">
-                                            {plan.features.map((feature, index) => (
-                                                <li key={index} className="flex items-start">
-                                                    <Check size={16} className="text-green-400 mt-1 mr-2 flex-shrink-0" />
-                                                    <span>{feature}</span>
+                                            {[
+                                                { key: "email_notification", name: "Email Notification" },
+                                                { key: "group_chat", name: "Group Chat" },
+                                                { key: "personal_chat", name: "Personal Chat" },
+                                                { key: "advanced_analytics", name: "Advanced Analytics" },
+                                                { key: "ticket_scanning", name: "Ticket Scanning" },
+                                                { key: "live_streaming", name: "Live Streaming" },
+                                            ].map((feature) => (
+                                                <li key={feature.key} className="flex items-center text-sm">
+                                                    {plan[feature.key] ? (
+                                                        <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
+                                                    ) : (
+                                                        <XCircle className="w-6 h-6 text-gray-500 mr-2" />
+                                                    )}
+                                                    <span
+                                                        className={
+                                                            plan[feature.key]
+                                                                ? "text-gray-200 text-lg"
+                                                                : "text-gray-500 text-lg"
+                                                        }
+                                                    >
+                                                        {feature.name}
+                                                    </span>
                                                 </li>
                                             ))}
                                         </ul>
@@ -337,38 +266,40 @@ const SubscriptionCheckout = () => {
                                 </div>
                             </div>
 
-                            {paymentMethod === "stripe" && selectedPlanData && (
-                                <Elements stripe={stripePromise}>
-                                    <CheckoutForm plan={selectedPlanData} onSuccess={handlePaymentSuccess} />
-                                </Elements>
-                            )}
+                            {selectedPlan && selectedPlanData && (
+                                <>
+                                    {paymentMethod === "stripe" && (
+                                        <Elements stripe={stripePromise}>
+                                            <CheckoutForm plan={selectedPlanData} onSuccess={handlePaymentSuccess} />
+                                        </Elements>
+                                    )}
 
-                            {paymentMethod === "wallet" && selectedPlanData && (
-                                <button
-                                    onClick={handleWalletPayment}
-                                    disabled={loading}
-                                    className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
-                                >
-                                    {loading ? "Processing..." : `Pay ${Number(selectedPlanData.price).toFixed(2)}`}
-                                </button>
-                            )}
+                                    {paymentMethod === "wallet" && (
+                                        <button
+                                            onClick={handleWalletPayment}
+                                            disabled={loading}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            {loading ? "Processing..." : `Pay ${Number(selectedPlanData.price).toFixed(2)}`}
+                                        </button>
+                                    )}
 
-                            {selectedPlanData && (
-                                <div className="mt-8 pt-6 border-t border-indigo-800">
-                                    <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-                                    <div className="space-y-2 mb-4">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-300">{selectedPlanData.name}</span>
-                                            <span>{Number(selectedPlanData.price).toFixed(2)} /mo</span>
+                                    <div className="mt-8 pt-6 border-t border-indigo-800">
+                                        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                                        <div className="space-y-2 mb-4">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">{selectedPlanData.name}</span>
+                                                <span>{Number(selectedPlanData.price).toFixed(2)} /mo</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between pt-4 border-t border-indigo-800">
+                                            <span className="font-bold text-lg">Total</span>
+                                            <span className="font-bold text-lg text-green-400">
+                                                {Number(selectedPlanData.price).toFixed(2)} /mo
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="flex justify-between pt-4 border-t border-indigo-800">
-                                        <span className="font-bold text-lg">Total</span>
-                                        <span className="font-bold text-lg text-green-400">
-                                            {Number(selectedPlanData.price).toFixed(2)} /mo
-                                        </span>
-                                    </div>
-                                </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -379,3 +310,97 @@ const SubscriptionCheckout = () => {
 };
 
 export default SubscriptionCheckout;
+
+// const CheckoutForm = ({ plan, onSuccess }) => {
+//     const stripe = useStripe();
+//     const elements = useElements();
+//     const [error, setError] = useState(null);
+//     const [processing, setProcessing] = useState(false);
+
+//     const handleSubmit = async (event) => {
+//         event.preventDefault();
+//         setProcessing(true);
+//         setError(null);
+
+//         if (!stripe || !elements) {
+//             setError("Payment system not initialized");
+//             setProcessing(false);
+//             return;
+//         }
+
+//         try {
+//             const intentResponse = await api.post("/users/subscription-checkout/", {
+//                 plan_id: plan.id,
+//                 payment_method: "stripe",
+//                 create_intent: true,
+//             });
+
+//             if (!intentResponse.data.success) {
+//                 setError(intentResponse.data.message);
+//                 setProcessing(false);
+//                 return;
+//             }
+
+//             const result = await stripe.confirmCardPayment(intentResponse.data.client_secret, {
+//                 payment_method: {
+//                     card: elements.getElement(CardElement),
+//                     billing_details: {
+//                         name: "Customer",
+//                     },
+//                 },
+//             });
+
+//             if (result.error) {
+//                 setError(result.error.message);
+//                 setProcessing(false);
+//                 return;
+//             }
+
+//             const confirmationResponse = await api.post("/users/subscription-checkout/", {
+//                 plan_id: plan.id,
+//                 payment_method: "stripe",
+//                 payment_intent_id: result.paymentIntent.id,
+//             });
+
+//             if (confirmationResponse.data.success) {
+//                 onSuccess();
+//             } else {
+//                 setError(confirmationResponse.data.message);
+//             }
+//         } catch (err) {
+//             const errorMessage = err.response?.data?.message || err.message || "An error occurred during payment";
+//             setError(errorMessage);
+//         } finally {
+//             setProcessing(false);
+//         }
+//     };
+
+//     return (
+//         <form onSubmit={handleSubmit} className="space-y-4">
+//             <CardElement
+//                 className="bg-white/10 p-4 rounded-lg text-white"
+//                 options={{
+//                     style: {
+//                         base: {
+//                             color: "#ffffff",
+//                             "::placeholder": {
+//                                 color: "#aab7c4",
+//                             },
+//                         },
+//                         invalid: {
+//                             color: "#ef4444",
+//                         },
+//                     },
+//                 }}
+//             />
+//             {error && <div className="text-red-500">{error}</div>}
+//             <button
+//                 type="submit"
+//                 disabled={!stripe || processing}
+//                 className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
+//             >
+//                 {processing ? "Processing..." : `Pay ${Number(plan.price).toFixed(2)}`}
+//             </button>
+//         </form>
+//     );
+// };
