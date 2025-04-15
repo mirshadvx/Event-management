@@ -94,7 +94,7 @@ const Profile_outlet = () => {
     };
 
     useEffect(() => {
-        if (user) {
+        if (user && organizerVerified === false) {
             wsRef.current = new WebSocket(`${baseWebSocketURL}/ws/organizer/${user.id}/`);
 
             wsRef.current.onopen = () => {
@@ -134,7 +134,7 @@ const Profile_outlet = () => {
                 wsRef.current.close();
             }
         };
-    }, [user]);
+    }, [user, organizerVerified]);
 
     const transformSocialLinks = (links) => {
         const result = {};
