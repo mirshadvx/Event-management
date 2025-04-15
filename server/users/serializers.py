@@ -50,6 +50,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     social_media_links = SocialMediaLinkSerializer(many=True)
     settings = UserSettingsSerializer()
+    plan = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -66,6 +67,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "social_media_links",
             "settings",
+            "plan",
         ]
         read_only_fields = ["email", "created_at"]
 
@@ -98,6 +100,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+    def get_plan(self, obj):
+        subscription = obj.user_subscription.first()
+        if subscription:
+            return subscription.plan.name
+        return None
+            
 
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
