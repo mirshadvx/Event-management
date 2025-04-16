@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import api from "@/services/api";
+import { useDispatch } from "react-redux";
+import { get_ProfileData } from "@/store/user/userSlice";
 
 const CheckoutForm = ({ plan, onSuccess }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [error, setError] = useState(null);
     const [processing, setProcessing] = useState(false);
+    const dispatch = useDispatch()
 
     const handleSubmit = async (event) => {
         event.preventDefault();
@@ -55,6 +58,7 @@ const CheckoutForm = ({ plan, onSuccess }) => {
 
             if (confirmationResponse.data.success) {
                 onSuccess();
+                dispatch(get_ProfileData());
             } else {
                 setError(confirmationResponse.data.message);
             }

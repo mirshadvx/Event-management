@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
+import { HashLoader } from "react-spinners";
 
 const UpgradeSubscription = () => {
     const [plans, setPlans] = useState([]);
@@ -64,7 +65,7 @@ const UpgradeSubscription = () => {
     if (loading && plans.length === 0) {
         return (
             <div className="min-h-screen bg-indigo-950 flex items-center justify-center">
-                <p className="text-white">Loading plans...</p>
+                <HashLoader color="#54c955" />
             </div>
         );
     }
