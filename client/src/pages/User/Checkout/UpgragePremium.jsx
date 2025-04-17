@@ -19,7 +19,7 @@ const UpgragePremium = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const { user, loading } = useSelector((state) => state.user);
-    const[UpgradePlan , setUpgradePlan ] = useState(null);
+    const [upgradePlan, setUpgradePlan] = useState(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -41,7 +41,6 @@ const UpgragePremium = () => {
                 }
             } catch (err) {
                 setError("Failed to load subscription plans");
-                console.error("Error fetching plans:", err);
             } finally {
                 setLoading(false);
             }
@@ -50,22 +49,22 @@ const UpgragePremium = () => {
     }, []);
 
     useEffect(() => {
-        const UpgradePlanData = async () => {
+        const fetchUpgradePlanData = async () => {
             try {
                 setLoading(true);
                 const response = await api.get("/users/subscription-upgrade/");
-                if (response.data.success){
-                    setUpgradePlan(response.data)
-                }else{
-                    setError(response.data.message)
+                if (response.data.success) {
+                    setUpgradePlan(response.data);
+                } else {
+                    setError(response.data.message);
                 }
             } catch (err) {
-                setError(err?.response.data.message);
+                setError(err?.response?.data?.message || "Failed to load upgrade plan data");
             } finally {
                 setLoading(false);
             }
         };
-        UpgradePlanData();
+        fetchUpgradePlanData();
     }, []);
 
     const handleWalletPayment = async () => {
@@ -138,7 +137,7 @@ const UpgragePremium = () => {
                             <h3 className="text-indigo-300 font-medium mb-3">Order Details</h3>
                             <div className="flex justify-between text-sm mb-2">
                                 <span className="text-indigo-200">Plan</span>
-                                <span className="text-white font-medium">{"Premium Plan"}</span>
+                                <span className="text-white font-medium">Premium Plan</span>
                             </div>
                             <div className="flex justify-between text-sm mb-2">
                                 <span className="text-indigo-200">Billing Cycle</span>
@@ -281,37 +280,51 @@ const UpgragePremium = () => {
                                     </div>
                                 </div>
 
-                                <>
-                                    {paymentMethod === "stripe" && (
-                                        <Elements stripe={stripePromise}>
-                                            <CheckoutForm plan={plans} onSuccess={handlePaymentSuccess} />
-                                        </Elements>
-                                    )}
+                                {paymentMethod === "stripe" && (
+                                    <Elements stripe={stripePromise}>
+                                        <CheckoutForm plan={plans} onSuccess={handlePaymentSuccess} />
+                                    </Elements>
+                                )}
 
-                                    {paymentMethod === "wallet" && (
-                                        <button
-                                            onClick={handleWalletPayment}
-                                            disabled={Loading}
-                                            className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
-                                        >
-                                            {Loading ? "Processing..." : `Pay `}
-                                        </button>
-                                    )}
+                                {paymentMethod === "wallet" && (
+                                    <button
+                                        onClick={handleWalletPayment}
+                                        disabled={Loading || !upgradePlan}
+                                        className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        {Loading ? "Processing..." : `Pay ${upgradePlan?.extra_amount || '0.00'}`}
+                                    </button>
+                                )}
 
-                                    <div className="mt-8 pt-6 border-t border-indigo-800">
-                                        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                                <div className="mt-8 pt-6 border-t border-indigo-800">
+                                    <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                                    {upgradePlan && (
                                         <div className="space-y-2 mb-4">
                                             <div className="flex justify-between">
-                                                <span className="text-gray-300">Upgrade Basic Plan ${`charged to move `}</span>
-                                                <span>{UpgradePlan.extra_amount}</span>
+                                                <span className="text-gray-300">Basic Plan (Used: {upgradePlan.basic_days_used} days)</span>
+                                                <span>{upgradePlan.basic_price_paid.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Remaining Balance</span>
+                                                <span>{upgradePlan.basic_balance.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Premium Plan ({upgradePlan.remaining_days} days)</span>
+                                                <span>{upgradePlan.premium_price.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Upgrade Cost</span>
+                                                <span>{upgradePlan.extra_amount.toFixed(2)}</span>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between pt-4 border-t border-indigo-800">
-                                            <span className="font-bold text-lg">Total</span>
-                                            <span className="font-bold text-lg text-green-400">{UpgradePlan.extra_amount}</span>
-                                        </div>
+                                    )}
+                                    <div className="flex justify-between pt-4 border-t border-indigo-800">
+                                        <span className="font-bold text-lg">Total Due Now</span>
+                                        <span className="font-bold text-lg text-green-400">
+                                            {upgradePlan?.extra_amount.toFixed(2) || '0.00'}
+                                        </span>
                                     </div>
-                                </>
+                                </div>
                             </div>
                         </div>
                     </div>
