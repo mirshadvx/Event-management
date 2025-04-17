@@ -52,6 +52,21 @@ const UpgragePremium = () => {
         fetchPlans();
     }, []);
 
+    useEffect(() => {
+        const UpgradePlanData = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get("/users/subscription-upgrade/");
+                console.log(response);
+            } catch (err) {
+                setError(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        UpgradePlanData();
+    }, []);
+
     const handleWalletPayment = async () => {
         try {
             setLoading(true);

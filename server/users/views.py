@@ -1048,3 +1048,43 @@ class SubscriptionCheckout(APIView):
                 "success": False,
                 "message": "An unexpected error occurred"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+class UpgradePlan(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        try:
+            current_subscription = UserSubscription.objects.get(user=user)
+
+            current_plan = current_subscription.plan.name.lower()
+            if current_plan == "basic":
+                try:
+                    premium_plan = SubscriptionPlan.objects.get(name="premium", active=True)
+                except SubscriptionPlan.DoesNotExist:
+                    return Response({"success": False, "message": "Premium plan is currently unavailable"}, status=status.HTTP_400_BAD_REQUEST)
+
+                remaining_days = current_subscription.days_remaining()
+
+                if remaining_days == 0:
+                    return Response({"success": False, "message": "Your current plan has expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+                premium_price = float(premium_plan.price)
+                extra_amount_per_day = premium_price / 30
+                extra_amount = round(extra_amount_per_day * remaining_days, 2)
+
+                return Response({
+                    "success": True,
+                    "extra_amount": extra_amount,
+                    "remaining_days": remaining_days,
+                    "premium_price": premium_price
+                })
+
+            return Response({"success": False, "message": "Upgrade not available from your current plan"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except UserSubscription.DoesNotExist:
+            return Response({"success": False, "message": "No active subscription found"}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(f"[Upgrade Error]: {e}")
+            return Response({"success": False, "message": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

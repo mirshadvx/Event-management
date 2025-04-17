@@ -8,7 +8,7 @@ from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
                     UpdateProfilePicture, CheckOrganizerStatus, CheckoutAPIView,
                     ApplyCouponAPIView,joined_events,cancel_ticket, WalletDetail,
                     ForgotPasswordView,ResetPasswordView, SubscriptionCheckout,
-                    OrganizerRequestStatus)
+                    OrganizerRequestStatus, UpgradePlan)
 
 urlpatterns = [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -36,4 +36,5 @@ urlpatterns = [
     path('password-reset/confirm/', ResetPasswordView.as_view(), name='reset_password'),
     # checkout for subscription
     path('subscription-checkout/', SubscriptionCheckout.as_view(), name='subscription-chekcout'),
+    path('subscription-upgrade/', UpgradePlan.as_view(), name='subscription_upgrade'),
 ]

@@ -170,8 +170,9 @@ class UserSubscription(models.Model):
     def days_remaining(self):
         if not self.is_valid():
             return 0
+        print(self.end_date,'00000',self.end_date.date(),'8888',timezone.now().date())
         days = self.end_date.date() - timezone.now().date()
-        return max(days.days())
+        return max(days.days,0)
     
 class SubscriptionTransaction(models.Model):
     subscription = models.ForeignKey(UserSubscription, on_delete=models.CASCADE, related_name="transactions")
@@ -180,7 +181,6 @@ class SubscriptionTransaction(models.Model):
         ("purchase", "Purchase"),
         ("renewal", "Renewal"),
         ("upgrade", "Upgrade"),
-        ("downgrade", "Downgrade")
     ])
     payment_method = models.CharField(max_length=50)
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
