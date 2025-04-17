@@ -14,12 +14,12 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const UpgragePremium = () => {
     const [plans, setPlans] = useState([]);
-    const [selectedPlan, setSelectedPlan] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState("wallet");
     const [Loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const { user, loading } = useSelector((state) => state.user);
+    const[UpgradePlan , setUpgradePlan ] = useState(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
@@ -36,9 +36,6 @@ const UpgragePremium = () => {
                 const response = await api.get("/users/subscription-checkout/");
                 if (response.data.success) {
                     setPlans(response.data.plans);
-                    if (response.data.plans.length > 0) {
-                        setSelectedPlan(response.data.plans[0].id);
-                    }
                 } else {
                     setError(response.data.message);
                 }
@@ -57,9 +54,13 @@ const UpgragePremium = () => {
             try {
                 setLoading(true);
                 const response = await api.get("/users/subscription-upgrade/");
-                console.log(response);
+                if (response.data.success){
+                    setUpgradePlan(response.data)
+                }else{
+                    setError(response.data.message)
+                }
             } catch (err) {
-                setError(err);
+                setError(err?.response.data.message);
             } finally {
                 setLoading(false);
             }
@@ -72,7 +73,6 @@ const UpgragePremium = () => {
             setLoading(true);
             setError(null);
             const response = await api.post("/users/subscription-checkout/", {
-                plan_id: selectedPlan,
                 payment_method: "wallet",
             });
 
@@ -91,8 +91,6 @@ const UpgragePremium = () => {
     const handlePaymentSuccess = () => {
         setSuccess(true);
     };
-
-    const selectedPlanData = plans.find((p) => p.id === selectedPlan);
 
     if (success) {
         return (
@@ -140,7 +138,7 @@ const UpgragePremium = () => {
                             <h3 className="text-indigo-300 font-medium mb-3">Order Details</h3>
                             <div className="flex justify-between text-sm mb-2">
                                 <span className="text-indigo-200">Plan</span>
-                                <span className="text-white font-medium">{selectedPlanData?.name || "Premium Plan"}</span>
+                                <span className="text-white font-medium">{"Premium Plan"}</span>
                             </div>
                             <div className="flex justify-between text-sm mb-2">
                                 <span className="text-indigo-200">Billing Cycle</span>
@@ -209,12 +207,7 @@ const UpgragePremium = () => {
                                         .map((plan) => (
                                             <div
                                                 key={plan.id}
-                                                className={`relative rounded-lg p-5 cursor-pointer transition-all ${
-                                                    selectedPlan === plan.id
-                                                        ? "bg-green-500/20 border-2 border-green-500"
-                                                        : "bg-white/5 border-2 border-transparent hover:bg-white/10"
-                                                }`}
-                                                onClick={() => setSelectedPlan(plan.id)}
+                                                className="relative rounded-lg p-5 cursor-pointer transition-all bg-green-500/20 border-2 border-green-500"
                                             >
                                                 <div className="flex justify-between items-start mb-3">
                                                     <h3 className="text-lg font-medium">{plan.name}</h3>
@@ -288,43 +281,37 @@ const UpgragePremium = () => {
                                     </div>
                                 </div>
 
-                                {selectedPlan && selectedPlanData && (
-                                    <>
-                                        {paymentMethod === "stripe" && (
-                                            <Elements stripe={stripePromise}>
-                                                <CheckoutForm plan={selectedPlanData} onSuccess={handlePaymentSuccess} />
-                                            </Elements>
-                                        )}
+                                <>
+                                    {paymentMethod === "stripe" && (
+                                        <Elements stripe={stripePromise}>
+                                            <CheckoutForm plan={plans} onSuccess={handlePaymentSuccess} />
+                                        </Elements>
+                                    )}
 
-                                        {paymentMethod === "wallet" && (
-                                            <button
-                                                onClick={handleWalletPayment}
-                                                disabled={Loading}
-                                                className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
-                                            >
-                                                {Loading
-                                                    ? "Processing..."
-                                                    : `Pay ${Number(selectedPlanData.price).toFixed(2)}`}
-                                            </button>
-                                        )}
+                                    {paymentMethod === "wallet" && (
+                                        <button
+                                            onClick={handleWalletPayment}
+                                            disabled={Loading}
+                                            className="w-full bg-green-500 hover:bg-green-600 text-black font-bold py-4 px-4 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            {Loading ? "Processing..." : `Pay `}
+                                        </button>
+                                    )}
 
-                                        <div className="mt-8 pt-6 border-t border-indigo-800">
-                                            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-                                            <div className="space-y-2 mb-4">
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-300">{selectedPlanData.name}</span>
-                                                    <span>{Number(selectedPlanData.price).toFixed(2)} /mo</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-between pt-4 border-t border-indigo-800">
-                                                <span className="font-bold text-lg">Total</span>
-                                                <span className="font-bold text-lg text-green-400">
-                                                    {Number(selectedPlanData.price).toFixed(2)} /mo
-                                                </span>
+                                    <div className="mt-8 pt-6 border-t border-indigo-800">
+                                        <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+                                        <div className="space-y-2 mb-4">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-300">Upgrade Basic Plan ${`charged to move `}</span>
+                                                <span>{UpgradePlan.extra_amount}</span>
                                             </div>
                                         </div>
-                                    </>
-                                )}
+                                        <div className="flex justify-between pt-4 border-t border-indigo-800">
+                                            <span className="font-bold text-lg">Total</span>
+                                            <span className="font-bold text-lg text-green-400">{UpgradePlan.extra_amount}</span>
+                                        </div>
+                                    </div>
+                                </>
                             </div>
                         </div>
                     </div>

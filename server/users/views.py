@@ -16,7 +16,7 @@ import json
 from django.core.mail import send_mail
 from .models import (Profile, UserSettings, SocialMediaLink, Wallet, WalletTransaction, Booking,
                      PasswordResetToken, TicketRefund)
-from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan, UserSubscription
+from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan, UserSubscription, SubscriptionTransaction
 from event.models import Event, TicketPurchase, Ticket
 # import firebase_admin.auth as firebase_auth
 from django.contrib.auth import get_user_model
@@ -1051,40 +1051,73 @@ class SubscriptionCheckout(APIView):
             
 class UpgradePlan(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         user = request.user
+
         try:
             current_subscription = UserSubscription.objects.get(user=user)
 
-            current_plan = current_subscription.plan.name.lower()
-            if current_plan == "basic":
-                try:
-                    premium_plan = SubscriptionPlan.objects.get(name="premium", active=True)
-                except SubscriptionPlan.DoesNotExist:
-                    return Response({"success": False, "message": "Premium plan is currently unavailable"}, status=status.HTTP_400_BAD_REQUEST)
-
-                remaining_days = current_subscription.days_remaining()
-
-                if remaining_days == 0:
-                    return Response({"success": False, "message": "Your current plan has expired"}, status=status.HTTP_400_BAD_REQUEST)
-
-                premium_price = float(premium_plan.price)
-                extra_amount_per_day = premium_price / 30
-                extra_amount = round(extra_amount_per_day * remaining_days, 2)
-
+            if current_subscription.plan.name.lower() != "basic":
                 return Response({
-                    "success": True,
-                    "extra_amount": extra_amount,
-                    "remaining_days": remaining_days,
-                    "premium_price": premium_price
-                })
+                    "success": False,
+                    "message": "Upgrade not available from your current plan"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"success": False, "message": "Upgrade not available from your current plan"}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                premium_plan = SubscriptionPlan.objects.get(name="premium", active=True)
+            except SubscriptionPlan.DoesNotExist:
+                return Response({
+                    "success": False,
+                    "message": "Premium plan is currently unavailable"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            remaining_days = current_subscription.days_remaining()
+            if remaining_days == 0:
+                return Response({
+                    "success": False,
+                    "message": "Your current plan has expired"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            last_transaction = SubscriptionTransaction.objects.filter(
+                subscription=current_subscription,
+                transaction_type__in=["purchase", "renewal"]
+            ).order_by("-transaction_date").first()
+
+            basic_price = float(last_transaction.amount) if last_transaction else float(current_subscription.plan.price)
+
+            today = timezone.now().date()
+            days_used = (today - current_subscription.start_date.date()).days
+            days_used = max(days_used, 0)
+
+            basic_price_per_day = basic_price / 30
+            used_amount = basic_price_per_day * days_used
+            remaining_balance = max(basic_price - used_amount, 0)
+
+            premium_price = float(premium_plan.price)
+            premium_price_per_day = premium_price / 30
+            upgrade_cost = round((premium_price_per_day * remaining_days) - remaining_balance, 2)
+            upgrade_cost = max(upgrade_cost, 0)
+
+            return Response({
+                "success": True,
+                "extra_amount": upgrade_cost,
+                "remaining_days": remaining_days,
+                "premium_price": premium_price,
+                "basic_price_paid": basic_price,
+                "basic_days_used": days_used,
+                "basic_balance": round(remaining_balance, 2)
+            })
 
         except UserSubscription.DoesNotExist:
-            return Response({"success": False, "message": "No active subscription found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                "success": False,
+                "message": "No active subscription found"
+            }, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
             print(f"[Upgrade Error]: {e}")
-            return Response({"success": False, "message": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({
+                "success": False,
+                "message": "An unexpected error occurred while processing your upgrade."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
