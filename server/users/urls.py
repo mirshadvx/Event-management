@@ -1,7 +1,6 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
-    TokenRefreshView,
-)
+    TokenRefreshView,)
 from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
                     logout, is_authenticated, register, verify_otp, google_login,
                     get_user_profile, OrganizerRequestHandle, UpdateProfileInfo,
@@ -9,6 +8,7 @@ from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
                     ApplyCouponAPIView,joined_events,cancel_ticket, WalletDetail,
                     ForgotPasswordView,ResetPasswordView, SubscriptionCheckout,
                     OrganizerRequestStatus, UpgradePlan)
+from users.services.stripe_webhooks import stripe_webhook
 
 urlpatterns = [
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -35,6 +35,7 @@ urlpatterns = [
     path('password-reset/', ForgotPasswordView.as_view(), name='forgot_password'),
     path('password-reset/confirm/', ResetPasswordView.as_view(), name='reset_password'),
     # checkout for subscription
-    path('subscription-checkout/', SubscriptionCheckout.as_view(), name='subscription-chekcout'),
+    path('subscription-checkout/', SubscriptionCheckout.as_view(), name='subscription-checkout'),
     path('subscription-upgrade/', UpgradePlan.as_view(), name='subscription_upgrade'),
+    path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),
 ]

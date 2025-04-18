@@ -40,6 +40,8 @@ from datetime import datetime, timedelta
 from django.db.models import Sum
 from rest_framework.pagination import PageNumberPagination
 import logging
+from django.db import transaction
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -501,7 +503,7 @@ class ApplyCouponAPIView(APIView):
 
 
 
-stripe.api_key = 'sk_test_51R58134ICroeQOcqWnLSZGWO6uy1hTAxkCsW9f42qjfXfRWfs0b8wowpvDnOe1gTQqJbT774HTkB7NpOeZYCEZdb00N44EfiqC'
+stripe.api_key = settings.STRIPE_SECRET_KEY
         
 
 class CheckoutAPIView(APIView):
@@ -1120,4 +1122,220 @@ class UpgradePlan(APIView):
             return Response({
                 "success": False,
                 "message": "An unexpected error occurred while processing your upgrade."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def post(self, request):
+        user = request.user
+        payment_method = request.data.get("payment_method")
+        
+      
+        try:
+            current_subscription = UserSubscription.objects.get(user=user)
+            premium_plan = SubscriptionPlan.objects.get(name="premium", active=True)
+            
+            remaining_days = current_subscription.days_remaining()
+            if remaining_days == 0:
+                return Response({
+                    "success": False,
+                    "message": "Your current plan has expired"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            last_transaction = SubscriptionTransaction.objects.filter(
+                subscription=current_subscription,
+                transaction_type__in=["purchase", "renewal"]
+            ).order_by("-transaction_date").first()
+            
+            basic_price = float(last_transaction.amount) if last_transaction else float(current_subscription.plan.price)
+            today = timezone.now().date()
+            days_used = (today - current_subscription.start_date.date()).days
+            days_used = max(days_used, 0)
+            
+            basic_price_per_day = basic_price / 30
+            used_amount = basic_price_per_day * days_used
+            remaining_balance = max(basic_price - used_amount, 0)
+            
+            premium_price = float(premium_plan.price)
+            premium_price_per_day = premium_price / 30
+            upgrade_cost = round((premium_price_per_day * remaining_days) - remaining_balance, 2)
+            upgrade_cost = max(upgrade_cost, 0)
+            
+            if upgrade_cost == 0:
+                with transaction.atomic():
+                    current_subscription.plan = premium_plan
+                    current_subscription.save()
+                    SubscriptionTransaction.objects.create(
+                        subscription=current_subscription,
+                        amount=0,
+                        transaction_type="upgrade",
+                        payment_method="none",
+                        transaction_id=f"zero_cost_upgrade_{uuid.uuid4()}"
+                    )
+                return Response({
+                    "success": True,
+                    "message": "Subscription upgraded successfully at no additional cost",
+                    "transaction_id": "zero_cost"
+                }, status=status.HTTP_200_OK)
+            
+            if payment_method == "wallet":
+                return self.process_wallet_payment(user, current_subscription, premium_plan, upgrade_cost, remaining_days)
+            elif payment_method == "stripe":
+                if request.data.get('create_intent'):
+                    return self.create_stripe_payment_intent(user, upgrade_cost)
+                elif request.data.get('payment_intent_id'):
+                    return self.process_stripe_payment(
+                        user, 
+                        current_subscription, 
+                        premium_plan, 
+                        upgrade_cost,
+                        remaining_days,
+                        request.data.get('payment_intent_id')
+                    )
+                else:
+                    return Response({
+                        "success": False,
+                        "message": "Invalid stripe payment request"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    "success": False,
+                    "message": "Invalid payment method"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except UserSubscription.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "No active subscription found"
+            }, status=status.HTTP_404_NOT_FOUND)
+        except SubscriptionPlan.DoesNotExist:
+            return Response({
+                "success": False, 
+                "message": "Premium plan is currently unavailable"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"[Upgrade Error]: {e}")
+            return Response({
+                "success": False,
+                "message": "An unexpected error occurred while processing your upgrade."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    def process_wallet_payment(self, user, current_subscription, premium_plan, amount, remaining_days):
+        try:
+            wallet = Wallet.objects.get(user=user)
+            
+            if wallet.balance < Decimal(str(amount)):
+                return Response({
+                    "success": False,
+                    "message": "Insufficient wallet balance"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            with transaction.atomic():
+                wallet.balance -= Decimal(str(amount))
+                wallet.save()
+                
+                wallet_transaction = WalletTransaction.objects.create(
+                    wallet=wallet,
+                    transaction_type="PAYMENT",
+                    amount=amount,
+                    description=f"Subscription upgrade from Basic to Premium"
+                )
+                
+                old_end_date = current_subscription.end_date
+                current_subscription.plan = premium_plan
+                current_subscription.save()
+                
+                subscription_transaction = SubscriptionTransaction.objects.create(
+                    subscription=current_subscription,
+                    amount=amount,
+                    transaction_type="upgrade",
+                    payment_method="wallet",
+                    transaction_id=str(wallet_transaction.transaction_id)
+                )
+                
+            return Response({
+                "success": True,
+                "message": "Subscription upgraded successfully",
+                "transaction_id": str(wallet_transaction.transaction_id)
+            }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            print(f"[Wallet Payment Error]: {e}")
+            return Response({
+                "success": False,
+                "message": "An error occurred while processing wallet payment"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+
+    def create_stripe_payment_intent(self, user, amount):
+        try:
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            intent = stripe.PaymentIntent.create(
+                amount=int(amount * 100),
+                currency="inr",
+                metadata={
+                    "user_id": str(user.id),
+                    "transaction_type": "subscription_upgrade"
+                },
+                description=f"Subscription upgrade to Premium for {user.username}"
+            )
+            logger.info(f"[Stripe Intent Created]: User {user.id}, Intent {intent.id}, Amount {amount}")
+            return Response({
+                "success": True,
+                "client_secret": intent.client_secret
+            }, status=status.HTTP_200_OK)
+        except stripe.error.StripeError as e:
+            logger.error(f"[Stripe Error]: User {user.id}, Error: {str(e)}")
+            return Response({
+                "success": False,
+                "message": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"[Stripe Intent Error]: User {user.id}, Error: {str(e)}")
+            return Response({
+                "success": False,
+                "message": "An error occurred while creating payment intent"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def process_stripe_payment(self, user, current_subscription, premium_plan, amount, remaining_days, payment_intent_id):
+        try:
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+            
+            if intent.status != "succeeded":
+                return Response({
+                    "success": False,
+                    "message": "Payment has not been completed"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            with transaction.atomic():
+                old_end_date = current_subscription.end_date
+                current_subscription.plan = premium_plan
+                current_subscription.payment_method = "stripe"
+                current_subscription.payment_id = payment_intent_id
+                current_subscription.save()
+                
+                subscription_transaction = SubscriptionTransaction.objects.create(
+                    subscription=current_subscription,
+                    amount=amount,
+                    transaction_type="upgrade",
+                    payment_method="stripe",
+                    transaction_id=payment_intent_id
+                )
+                
+            return Response({
+                "success": True,
+                "message": "Subscription upgraded successfully",
+                "transaction_id": payment_intent_id
+            }, status=status.HTTP_200_OK)
+                
+        except stripe.error.StripeError as e:
+            print(f"[Stripe Error]: {e}")
+            return Response({
+                "success": False,
+                "message": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"[Stripe Processing Error]: {e}")
+            return Response({
+                "success": False,
+                "message": "An error occurred while processing payment"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -228,7 +228,7 @@ cloudinary.config(
     api_key='277546951167852',
     api_secret='bN0kXAMCKGWnxJlH3HTQnkl6wHw'
 )
-print("Cloudinary config:", cloudinary.config().cloud_name)
+# print("Cloudinary config:", cloudinary.config().cloud_name)
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
@@ -290,3 +290,9 @@ CELERY_BEAT_SCHEDULE = {
 #         'schedule': crontab(hour=0, minute=0),
 #     },
 # }
+
+STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+# lush-humor-likes-agile

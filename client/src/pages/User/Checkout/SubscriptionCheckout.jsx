@@ -8,7 +8,7 @@ import { CheckCircle, XCircle } from "lucide-react";
 import CheckoutForm from "@/components/common/user/checkout/CheckoutForm";
 import { useDispatch, useSelector } from "react-redux";
 import { get_ProfileData } from "@/store/user/userSlice";
-import UpgragePremium from "./UpgragePremium";
+import UpgradePremium from "./UpgradePremium";
 import { HashLoader } from "react-spinners";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
@@ -167,7 +167,7 @@ const SubscriptionCheckout = () => {
     }
 
     if (user?.plan === "basic") {
-        return <UpgragePremium />;
+        return <UpgradePremium />;
     }
 
     return (
@@ -188,7 +188,7 @@ const SubscriptionCheckout = () => {
                 {error && <div className="bg-red-500/20 text-red-200 p-4 rounded-lg mb-6">{error}</div>}
                 {userLoading || isLoading ? (
                     <div className="h-[50vh] flex items-center justify-center">
-                        <HashLoader color="#54c955" size={60}/>
+                        <HashLoader color="#54c955" size={60} />
                     </div>
                 ) : (
                     <div className="grid md:grid-cols-2 gap-8">
