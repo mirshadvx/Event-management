@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BellIcon, MessageSquare } from "lucide-react";
 import Header from "../../../components/common/user/Home/Header";
 import { BarChart, QrCode } from "lucide-react";
 import { FaRobot } from "react-icons/fa";
 import SubscriptionPlan from "@/components/user/Home/SubscriptionPlan";
+import { Toaster, toast } from "sonner";
+import { useLocation } from "react-router-dom";
 
 const NoiseTexture = () => (
     <svg className="fixed inset-0 opacity-20 w-full h-full" width="100%" height="100%">
@@ -16,6 +18,23 @@ const NoiseTexture = () => (
 );
 
 const Home = ({ children }) => {
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state?.message) {
+            toast.info(location.state.message, {
+                position: "top-right",
+                duration: 3000,
+                style: {
+                    background: "rgba(30 37 33 / 68%)",
+                    color: "#D1FAE5",
+                    border: "1px solid rgba(34, 197, 94, 0.5)",
+                },
+            });
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
     return (
         <div className="relative min-h-screen w-full overflow-hidden">
             {/* Base gradient */}
@@ -142,7 +161,7 @@ const Home = ({ children }) => {
                             </p>
                         </div>
                         <div className="max-w-7xl mx-auto">
-                                <SubscriptionPlan />
+                            <SubscriptionPlan />
                         </div>
                     </div>
                 </div>

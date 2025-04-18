@@ -24,6 +24,16 @@ const UpgradePremium = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        if (!userLoading && user && user.plan === "premium") {
+            navigate("/", {
+                state: {
+                    message: "You already have a Premium subscription.",
+                },
+            });
+        }
+    }, [user, userLoading, navigate]);
+    
+    useEffect(() => {
         if (!user && !userLoading) {
             dispatch(get_ProfileData());
         }
@@ -206,9 +216,7 @@ const UpgradePremium = () => {
                                 <h2 className="text-xl font-semibold mb-4">Premium Plan</h2>
                                 <div className="space-y-4">
                                     {premiumPlan ? (
-                                        <div
-                                            className="relative rounded-lg p-5 transition-all bg-green-500/20 border-2 border-green-500"
-                                        >
+                                        <div className="relative rounded-lg p-5 transition-all bg-green-500/20 border-2 border-green-500">
                                             <div className="flex justify-between items-start mb-3">
                                                 <h3 className="text-lg font-medium">{premiumPlan.name}</h3>
                                                 <span className="text-green-400 text-lg font-semibold">

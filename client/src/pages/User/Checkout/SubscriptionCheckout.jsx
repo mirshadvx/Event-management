@@ -26,6 +26,16 @@ const SubscriptionCheckout = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        if (!userLoading && user && user.plan === "premium") {
+            navigate("/", {
+                state: {
+                    message: "You already have a Premium subscription.",
+                },
+            });
+        }
+    }, [user, userLoading, navigate]);
+
+    useEffect(() => {
         if (!user && !userLoading) {
             dispatch(get_ProfileData());
         }
