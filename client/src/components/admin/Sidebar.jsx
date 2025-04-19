@@ -31,7 +31,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
     ];
     const subscriptionItems = [
         { name: "plan", path: "subscription/plan" },
-        { name: "plan users", path: "subscription/plan-users" },
+        { name: "Overview", path: "subscription/overview" },
     ];
     const additionalItems = [
         // { name: "Subscription", icon: <CreditCard className="w-6 h-6" />, path: "subscription" },
