@@ -561,3 +561,14 @@ class UserSubscriptionListView(generics.ListAPIView):
     serializer_class = UserSubscriptionSerializer
     pagination_class = SubscriptionPagination
     filterset_class = UsersSubscriptionFilter
+    
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def UserSubscriptionStatus(request, pk):
+    try:
+        sub = UserSubscription.objects.get(pk=pk)
+        sub.is_active = not sub.is_active
+        sub.save()
+        return Response({"success": True, "message": "Subscription status updated.", "is_active": sub.is_active})
+    except UserSubscription.DoesNotExist:
+        return Response({"success": False, "error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)

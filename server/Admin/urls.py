@@ -7,7 +7,7 @@ from .views import (admin_login,OrganizerRequestList,
     UserListView, UserUpdateStatusView, UserBulkUpdateStatusView, CouponList,
     CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView,
     RevenueDistributionListView, RevenueSummaryView, TransactionHistoryListView, RefundHistoryListView,
-    SubscriptionPlanViewset, UserSubscriptionListView)
+    SubscriptionPlanViewset, UserSubscriptionListView, UserSubscriptionStatus)
 
 router = DefaultRouter()
 router.register(r'subscription-plans', SubscriptionPlanViewset, basename='subscription-plan')
@@ -34,5 +34,6 @@ urlpatterns = [
     path('transaction-history/', TransactionHistoryListView.as_view(), name='transaction-history'),
     path('refund-history/', RefundHistoryListView.as_view(), name='refund-history'),
     path('', include(router.urls)),
-     path('subscriptions-users/', UserSubscriptionListView.as_view(), name='user-subscription-list'),
+    path('subscriptions-users/', UserSubscriptionListView.as_view(), name='user-subscription-list'),
+    path('subscriptions-users/<int:pk>/status/', UserSubscriptionStatus, name='Status-subscription-control'),
 ]
