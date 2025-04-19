@@ -1,5 +1,5 @@
 import django_filters
-from .models import RevenueDistribution
+from .models import RevenueDistribution, UserSubscription
 from event.models import Event
 from users.models import Booking, WalletTransaction
 from django.db.models import Q
@@ -119,3 +119,36 @@ class RefundHistoryFilter(django_filters.FilterSet):
             Q(booking__event__event_type=value) |
             Q(refund_details__event__event_type=value)
         ).distinct()
+
+
+class UsersSubscriptionFilter(django_filters.FilterSet):
+    search = django_filters.CharFilter(method='filter_search')
+    plan_type = django_filters.CharFilter(field_name='plan__name', lookup_expr='iexact')
+    date_range = django_filters.CharFilter(method='filter_date_range')
+    start_date = django_filters.DateFilter(field_name='start_date', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='end_date', lookup_expr='lte')
+    
+    class Meta:
+        model = UserSubscription
+        fields = ['plan_type', 'date_range', 'search', 'start_date', 'end_date']
+        
+    def filter_search(self, queryset, name, value):
+        return queryset.filter(
+            Q(user__username__icontains=value) |
+            Q(user__email__icontains=value)
+        )
+        
+    def filter_date_range(self, queryset, name, value):
+        today = datetime.now()
+        
+        if value == 'today':
+            return queryset.filter(start_date__date=today)
+        elif value == 'week':
+            start_week = today - timedelta(days=today.weekday())
+            return queryset.filter(start_date__date__gte=start_week)
+        elif value == 'month':
+            return queryset.filter(start_date__year=today.year, start_date__month=today.month)
+        elif value == 'year':
+            return queryset.filter(start_date__year=today.year)
+        return queryset
+        
