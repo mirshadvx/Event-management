@@ -1,7 +1,7 @@
 # backend/serializers.py
 from rest_framework import serializers
 from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution,
-                     SubscriptionPlan)
+                     SubscriptionPlan, UserSubscription)
 from users.models import Profile, SocialMediaLink, Booking, WalletTransaction, TicketRefund
 import cloudinary.uploader
 from event.models import TicketPurchase
@@ -153,4 +153,39 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         model = SubscriptionPlan
         fields = '__all__'
         
-        
+class PlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPlan
+        fields = ['name', 'price', 'active',]
+
+class UserSubscriptionSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    plan = PlanSerializer()
+    paid_amount = serializers.SerializerMethodField()
+    transaction_type = serializers.SerializerMethodField()
+    days_remaining = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSubscription
+        fields = [
+            'id', 'user', 'plan', 'start_date', 'end_date', 'is_active',
+            'payment_method', 'paid_amount', 'transaction_type',
+            'days_remaining'
+        ]
+
+    def get_user(self, obj):
+        return {
+            "username": obj.user.username,
+            "email": obj.user.email
+        }
+
+    def get_paid_amount(self, obj):
+        latest_transaction = obj.transactions.order_by('-transaction_date').first()
+        return float(latest_transaction.amount) if latest_transaction else float(obj.plan.price)
+
+    def get_transaction_type(self, obj):
+        latest_transaction = obj.transactions.order_by('-transaction_date').first()
+        return latest_transaction.transaction_type if latest_transaction else None
+
+    def get_days_remaining(self, obj):
+        return obj.days_remaining()

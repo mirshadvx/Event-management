@@ -8,11 +8,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
-from .models import OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan
+from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan, UserSubscription)
 from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
-                          BookingSerializerHistory, RefundHistorySerializer, SubscriptionPlanSerializer)
+                          BookingSerializerHistory, RefundHistorySerializer, SubscriptionPlanSerializer,
+                          UserSubscriptionSerializer)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -20,12 +21,12 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-from .filters import RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter
+from .filters import RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter, UsersSubscriptionFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum
 from datetime import datetime
-from .paginations import BookingPaginationHistory, RefundHistoryPagination
+from .paginations import BookingPaginationHistory, RefundHistoryPagination, SubscriptionPagination
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework.viewsets import ModelViewSet
@@ -554,3 +555,9 @@ class RefundHistoryListView(generics.ListAPIView):
 class SubscriptionPlanViewset(ModelViewSet):
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
+    
+class UserSubscriptionListView(generics.ListAPIView):
+    queryset = UserSubscription.objects.select_related('user', 'plan').all().order_by('-start_date')
+    serializer_class = UserSubscriptionSerializer
+    pagination_class = SubscriptionPagination
+    filterset_class = UsersSubscriptionFilter
