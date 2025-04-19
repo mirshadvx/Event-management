@@ -38,7 +38,7 @@ const AdminRoutes = () => {
             <Route path="finance/transactions-history" element={<Transaction_History />} />
             <Route path="finance/refunds-history" element={<Refund_History />} />
             <Route path="subscription/plan" element={<Plan />} />
-            <Route path="subscriptoin/overview" element={<SubsOverview />} />
+            <Route path="subscription/overview" element={<SubsOverview />} />
             <Route index element={fun()} />
         </Route>
     );

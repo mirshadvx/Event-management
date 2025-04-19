@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-    Search,
-    Download,
-    RefreshCw,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Search, Download, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import adminApi from "@/services/adminApi";
@@ -19,25 +13,6 @@ const SubsOverview = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [subscriptionData, setSubscriptionData] = useState([]);
     const [totalItems, setTotalItems] = useState(0);
-    const [totalSubscriptions, setTotalSubscriptions] = useState(0);
-    const [activeSubscriptions, setActiveSubscriptions] = useState(0);
-    const [expiringSubscriptions, setExpiringSubscriptions] = useState(0);
-
-    const fetchSubscriptionSummary = async () => {
-        try {
-            const params = {
-                search: searchTerm || undefined,
-                plan_type: planType !== "all" ? planType : undefined,
-            };
-
-            const response = await adminApi.get('subscription-summary/', { params });
-            setTotalSubscriptions(response.data.total_subscriptions);
-            setActiveSubscriptions(response.data.active_subscriptions);
-            setExpiringSubscriptions(response.data.expiring_subscriptions);
-        } catch (error) {
-            console.error('Error fetching subscription summary:', error);
-        }
-    };
 
     const fetchSubscriptionData = async () => {
         setIsLoading(true);
@@ -49,20 +24,19 @@ const SubsOverview = () => {
                 plan_type: planType !== "all" ? planType : undefined,
             };
 
-            const response = await adminApi.get('subscriptions/', { params });
+            const response = await adminApi.get("subscriptions-users/", { params });
             const data = response.data.results || response.data;
 
             setSubscriptionData(data);
             setTotalItems(response.data.count || data.length);
         } catch (error) {
-            console.error('Error fetching subscription data:', error);
+            console.error("Error fetching subscription data:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchSubscriptionSummary();
         fetchSubscriptionData();
     }, [currentPage, itemsPerPage, searchTerm, planType]);
 
@@ -72,49 +46,27 @@ const SubsOverview = () => {
         setCurrentPage(1);
     };
 
+    const toggleSubscriptionStatus = async (subscriptionId) => {
+        try {
+            const response = await adminApi.post(`subscriptions-users/${subscriptionId}/status/`);
+            if (response.data.success) {
+                fetchSubscriptionData();
+            }
+        } catch (error) {
+            console.error("Error toggling subscription status:", error);
+        }
+    };
+
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
     return (
         <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Total Subscriptions
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalSubscriptions}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Active Subscriptions
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{activeSubscriptions}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Expiring Subscriptions
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{expiringSubscriptions}</div>
-                    </CardContent>
-                </Card>
-            </div>
-
             <div className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                         className="pl-10 w-full"
-                        placeholder="Search by username or plan..."
+                        placeholder="Search by username or email..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -132,13 +84,9 @@ const SubsOverview = () => {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Reset
                 </Button>
-                <Button onClick={() => { fetchSubscriptionSummary(); fetchSubscriptionData(); }}>
+                <Button onClick={fetchSubscriptionData}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
-                </Button>
-                <Button variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
                 </Button>
             </div>
 
@@ -149,39 +97,58 @@ const SubsOverview = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th className="p-4">Username</th>
+
                                     <th className="p-4">Plan</th>
+                                    <th className="p-4">Plan Price</th>
+                                    <th className="p-4">Paid Amount</th>
                                     <th className="p-4">Start Date</th>
                                     <th className="p-4">End Date</th>
                                     <th className="p-4">Days Remaining</th>
-                                    <th className="p-4">Events Joined</th>
-                                    <th className="p-4">Events Organized</th>
                                     <th className="p-4">Payment Method</th>
+                                    <th className="p-4">Transaction Type</th>
+                                    <th className="p-4">Status</th>
+                                    <th className="p-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y dark:divide-gray-700">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={8} className="p-4 text-center text-gray-500">
+                                        <td colSpan={12} className="p-4 text-center text-gray-500">
                                             Loading...
                                         </td>
                                     </tr>
                                 ) : subscriptionData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="p-4 text-center text-gray-500">
+                                        <td colSpan={12} className="p-4 text-center text-gray-500">
                                             No data available
                                         </td>
                                     </tr>
                                 ) : (
                                     subscriptionData.map((subscription) => (
                                         <tr key={subscription.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td className="p-4 font-medium">{subscription.user.username}</td>
+                                            <td className="p-4 font-medium flex flex-col">
+                                                <span>{subscription.user.username}</span>
+                                                <span>{subscription.user.email}</span>
+                                            </td>
                                             <td className="p-4">{subscription.plan.name}</td>
-                                            <td className="p-4">{new Date(subscription.start_date).toLocaleDateString()}</td>
+                                            <td className="p-4">{subscription.plan.price}</td>
+                                            <td className="p-4">{subscription.paid_amount}</td>
+                                            <td className="p-4">
+                                                {new Date(subscription.start_date).toLocaleDateString()}
+                                            </td>
                                             <td className="p-4">{new Date(subscription.end_date).toLocaleDateString()}</td>
-                                            <td className="p-4">{subscription.days_remaining()}</td>
-                                            <td className="p-4">{subscription.events_joined_current_month}</td>
-                                            <td className="p-4">{subscription.events_organized_current_month}</td>
-                                            <td className="p-4">{subscription.payment_method}</td>
+                                            <td className="p-4">{subscription.days_remaining}</td>
+                                            <td className="p-4">{subscription.payment_method || "N/A"}</td>
+                                            <td className="p-4">{subscription.transaction_type || "N/A"}</td>
+                                            <td className="p-4">{subscription.is_active ? "Active" : "Inactive"}</td>
+                                            <td className="p-4">
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => toggleSubscriptionStatus(subscription.id)}
+                                                >
+                                                    {subscription.is_active ? "Deactivate" : "Activate"}
+                                                </Button>
+                                            </td>
                                         </tr>
                                     ))
                                 )}
@@ -199,7 +166,7 @@ const SubsOverview = () => {
                                 variant="outline"
                                 size="sm"
                                 disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                onClick={() => setCurrentPage((prev) => prev - 1)}
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -220,7 +187,7 @@ const SubsOverview = () => {
                                 variant="outline"
                                 size="sm"
                                 disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                onClick={() => setCurrentPage((prev) => prev + 1)}
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
