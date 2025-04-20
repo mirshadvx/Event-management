@@ -1,196 +1,257 @@
 import React, { useState, useEffect, useRef } from "react";
-import { IoMdChatbubbles, IoIosNotifications } from "react-icons/io";
+import { IoMdChatbubbles, IoIosNotifications, IoMdMenu, IoMdClose } from "react-icons/io";
 import { logout } from "../../../../services/api";
 import { useDispatch, useSelector } from "react-redux";
-import { setAuthenticated, logoutReducer } from "../../../../store/user/userSlice";
+import { logoutReducer, get_ProfileData } from "../../../../store/user/userSlice";
 import { useNavigate } from "react-router-dom";
-import { get_ProfileData } from "../../../../store/user/userSlice";
 
 const Header = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
     const dropdownRef = useRef(null);
+    const mobileMenuRef = useRef(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { isAuthenticated, user, loading } = useSelector((state) => state.user);
 
-    const [userData, setUserData] = useState({
-        name: "",
-        title: "",
-        email: "",
-        phone: "",
-        location: "",
-        bio: "",
-        profilePicture: "",
-    });
+    useEffect(() => {
+        const handleResize = () => {
+            setWindowWidth(window.innerWidth);
+            if (window.innerWidth >= 768) {
+                setMobileMenuOpen(false);
+            }
+        };
+        setWindowWidth(window.innerWidth);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
-        if (!user && !loading && isAuthenticated) {
+        if (!user && isAuthenticated && !loading) {
             dispatch(get_ProfileData());
         }
+    }, [user, isAuthenticated, loading, dispatch]);
 
-        if (user) {
-            setUserData({
-                name: user.username || "",
-                title: user.title || "",
-                email: user.email || "",
-                phone: user.phone || "",
-                location: user.location || "",
-                bio: user.bio || "",
-                profilePicture: user.profile_picture || "",
-            });
-        }
-    }, [user, loading, dispatch, isAuthenticated]);
+    const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
+    const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
-    const toggleDropdown = () => {
-        setDropdownOpen((prev) => !prev);
-    };
-
-    const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-            setDropdownOpen(false);
-        }
-    };
-
-    const handleLogout = async () => {
-        try {
-            await logout();
-            dispatch(logoutReducer());
-        } catch (error) {
-            console.log("logout failed ", error);
+    const handleClickOutside = (e) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
+        if (
+            mobileMenuRef.current &&
+            !mobileMenuRef.current.contains(e.target) &&
+            !e.target.closest(".mobile-menu-button")
+        ) {
+            setMobileMenuOpen(false);
         }
     };
 
     useEffect(() => {
-        if (dropdownOpen) {
+        if (dropdownOpen || mobileMenuOpen) {
             document.addEventListener("mousedown", handleClickOutside);
         } else {
             document.removeEventListener("mousedown", handleClickOutside);
         }
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [dropdownOpen]);
+    }, [dropdownOpen, mobileMenuOpen]);
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            dispatch(logoutReducer());
+            setMobileMenuOpen(false);
+        } catch (err) {
+            console.error("Logout failed", err);
+        }
+    };
+
+    const handleNavigation = (path) => {
+        navigate(path);
+        setMobileMenuOpen(false);
+        setDropdownOpen(false);
+    };
+
+    const isDesktop = windowWidth >= 768;
 
     return (
-        <div className="relative z-10">
-            <header className="w-full px-6 py-1.5">
-                <div className="max-w-[1350px] mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-6 bg-[#134638] rounded-sm"></div>
-                        <span className="text-white text-lg">Evenxo</span>
-                    </div>
+        <header className="w-full px-4 lg:px-6 py-2 z-50 relative">
+            <div className="max-w-[1350px] mx-auto flex justify-between items-center">
+                <div className="flex items-center gap-2 z-20">
+                    <div className="w-8 h-6 bg-[#134638] rounded-sm"></div>
+                    <span className="text-white text-lg lg:text-xl font-semibold">Evenxo</span>
+                </div>
 
-                    {isAuthenticated ? (
-                        <>
-                            <nav className="bg-[#1e1e1e]/40 backdrop-blur-sm px-6 py-2 rounded-full border-2 border-[#b4b2a8] ml-24">
-                                <ul className="flex space-x-8">
-                                    <li>
-                                        <a
-                                            onClick={() => navigate("/")}
-                                            className="text-white/90 hover:text-white transition-colors text-lg cursor-pointer"
-                                        >
-                                            Home
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            onClick={() => navigate("/explore")}
-                                            className="text-white/90 hover:text-white transition-colors text-lg cursor-pointer"
-                                        >
-                                            Explore
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            onClick={() => navigate("/profile/")}
-                                            className="text-white/90 hover:text-white transition-colors text-lg cursor-pointer"
+                {isAuthenticated && isDesktop && (
+                    <>
+                        <nav className="flex items-center space-x-6 ml-12 bg-[#1e1e1e]/40 backdrop-blur-sm px-6 py-2 rounded-full border border-[#b4b2a8]">
+                            <a
+                                onClick={() => handleNavigation("/")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Home
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/explore")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Explore
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/profile/")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Profile
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/dashboard")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Dashboard
+                            </a>
+                        </nav>
+
+                        <div className="flex items-center gap-4">
+                            <IoIosNotifications className="text-white w-6 h-6 cursor-pointer" />
+                            <IoMdChatbubbles className="text-white w-6 h-6 cursor-pointer" />
+                            <div className="relative" ref={dropdownRef}>
+                                <div
+                                    className="flex items-center gap-2 bg-[#00FF82] px-3 py-1.5 rounded-lg cursor-pointer"
+                                    onClick={toggleDropdown}
+                                >
+                                    <img
+                                        src={user?.profile_picture || "/default-profile.png"}
+                                        alt="Profile"
+                                        className="w-6 h-6 rounded-full"
+                                    />
+                                    <span className="text-black font-medium text-sm">{user?.username || "User"}</span>
+                                </div>
+
+                                <div
+                                    className={`absolute right-0 mt-2 w-28 bg-[#1e1e1e] border border-[#b4b2a8] rounded-lg transition-all duration-300 ease-out transform ${
+                                        dropdownOpen
+                                            ? "opacity-100 translate-y-0"
+                                            : "opacity-0 -translate-y-2 pointer-events-none"
+                                    }`}
+                                >
+                                    <ul>
+                                        <li
+                                            onClick={() => handleNavigation("/profile/")}
+                                            className="px-4 py-2 text-white/90 hover:bg-[#2e2e2e] cursor-pointer"
                                         >
                                             Profile
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            onClick={() => navigate("/dashboard")}
-                                            className="text-white/90 hover:text-white transition-colors text-lg cursor-pointer"
+                                        </li>
+                                        <li
+                                            onClick={handleLogout}
+                                            className="px-4 py-2 text-red-500 hover:bg-[#2e2e2e] cursor-pointer"
                                         >
-                                            Dashboard
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
-                            <div className="flex items-center gap-4">
-                                <IoIosNotifications className="text-white w-7 h-7 cursor-pointer" />
-                                <IoMdChatbubbles className="text-white w-7 h-7 cursor-pointer" />
-                                {loading ? (
-                                    <div>Loading...</div> 
-                                ) : user ? (
-                                    <div className="relative" ref={dropdownRef}>
-                                        <div
-                                            className="flex items-center gap-2 bg-[#00FF82] px-4 py-1.5 rounded-lg cursor-pointer"
-                                            onClick={toggleDropdown}
-                                        >
-                                            <img
-                                                src={user.profile_picture || "/default-profile.png"} 
-                                                alt="Profile"
-                                                className="w-6 h-6 rounded-full"
-                                            />
-                                            <span className="text-black font-medium">{user.username || "User"}</span>
-                                        </div>
-                                        <div
-                                            className={`absolute right-0 mt-2 w-28 bg-[#1e1e1e] border border-[#b4b2a8] rounded-lg shadow-lg overflow-hidden 
-                                                transition-all duration-300 ease-out transform ${
-                                                    dropdownOpen
-                                                        ? "opacity-100 translate-y-0"
-                                                        : "opacity-0 translate-y-[-10px] pointer-events-none"
-                                                }`}
-                                        >
-                                            <ul className="flex flex-col items-center">
-                                                <li
-                                                    onClick={() => navigate("/profile/")}
-                                                    className="w-full px-4 pt-1 text-white/90 hover:bg-[#2e2e2e] hover:text-white transition-colors cursor-pointer text-center"
-                                                >
-                                                    Profile
-                                                </li>
-                                                <li
-                                                    className="w-full px-4 pb-1 text-red-500 hover:bg-[#2e2e2e] transition-colors cursor-pointer text-center"
-                                                    onClick={handleLogout}
-                                                >
-                                                    Logout
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>No user data</div> 
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <nav className="bg-[#1e1e1e]/40 backdrop-blur-sm px-6 py-2 rounded-full border-2 border-[#b4b2a8]">
-                                <ul className="flex space-x-8">
-                                    <li>
-                                        <a href="#" className="text-white/90 hover:text-white transition-colors text-lg">
-                                            Home
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" className="text-white/90 hover:text-white transition-colors text-lg">
-                                            Explore
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
-                            <div className="flex items-center gap-4">
-                                <div className="relative" onClick={() => navigate("/login")}>
-                                    <div className="flex items-center gap-2 bg-[#00FF82] px-4 py-1.5 rounded-lg cursor-pointer">
-                                        <span className="text-black font-medium">Login</span>
-                                    </div>
+                                            Logout
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
-                        </>
-                    )}
+                        </div>
+                    </>
+                )}
+
+                {!isAuthenticated && isDesktop && (
+                    <>
+                        <nav className="flex items-center space-x-6 ml-12 bg-[#1e1e1e]/40 backdrop-blur-sm px-6 py-2 rounded-full border border-[#b4b2a8]">
+                            <a
+                                onClick={() => handleNavigation("/")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Home
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/explore")}
+                                className="text-white/90 hover:text-white cursor-pointer"
+                            >
+                                Explore
+                            </a>
+                        </nav>
+                        <div className="flex items-center gap-4">
+                            <div className="relative" onClick={() => navigate("/login")}>
+                                <div className="flex items-center gap-2 bg-[#00FF82] px-4 py-1.5 rounded-lg cursor-pointer">
+                                    <span className="text-black font-medium">Login</span>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {isAuthenticated && !isDesktop && (
+                    <button className="text-white p-2 mobile-menu-button" onClick={toggleMobileMenu}>
+                        {mobileMenuOpen ? <IoMdClose className="w-6 h-6" /> : <IoMdMenu className="w-6 h-6" />}
+                    </button>
+                )}
+            </div>
+
+            {isAuthenticated && !isDesktop && (
+                <div
+                    ref={mobileMenuRef}
+                    className={`fixed top-0 right-0 h-full w-64 bg-[#1e1e1e] transform transition-transform duration-300 ease-in-out z-40 ${
+                        mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+                    }`}
+                >
+                    <div className="p-4 flex flex-col h-full">
+                        <div className="mt-10 mb-6 flex items-center gap-2">
+                            <img
+                                src={user?.profile_picture || "/default-profile.png"}
+                                alt="Profile"
+                                className="w-10 h-10 rounded-full"
+                            />
+                            <span className="text-white font-medium">{user?.username || "User"}</span>
+                        </div>
+
+                        <nav className="flex-1 space-y-4">
+                            <a
+                                onClick={() => handleNavigation("/")}
+                                className="text-white/90 hover:text-white text-lg block cursor-pointer"
+                            >
+                                Home
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/explore")}
+                                className="text-white/90 hover:text-white text-lg block cursor-pointer"
+                            >
+                                Explore
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/profile/")}
+                                className="text-white/90 hover:text-white text-lg block cursor-pointer"
+                            >
+                                Profile
+                            </a>
+                            <a
+                                onClick={() => handleNavigation("/dashboard")}
+                                className="text-white/90 hover:text-white text-lg block cursor-pointer"
+                            >
+                                Dashboard
+                            </a>
+                        </nav>
+
+                        <div className="mt-auto mb-6 space-y-4">
+                            <div className="flex items-center gap-4">
+                                <IoIosNotifications className="text-white w-6 h-6" />
+                                <span className="text-white/90">Notifications</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <IoMdChatbubbles className="text-white w-6 h-6" />
+                                <span className="text-white/90">Messages</span>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full py-2 text-red-500 hover:bg-[#2e2e2e] rounded-lg"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </header>
-        </div>
+            )}
+        </header>
     );
 };
 
