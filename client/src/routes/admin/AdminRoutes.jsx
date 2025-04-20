@@ -13,6 +13,7 @@ import Refund_History from "@/components/layout/admin/finance/Refund_History";
 import Ticket_Purchases from "@/components/layout/admin/Ticket_Purchases";
 import Plan from "@/components/layout/admin/subscription/plan";
 import SubsOverview from "@/components/layout/admin/subscription/SubsOverview";
+import SubscriptionAnalytics from "@/components/layout/admin/subscription/SubscriptionAnalytics";
 
 function fun() {
     return <h1>hit out let</h1>;
@@ -39,6 +40,7 @@ const AdminRoutes = () => {
             <Route path="finance/refunds-history" element={<Refund_History />} />
             <Route path="subscription/plan" element={<Plan />} />
             <Route path="subscription/overview" element={<SubsOverview />} />
+            <Route path="subscription/analytics" element={<SubscriptionAnalytics />} />
             <Route index element={fun()} />
         </Route>
     );

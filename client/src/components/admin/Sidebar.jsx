@@ -30,6 +30,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         { name: "Refund History", path: "finance/refunds-history" },
     ];
     const subscriptionItems = [
+        { name: "Analytics", path: "subscription/analytics" },
         { name: "plan", path: "subscription/plan" },
         { name: "Overview", path: "subscription/overview" },
     ];

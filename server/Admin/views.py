@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
-from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan, UserSubscription)
+from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan, UserSubscription, SubscriptionTransaction)
 from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
@@ -572,3 +572,90 @@ def UserSubscriptionStatus(request, pk):
         return Response({"success": True, "message": "Subscription status updated.", "is_active": sub.is_active})
     except UserSubscription.DoesNotExist:
         return Response({"success": False, "error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
+    
+    
+from datetime import timedelta
+from django.db.models.functions import TruncDate
+from django.db.models import Sum, Count
+
+class SubscriptionAnalyticsView(APIView):
+    def get(self, request):
+        time_range = request.query_params.get('time_range', 'month')
+        plan_type = request.query_params.get('plan_type')
+        
+        today = timezone.now()
+        if time_range == 'today':
+            start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif time_range == 'week':
+            start_date = today - timedelta(days=today.weekday())
+        elif time_range == 'month':
+            start_date = today.replace(day=1)
+        else: 
+            start_date = today.replace(month=1, day=1)
+            
+        transactions_qs = SubscriptionTransaction.objects.filter(
+            transaction_date__gte=start_date
+        )
+        subscriptions_qs = UserSubscription.objects.filter(
+            start_date__gte=start_date
+        )
+        
+        if plan_type:
+            transactions_qs = transactions_qs.filter(subscription__plan__name=plan_type)
+            subscriptions_qs = subscriptions_qs.filter(plan__name=plan_type)
+        
+        revenue = transactions_qs.aggregate(
+            basic=Sum('amount', filter=Q(subscription__plan__name='basic')),
+            premium=Sum('amount', filter=Q(subscription__plan__name='premium'))
+        )
+        
+        growth_data = subscriptions_qs.annotate(
+            date=TruncDate('start_date')
+        ).values('date', 'plan__name').annotate(
+            count=Count('id')
+        ).order_by('date')
+        
+        labels = []
+        basic_data = []
+        premium_data = []
+        current_date = start_date
+        while current_date <= today:
+            labels.append(current_date.strftime('%Y-%m-%d'))
+            basic_count = next(
+                (item['count'] for item in growth_data 
+                 if item['date'] == current_date.date() and item['plan__name'] == 'basic'), 
+                0
+            )
+            premium_count = next(
+                (item['count'] for item in growth_data 
+                 if item['date'] == current_date.date() and item['plan__name'] == 'premium'), 
+                0
+            )
+            basic_data.append(basic_count)
+            premium_data.append(premium_count)
+            current_date += timedelta(days=1)
+        
+        transaction_counts = transactions_qs.values('transaction_type').annotate(
+            count=Count('id')
+        )
+        transaction_data = {
+            'purchase': 0,
+            'renewal': 0,
+            'upgrade': 0
+        }
+        for item in transaction_counts:
+            transaction_data[item['transaction_type']] = item['count']
+        
+        
+        return Response({
+            'totalRevenue': {
+                'basic': float(revenue['basic'] or 0),
+                'premium': float(revenue['premium'] or 0)
+            },
+            'growthData': {
+                'labels': labels,
+                'basic': basic_data,
+                'premium': premium_data
+            },
+            'transactionData': transaction_data,
+        })
