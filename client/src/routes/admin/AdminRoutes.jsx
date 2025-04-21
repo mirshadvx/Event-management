@@ -6,7 +6,6 @@ import Admin_ProtectedRoute from "./Admin_ProtectedRoute";
 import Organizer_Request from "@/components/layout/admin/Organizer_Request";
 import Coupon_layout from "@/components/layout/admin/Coupon_layout";
 import Achievements_layout from "@/components/layout/admin/Achivements_layout";
-import Refund_management from "@/components/layout/admin/Refund_management";
 import Revenue_Overview from "@/components/layout/admin/finance/Revenue_Overview";
 import Transaction_History from "@/components/layout/admin/finance/Transaction_History";
 import Refund_History from "@/components/layout/admin/finance/Refund_History";
@@ -14,6 +13,7 @@ import Ticket_Purchases from "@/components/layout/admin/Ticket_Purchases";
 import Plan from "@/components/layout/admin/subscription/plan";
 import SubsOverview from "@/components/layout/admin/subscription/SubsOverview";
 import SubscriptionAnalytics from "@/components/layout/admin/subscription/SubscriptionAnalytics";
+import Events from "@/components/layout/admin/Events";
 
 function fun() {
     return <h1>hit out let</h1>;
@@ -41,6 +41,7 @@ const AdminRoutes = () => {
             <Route path="subscription/plan" element={<Plan />} />
             <Route path="subscription/overview" element={<SubsOverview />} />
             <Route path="subscription/analytics" element={<SubscriptionAnalytics />} />
+            <Route path="events" element={<Events />} />
             <Route index element={fun()} />
         </Route>
     );
