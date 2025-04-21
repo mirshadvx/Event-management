@@ -4,7 +4,7 @@ from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribu
                      SubscriptionPlan, UserSubscription)
 from users.models import Profile, SocialMediaLink, Booking, WalletTransaction, TicketRefund
 import cloudinary.uploader
-from event.models import TicketPurchase
+from event.models import TicketPurchase, Event
 
 class SocialMediaLinkSerializer(serializers.ModelSerializer):
     class Meta:
@@ -189,3 +189,34 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
 
     def get_days_remaining(self, obj):
         return obj.days_remaining()
+    
+class OrganizerDetails(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ["username", "email", "profile_picture"]
+        
+class EventSerializer(serializers.ModelSerializer):
+    organizer = OrganizerDetails(read_only=True)
+    total_tickets_sold = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = Event
+        fields = [
+            'id',
+            'organizer',
+            'event_title',
+            'event_type',
+            'description',
+            'venue_name',
+            'address',
+            'city',
+            'start_date',
+            'end_date',
+            'start_time',
+            'end_time',
+            'capacity',
+            'total_tickets_sold'
+        ]
+    
+    
+    

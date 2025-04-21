@@ -13,7 +13,7 @@ from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
                           BookingSerializerHistory, RefundHistorySerializer, SubscriptionPlanSerializer,
-                          UserSubscriptionSerializer)
+                          UserSubscriptionSerializer, EventSerializer)
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -21,7 +21,8 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-from .filters import RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter, UsersSubscriptionFilter
+from .filters import (RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter, UsersSubscriptionFilter,
+                      EventFilter)
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum
@@ -30,7 +31,7 @@ from .paginations import BookingPaginationHistory, RefundHistoryPagination, Subs
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework.viewsets import ModelViewSet
-
+from event.models import Event
 import logging
 logger = logging.getLogger(__name__)
 
@@ -659,3 +660,14 @@ class SubscriptionAnalyticsView(APIView):
             },
             'transactionData': transaction_data,
         })
+        
+class EventList(APIView):
+    permission_classes = [AllowAny]
+    filterset_class = EventFilter
+    
+    def get(self, request):
+        filterset = EventFilter(request.GET, queryset=Event.objects.filter(is_published=True).select_related('organizer').
+                                order_by('-created_at'))
+        events = filterset.qs
+        serializer = EventSerializer(events, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

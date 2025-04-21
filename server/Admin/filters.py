@@ -74,18 +74,18 @@ class BookingFilterHistory(django_filters.FilterSet):
         )
 
     def filter_date_range(self, queryset, name, value):
-        now = datetime.now()
+        today = datetime.now()
         
         if value == 'today':
-            return queryset.filter(created_at__date=now.date())
+            return queryset.filter(created_at__date=today.date())
         elif value == 'week':
-            week_start = now - timedelta(days=now.weekday())
+            week_start = today - timedelta(days=today.weekday())
             return queryset.filter(created_at__date__gte=week_start.date())
         elif value == 'month':
-            return queryset.filter(created_at__year=now.year, 
-                                created_at__month=now.month)
+            return queryset.filter(created_at__year=today.year, 
+                                created_at__month=today.month)
         elif value == 'year':
-            return queryset.filter(created_at__year=now.year)
+            return queryset.filter(created_at__year=today.year)
         elif value == 'all':
             return queryset
         return queryset
@@ -152,3 +152,47 @@ class UsersSubscriptionFilter(django_filters.FilterSet):
             return queryset.filter(start_date__year=today.year)
         return queryset
         
+class EventFilter(django_filters.FilterSet):
+    search = django_filters.CharFilter(method='filter_search')
+    event_type = django_filters.CharFilter(field_name='event_type', lookup_expr='iexact')
+    date_range = django_filters.CharFilter(method='filter_date_range')
+    start_date = django_filters.DateFilter(method='filter_custom_date')
+    end_date = django_filters.DateFilter(method='filter_custom_date')
+
+    class Meta:
+        model = Event
+        fields = ['search', 'event_type', 'date_range', 'start_date', 'end_date']
+
+    def filter_search(self, queryset, name, value):
+        return queryset.filter(
+            Q(event_title__icontains=value) |
+            Q(description__icontains=value) |
+            Q(organizer__username__icontains=value)
+        )
+
+    def filter_date_range(self, queryset, name, value):
+        today = datetime.now()
+
+        if value == 'today':
+            return queryset.filter(start_date=today.date())
+        elif value == 'week':
+            week_start = today - timedelta(days=today.weekday())
+            return queryset.filter(start_date__gte=week_start.date())
+        elif value == 'month':
+            return queryset.filter(start_date__year=today.year, start_date__month=today.month)
+        elif value == 'year':
+            return queryset.filter(start_date__year=today.year)
+        elif value == 'all':
+            return queryset
+        return queryset
+
+    def filter_custom_date(self, queryset, name, value):
+        if name == 'start_date':
+            return queryset.filter(start_date__gte=value)
+        elif name == 'end_date':
+            return queryset.filter(end_date__lte=value)
+        return queryset
+        
+            
+            
+    
