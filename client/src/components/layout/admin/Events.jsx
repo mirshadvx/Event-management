@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Search, RefreshCw, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import adminApi from "@/services/adminApi";
+import EventDataModal from "@/components/admin/EventDataModal";
 
 const Events = () => {
     const [events, setEvents] = useState([]);
@@ -19,6 +20,8 @@ const Events = () => {
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [showFilters, setShowFilters] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const [showModal, setShowModal] = useState(false);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -32,7 +35,7 @@ const Events = () => {
                     end_date: endDate || undefined,
                 },
             });
-            setEvents(response.data);
+            setEvents(response.data.events);
         } catch (error) {
             console.error("Error fetching events:", error);
         } finally {
@@ -77,6 +80,16 @@ const Events = () => {
     };
 
     const activeFilterCount = [dateRange !== "all", eventType !== "all", searchTerm !== ""].filter(Boolean).length;
+
+    const handleEventClick = (event) => {
+        setSelectedEvent(event);
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedEvent(null);
+        setShowModal(false);
+    };
 
     return (
         <div className="container mx-auto px-4 py-6 bg-gray-900 min-h-screen">
@@ -266,6 +279,7 @@ const Events = () => {
                             <Button
                                 variant="outline"
                                 className="w-full border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center justify-center gap-2"
+                                onClick={() => handleEventClick(event)}
                             >
                                 <Eye className="h-4 w-4" />
                                 <span>Show Details</span>
@@ -275,6 +289,8 @@ const Events = () => {
                     </Card>
                 ))}
             </div>
+
+            {showModal && <EventDataModal id={selectedEvent?.id} onClose={handleCloseModal} />}
 
             {events.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-64 bg-gray-800 rounded-lg p-6">

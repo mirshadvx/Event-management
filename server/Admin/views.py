@@ -661,18 +661,23 @@ class SubscriptionAnalyticsView(APIView):
             'transactionData': transaction_data,
         })
         
-def get(self, request):
-    try:
-        queryset = Event.objects.filter(is_published=True).select_related('organizer').order_by('-created_at')
-        filterset = self.filterset_class(request.GET, queryset=queryset)
+        
+class EventList(APIView):
+    permission_classes = [AllowAny]
+    filterset_class = EventFilter
+                
+    def get(self, request):
+        try:
+            queryset = Event.objects.filter(is_published=True).select_related('organizer').order_by('-created_at')
+            filterset = self.filterset_class(request.GET, queryset=queryset)
 
-        if not filterset.is_valid():
-            return Response({"status": "error","message": "Invalid filters","errors": filterset.errors},
-                status=status.HTTP_400_BAD_REQUEST)
+            if not filterset.is_valid():
+                return Response({"success": "error","message": "Invalid filters","errors": filterset.errors},
+                    status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = EventSerializer(filterset.qs, many=True)
-        return Response({"status": "success","data": serializer.data },status=status.HTTP_200_OK)
+            serializer = EventSerializer(filterset.qs, many=True)
+            return Response({"success": True,"events": serializer.data },status=status.HTTP_200_OK)
 
-    except Exception as e:
-        return Response({ "status": "error","message": f"Failed to fetch events {str(e)}",},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({ "success": "error","message": f"Failed to fetch events {str(e)}",},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
