@@ -7,7 +7,6 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, generics
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser
 from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan, UserSubscription, SubscriptionTransaction)
 from users.models import Profile, Booking, WalletTransaction
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
@@ -32,6 +31,8 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework.viewsets import ModelViewSet
 from event.models import Event
+from .permissions import IsAdminUser
+from users.permissions import IsActiveUser
 import logging
 logger = logging.getLogger(__name__)
 
@@ -665,6 +666,7 @@ class SubscriptionAnalyticsView(APIView):
 class EventList(APIView):
     permission_classes = [AllowAny]
     filterset_class = EventFilter
+    permission_classes = [IsAuthenticated, IsActiveUser, IsAdminUser]
                 
     def get(self, request):
         try:
