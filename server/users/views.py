@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import (UserRegistrationSerializer, OTPVarificationSerializer, UserProfileSerializer,
                           ProfileEventJoinedSerializer, WalletSerializer, WalletTransactionSerializer,
-                          SubscriptionPlanSerializer, ProfileEventJoinedSerializer)
+                          SubscriptionPlanSerializer, ProfileEventJoinedSerializer, UserPlanDetailsSerializer)
 from rest_framework import status
 import redis
 from decouple import config
@@ -1127,7 +1127,6 @@ class UpgradePlan(APIView):
     def post(self, request):
         user = request.user
         payment_method = request.data.get("payment_method")
-        
       
         try:
             current_subscription = UserSubscription.objects.get(user=user)
@@ -1264,7 +1263,6 @@ class UpgradePlan(APIView):
                 "message": "An error occurred while processing wallet payment"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-
     def create_stripe_payment_intent(self, user, amount):
         try:
             stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -1339,3 +1337,15 @@ class UpgradePlan(APIView):
                 "success": False,
                 "message": "An error occurred while processing payment"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+class UserPlanDetails(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            subscription = UserSubscription.objects.select_related("plan").get(user=user)
+            serializer = UserPlanDetailsSerializer(subscription)
+            return Response({"success": True, "subscription": serializer.data})
+        except UserSubscription.DoesNotExist:
+            return Response({"success": False, "error": "No active subscripton found."}, status=status.HTTP_404_NOT_FOUND)

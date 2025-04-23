@@ -14,6 +14,7 @@ import {
     Video,
     QrCode,
 } from "lucide-react";
+import api from "@/services/api";
 
 const Subscription = () => {
     const [loading, setLoading] = useState(true);
@@ -21,60 +22,45 @@ const Subscription = () => {
     const [transactions, setTransactions] = useState([]);
 
     useEffect(() => {
-        setTimeout(() => {
-            setSubscription({
-                user: "John Doe",
-                plan: {
-                    name: "premium",
-                    display_name: "Premium",
-                    price: 149.99,
-                    event_join_limit: 50,
-                    event_creation_limit: 15,
-                    email_notification: true,
-                    group_chat: true,
-                    personal_chat: true,
-                    advanced_analytics: true,
-                    ticket_scanning: true,
-                    live_streaming: true,
-                },
-                start_date: "2025-02-15T10:00:00Z",
-                end_date: "2025-05-15T10:00:00Z",
-                is_active: true,
-                payment_method: "Credit Card",
-                events_joined_current_month: 28,
-                events_organized_current_month: 4,
-                days_remaining: 22,
-            });
+        const fetchData = async () => {
+            try {
+                const response = await api.get("users/subscription-details/");
+                setSubscription(response.data.subscription);
 
-            setTransactions([
-                {
-                    id: "tx123456",
-                    amount: 149.99,
-                    transaction_type: "purchase",
-                    payment_method: "Credit Card",
-                    transaction_id: "pay_Lk82jHk928",
-                    transaction_date: "2025-02-15T10:30:45Z",
-                },
-                {
-                    id: "tx123457",
-                    amount: 99.99,
-                    transaction_type: "upgrade",
-                    payment_method: "PayPal",
-                    transaction_id: "pay_Mn72jG8234",
-                    transaction_date: "2025-01-10T14:22:37Z",
-                },
-                {
-                    id: "tx123458",
-                    amount: 49.99,
-                    transaction_type: "purchase",
-                    payment_method: "Debit Card",
-                    transaction_id: "pay_Kj21hG3456",
-                    transaction_date: "2024-11-15T09:45:12Z",
-                },
-            ]);
+                setTransactions([
+                    {
+                        id: "tx123456",
+                        amount: 149.99,
+                        transaction_type: "purchase",
+                        payment_method: "Credit Card",
+                        transaction_id: "pay_Lk82jHk928",
+                        transaction_date: "2025-02-15T10:30:45Z",
+                    },
+                    {
+                        id: "tx123457",
+                        amount: 99.99,
+                        transaction_type: "upgrade",
+                        payment_method: "PayPal",
+                        transaction_id: "pay_Mn72jG8234",
+                        transaction_date: "2025-01-10T14:22:37Z",
+                    },
+                    {
+                        id: "tx123458",
+                        amount: 49.99,
+                        transaction_type: "purchase",
+                        payment_method: "Debit Card",
+                        transaction_id: "pay_Kj21hG3456",
+                        transaction_date: "2024-11-15T09:45:12Z",
+                    },
+                ]);
+            } catch (error) {
+                console.error("Error fetching subscription details:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-            setLoading(false);
-        }, 1000);
+        fetchData();
     }, []);
 
     const formatDate = (dateString) => {
@@ -132,7 +118,9 @@ const Subscription = () => {
             <div className="bg-slate-800 rounded-xl p-6 mb-8">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h2 className="text-2xl font-bold">{subscription.plan.display_name} Plan</h2>
+                        <h2 className="text-2xl font-bold">
+                            {subscription.plan.name.charAt(0).toUpperCase() + subscription.plan.name.slice(1)} Plan
+                        </h2>
                         <p className="text-slate-400">Active subscription</p>
                     </div>
                     <div className="text-right">
@@ -165,7 +153,7 @@ const Subscription = () => {
                                 <span className="text-slate-300">Time Remaining</span>
                             </div>
                             <span className="font-bold">{subscription.days_remaining} days</span>
-                        </div>	
+                        </div>
                         <div className="pt-3">
                             <div className="w-full bg-slate-600 rounded-full h-2.5">
                                 <div
@@ -294,12 +282,20 @@ const Subscription = () => {
                         </div>
                     </div>
                 </div>
-
-                <div className="mt-6 flex justify-center">
-                    <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
-                        Renew Subscription
-                    </button>
-                </div>
+                {subscription.plan.name === "basic" && (
+                    <div className="mt-6 flex justify-center">
+                        <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
+                            Upgrade to Premium
+                        </button>
+                    </div>
+                )}
+                {subscription.is_expired && (
+                    <div className="mt-6 flex justify-center">
+                        <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
+                        Renew Plan
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* <div className="bg-slate-800 rounded-xl p-6">

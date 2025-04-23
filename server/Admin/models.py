@@ -150,8 +150,12 @@ class UserSubscription(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.plan.name}" 
     
+    def is_expired(self):
+        return self.end_date < timezone.now()
+    
     def is_valid(self):
-        return self.is_active and self.end_date > timezone.now()
+        return self.is_active and not self.is_expired()
+
     
     def can_join_event(self):
         return self.events_joined_current_month <= self.plan.event_join_limit

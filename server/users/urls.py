@@ -7,7 +7,7 @@ from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
                     UpdateProfilePicture, CheckOrganizerStatus, CheckoutAPIView,
                     ApplyCouponAPIView,joined_events,cancel_ticket, WalletDetail,
                     ForgotPasswordView,ResetPasswordView, SubscriptionCheckout,
-                    OrganizerRequestStatus, UpgradePlan)
+                    OrganizerRequestStatus, UpgradePlan, UserPlanDetails)
 from users.services.stripe_webhooks import stripe_webhook
 
 urlpatterns = [
@@ -38,4 +38,5 @@ urlpatterns = [
     path('subscription-checkout/', SubscriptionCheckout.as_view(), name='subscription-checkout'),
     path('subscription-upgrade/', UpgradePlan.as_view(), name='subscription_upgrade'),
     path('stripe-webhook/', stripe_webhook, name='stripe_webhook'),
+    path('subscription-details/', UserPlanDetails.as_view(), name='subscription_details')
 ]

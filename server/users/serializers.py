@@ -206,5 +206,29 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "price", "event_join_limit", "event_creation_limit",
             "email_notification", "group_chat", "personal_chat", "advanced_analytics",
-            "ticket_scanning", "live_streaming", "active"
+            "ticket_scanning", "live_streaming", "active",
+        ]  
+          
+class UserSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPlan
+        fields = ["name","price","event_join_limit","event_creation_limit",
+            "email_notification","group_chat","personal_chat","advanced_analytics","ticket_scanning","live_streaming",
         ]
+
+class UserPlanDetailsSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source="user.username")
+    plan = UserSubscriptionSerializer()
+    days_remaining = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserSubscription
+        fields = [ "user", "start_date", "end_date", "is_active","payment_method",
+            "events_joined_current_month", "events_organized_current_month", "days_remaining","is_expired","plan",]
+
+    def get_days_remaining(self, obj):
+        return obj.days_remaining()
+    
+    def get_is_expired(self, obj):
+        return obj.is_expired()
