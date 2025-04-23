@@ -24,8 +24,8 @@ from .filters import (RevenueDistributionFilter, BookingFilterHistory, RefundHis
                       EventFilter)
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
-from django.db.models import Sum
-from datetime import datetime
+from django.db.models import Sum, Count
+from datetime import datetime, timedelta
 from .paginations import BookingPaginationHistory, RefundHistoryPagination, SubscriptionPagination
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -34,6 +34,7 @@ from event.models import Event
 from .permissions import IsAdminUser
 from users.permissions import IsActiveUser
 import logging
+from django.db.models.functions import TruncDate
 logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
@@ -576,9 +577,7 @@ def UserSubscriptionStatus(request, pk):
         return Response({"success": False, "error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
     
     
-from datetime import timedelta
-from django.db.models.functions import TruncDate
-from django.db.models import Sum, Count
+
 
 class SubscriptionAnalyticsView(APIView):
     def get(self, request):
