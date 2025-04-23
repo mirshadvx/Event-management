@@ -263,12 +263,12 @@ LOGGING = {
             "formatter": "verbose",
         },
     },
-    "loggers": {
-        "": {
-            "handlers": ["console", "file"],
-            "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO"),
-        }
-    },
+    # "loggers": {
+    #     "": {
+    #         "handlers": ["console", "file"],
+    #         "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO"),
+    #     }
+    # },
     "formatters": {
         "verbose": {
             "format": "{asctime} ({levelname})- {name}- {message}",
