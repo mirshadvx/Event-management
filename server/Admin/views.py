@@ -21,7 +21,7 @@ from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
 from .filters import (RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter, UsersSubscriptionFilter,
-                      EventFilter)
+                      EventFilter, SubscriptionAnalyticsFilter)
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum, Count
@@ -35,6 +35,14 @@ from .permissions import IsAdminUser
 from users.permissions import IsActiveUser
 import logging
 from django.db.models.functions import TruncDate
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import Table, TableStyle, Paragraph, SimpleDocTemplate, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from django.http import HttpResponse
+
 logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
@@ -575,70 +583,66 @@ def UserSubscriptionStatus(request, pk):
         return Response({"success": True, "message": "Subscription status updated.", "is_active": sub.is_active})
     except UserSubscription.DoesNotExist:
         return Response({"success": False, "error": "Subscription not found."}, status=status.HTTP_404_NOT_FOUND)
-    
-    
 
-
-class SubscriptionAnalyticsView(APIView):
+class SubscriptionAnalytics(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
     def get(self, request):
-        time_range = request.query_params.get('time_range', 'month')
-        plan_type = request.query_params.get('plan_type')
+        subscriptions_qs = UserSubscription.objects.all()
+        subscriptions_filter = SubscriptionAnalyticsFilter(request.query_params, queryset=subscriptions_qs)
+        filtered_subscriptions = subscriptions_filter.qs
         
-        today = timezone.now()
-        if time_range == 'today':
-            start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif time_range == 'week':
-            start_date = today - timedelta(days=today.weekday())
-        elif time_range == 'month':
-            start_date = today.replace(day=1)
-        else: 
-            start_date = today.replace(month=1, day=1)
-            
-        transactions_qs = SubscriptionTransaction.objects.filter(
-            transaction_date__gte=start_date
-        )
-        subscriptions_qs = UserSubscription.objects.filter(
-            start_date__gte=start_date
-        )
+        transactions_qs = SubscriptionTransaction.objects.all()
+        if 'time_range' in request.query_params:
+            today = timezone.now()
+            time_range = request.query_params['time_range']
+            if time_range == 'today':
+                start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+            elif time_range == 'week':
+                start_date = today - timedelta(days=today.weekday())
+            elif time_range == 'month':
+                start_date = today.replace(day=1)
+            else: 
+                start_date = today.replace(month=1, day=1)
+            transactions_qs = transactions_qs.filter(transaction_date__gte=start_date)
         
-        if plan_type:
+        if 'plan_type' in request.query_params:
+            plan_type = request.query_params['plan_type']
             transactions_qs = transactions_qs.filter(subscription__plan__name=plan_type)
-            subscriptions_qs = subscriptions_qs.filter(plan__name=plan_type)
-        
+
         revenue = transactions_qs.aggregate(
             basic=Sum('amount', filter=Q(subscription__plan__name='basic')),
-            premium=Sum('amount', filter=Q(subscription__plan__name='premium'))
-        )
-        
-        growth_data = subscriptions_qs.annotate(
+            premium=Sum('amount', filter=Q(subscription__plan__name='premium')))
+
+        growth_data = filtered_subscriptions.annotate(
             date=TruncDate('start_date')
         ).values('date', 'plan__name').annotate(
             count=Count('id')
         ).order_by('date')
-        
+
         labels = []
         basic_data = []
         premium_data = []
-        current_date = start_date
-        while current_date <= today:
-            labels.append(current_date.strftime('%Y-%m-%d'))
-            basic_count = next(
-                (item['count'] for item in growth_data 
-                 if item['date'] == current_date.date() and item['plan__name'] == 'basic'), 
-                0
-            )
-            premium_count = next(
-                (item['count'] for item in growth_data 
-                 if item['date'] == current_date.date() and item['plan__name'] == 'premium'), 
-                0
-            )
-            basic_data.append(basic_count)
-            premium_data.append(premium_count)
-            current_date += timedelta(days=1)
         
-        transaction_counts = transactions_qs.values('transaction_type').annotate(
-            count=Count('id')
-        )
+        if filtered_subscriptions.exists():
+            start_date = filtered_subscriptions.order_by('start_date').first().start_date
+            end_date = timezone.now()
+            
+            current_date = start_date
+            while current_date <= end_date:
+                date_str = current_date.strftime('%Y-%m-%d')
+                labels.append(date_str)
+                
+                daily_data = growth_data.filter(date=current_date.date())
+                basic_count = daily_data.filter(plan__name='basic').first()
+                premium_count = daily_data.filter(plan__name='premium').first()
+                
+                basic_data.append(basic_count['count'] if basic_count else 0)
+                premium_data.append(premium_count['count'] if premium_count else 0)
+                
+                current_date += timedelta(days=1)
+
+        transaction_counts = transactions_qs.values('transaction_type').annotate(count=Count('id'))
         transaction_data = {
             'purchase': 0,
             'renewal': 0,
@@ -646,8 +650,7 @@ class SubscriptionAnalyticsView(APIView):
         }
         for item in transaction_counts:
             transaction_data[item['transaction_type']] = item['count']
-        
-        
+
         return Response({
             'totalRevenue': {
                 'basic': float(revenue['basic'] or 0),
@@ -659,8 +662,11 @@ class SubscriptionAnalyticsView(APIView):
                 'premium': premium_data
             },
             'transactionData': transaction_data,
+            'transactions': list(transactions_qs.order_by('-transaction_date').values(
+                'id', 'amount', 'transaction_type', 'transaction_date',
+                'subscription__user__username', 'subscription__plan__name'
+            )[:50])
         })
-        
         
 class EventList(APIView):
     permission_classes = [AllowAny]
@@ -682,3 +688,242 @@ class EventList(APIView):
         except Exception as e:
             return Response({ "success": "error","message": f"Failed to fetch events {str(e)}",},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# class ExportRevenuePDF(APIView):
+#     permission_classes = [IsAuthenticated]
+    
+#     def get(self, request):
+#         params = request.query_params
+#         queryset = RevenueDistribution.objects.all()
+        
+#         filterset = RevenueDistributionFilter(params, queryset=queryset)
+#         if filterset.is_valid():
+#             queryset = filterset.qs
+
+#         revenue_data = queryset.select_related('event', 'event__organizer').order_by('-distributed_at')
+        
+#         buffer = BytesIO()
+        
+#         p = canvas.Canvas(buffer, pagesize=letter)
+#         width, height = letter
+        
+#         p.setTitle("Revenue Distribution Report")
+#         p.setAuthor("Event Management System")
+#         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+#         styles = getSampleStyleSheet()
+#         p.setFont("Helvetica-Bold", 16)
+#         p.drawString(72, height - 50, "Revenue Distribution Report")
+#         p.setFont("Helvetica", 10)
+#         p.drawString(72, height - 70, f"Generated on: {current_date}")
+        
+#         p.drawString(72, height - 90, f"Date Range: {params.get('date_range', 'All Time').capitalize()}")
+#         if params.get('start_date'):
+#             p.drawString(72, height - 110, f"From: {params.get('start_date')}")
+#         if params.get('end_date'):
+#             p.drawString(72, height - 130, f"To: {params.get('end_date')}")
+#         if params.get('event_type'):
+#             p.drawString(72, height - 150, f"Event Type: {params.get('event_type')}")
+        
+#         data = [
+#             [
+#                 "Event", "Organizer", "Type", 
+#                 "Total Revenue", "Participants", 
+#                 "Admin %", "Admin Amount", 
+#                 "Organizer Amount", "Date"
+#             ]
+#         ]
+        
+#         for item in revenue_data:
+#             data.append([
+#                 item.event.event_title,
+#                 item.event.organizer.username,
+#                 item.event.event_type,
+#                 f"{item.total_revenue:.2f}",
+#                 str(item.total_participants),
+#                 f"{item.admin_percentage}%",
+#                 f"{item.admin_amount:.2f}",
+#                 f"{item.organizer_amount:.2f}",
+#                 item.distributed_at.strftime("%Y-%m-%d")
+#             ])
+        
+#         table = Table(data)
+#         table.setStyle(TableStyle([
+#             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#3b82f6")),
+#             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+#             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+#             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#             ('FONTSIZE', (0, 0), (-1, 0), 10),
+#             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+#             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
+#             ('GRID', (0, 0), (-1, -1), 1, colors.HexColor("#e2e8f0")),
+#             ('FONTSIZE', (0, 1), (-1, -1), 8),
+#         ]))
+        
+#         table.wrapOn(p, width - 144, height)
+#         table.drawOn(p, 36, height - 180 - (len(data) * 15))
+        
+#         total_revenue = sum(item.total_revenue for item in revenue_data)
+#         total_admin = sum(item.admin_amount for item in revenue_data)
+#         total_organizer = sum(item.organizer_amount for item in revenue_data)
+        
+#         p.setFont("Helvetica-Bold", 12)
+#         p.drawString(72, 150, "Summary:")
+#         p.setFont("Helvetica", 10)
+#         p.drawString(72, 130, f"Total Revenue: {total_revenue:.2f}")
+#         p.drawString(72, 110, f"Total Admin Share: {total_admin:.2f}")
+#         p.drawString(72, 90, f"Total Organizer Share: {total_organizer:.2f}")
+#         p.drawString(72, 70, f"Total Events: {len(revenue_data)}")
+        
+#         p.showPage()
+#         p.save()
+        
+#         buffer.seek(0)
+#         response = HttpResponse(buffer, content_type='application/pdf')
+#         filename = f"revenue_report_{current_date}.pdf"
+#         response['Content-Disposition'] = f'attachment; filename="{filename}"'
+#         return response
+
+class ExportRevenuePDF(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        params = request.query_params
+        queryset = RevenueDistribution.objects.all()
+        
+        filterset = RevenueDistributionFilter(params, queryset=queryset)
+        if filterset.is_valid():
+            queryset = filterset.qs
+
+        revenue_data = queryset.select_related('event', 'event__organizer').order_by('-distributed_at')
+        
+        buffer = BytesIO()
+        
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
+        
+        styles = getSampleStyleSheet()
+        elements = []
+        
+        title_style = styles['Title']
+        elements.append(Paragraph("Revenue Distribution Report", title_style))
+        
+        current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        info_style = styles['Normal']
+        info_style.fontSize = 10
+        info_style.spaceBefore = 6
+        
+        elements.append(Paragraph(f"Generated on: {current_date}", info_style))
+        elements.append(Paragraph(f"Date Range: {params.get('date_range', 'All Time').capitalize()}", info_style))
+        
+        if params.get('start_date'):
+            elements.append(Paragraph(f"From: {params.get('start_date')}", info_style))
+        if params.get('end_date'):
+            elements.append(Paragraph(f"To: {params.get('end_date')}", info_style))
+        if params.get('event_type'):
+            elements.append(Paragraph(f"Event Type: {params.get('event_type')}", info_style))
+        
+        elements.append(Spacer(1, 20))
+        
+        table_width = landscape(letter)[0] - 72
+        col_widths = [
+            table_width * 0.13,
+            table_width * 0.12,  
+            table_width * 0.10,  
+            table_width * 0.12,
+            table_width * 0.10,
+            table_width * 0.08,
+            table_width * 0.12,
+            table_width * 0.12, 
+            table_width * 0.11,  
+        ]
+        
+        data = [
+            [
+                "Event", "Organizer", "Type", 
+                "Total Revenue", "Participants", 
+                "Admin %", "Admin Amount", 
+                "Organizer Amount", "Date"
+            ]
+        ]
+
+        for item in revenue_data:
+            data.append([
+                item.event.event_title,
+                item.event.organizer.username,
+                item.event.event_type,
+                f"${item.total_revenue:.2f}",
+                str(item.total_participants),
+                f"{item.admin_percentage}%",
+                f"${item.admin_amount:.2f}",
+                f"${item.organizer_amount:.2f}",
+                item.distributed_at.strftime("%Y-%m-%d")
+            ])
+        
+        table = Table(data, colWidths=col_widths)
+        
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#3b82f6")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor("#e2e8f0")),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8), 
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'), 
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'), 
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'), 
+            ('ALIGN', (6, 1), (6, -1), 'RIGHT'), 
+            ('ALIGN', (7, 1), (7, -1), 'RIGHT'), 
+            ('ALIGN', (8, 1), (8, -1), 'CENTER'), 
+            
+            *[('BACKGROUND', (0, i), (-1, i), colors.HexColor("#eef2ff")) for i in range(2, len(data), 2)]
+        ]))
+        
+        elements.append(table)
+        
+        elements.append(Spacer(1, 20))
+        
+        total_revenue = sum(item.total_revenue for item in revenue_data)
+        total_admin = sum(item.admin_amount for item in revenue_data)
+        total_organizer = sum(item.organizer_amount for item in revenue_data)
+
+        summary_style = styles['Heading2']
+        elements.append(Paragraph("Summary", summary_style))
+        
+        summary_table_data = [
+            ["Total Revenue:", f"{total_revenue:.2f}"],
+            ["Total Admin Share:", f"{total_admin:.2f}"],
+            ["Total Organizer Share:", f"{total_organizer:.2f}"],
+            ["Total Events:", str(len(revenue_data))]
+        ]
+        
+        summary_table = Table(summary_table_data, colWidths=[100, 100])
+        summary_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(summary_table)
+        
+        doc.build(elements)
+        
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        filename = f"revenue_report_{datetime.now().strftime('%Y-%m-%d')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response

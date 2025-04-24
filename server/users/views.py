@@ -1477,40 +1477,24 @@ class RenewSubscription(APIView):
         start_date = timezone.now()
         end_date = start_date + timedelta(days=30)
 
-        try:
-            cur_subscription = UserSubscription.objects.get(
-                user=user, is_active=True
-            )
-            
-            cur_subscription.plan = plan
-            cur_subscription.start_date = start_date
-            cur_subscription.end_date = end_date
-            cur_subscription.payment_method = payment_method
-            cur_subscription.payment_id = payment_id
-            cur_subscription.save()
-            
-            subscription = cur_subscription
-            transaction_type = "renewal"
-            
-        except UserSubscription.DoesNotExist:
-            subscription = UserSubscription.objects.create(
-                user=user,
-                plan=plan,
-                start_date=start_date,
-                end_date=end_date,
-                is_active=True,
-                payment_method=payment_method,
-                payment_id=payment_id,
-            )
-            transaction_type = "purchase"
+        cur_subscription = UserSubscription.objects.get(user=user, is_active=True)
+        
+        cur_subscription.plan = plan
+        cur_subscription.start_date = start_date
+        cur_subscription.end_date = end_date
+        cur_subscription.payment_method = payment_method
+        cur_subscription.payment_id = payment_id
+        cur_subscription.save()
+        
+        subscription = cur_subscription
+        transaction_type = "renewal"
         
         SubscriptionTransaction.objects.create(
             subscription=subscription,
             amount=plan.price,
             transaction_type=transaction_type,
             payment_method=payment_method,
-            transaction_id=payment_id,
-        )
+            transaction_id=payment_id,)
         
         return Response({
             "success": True,

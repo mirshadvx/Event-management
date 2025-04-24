@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from "react";
-import {
-    Search,
-    Download,
-    RefreshCw,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
+import { Search, Download, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import adminApi from "@/services/adminApi";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const Revenue_Overview = () => {
     const [searchTerm, setSearchTerm] = useState("");
@@ -20,11 +15,51 @@ const Revenue_Overview = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [revenueData, setRevenueData] = useState([]);
     const [totalItems, setTotalItems] = useState(0);
-    const [totalRevenue, setTotalRevenue] = useState(0);    
+    const [totalRevenue, setTotalRevenue] = useState(0);
     const [todayRevenue, setTodayRevenue] = useState(0);
     const [monthlyRevenue, setMonthlyRevenue] = useState(0);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+
+    const [exportModalOpen, setExportModalOpen] = useState(false);
+    const [exportDateRange, setExportDateRange] = useState("all");
+    const [exportEventType, setExportEventType] = useState("all");
+    const [exportStartDate, setExportStartDate] = useState("");
+    const [exportEndDate, setExportEndDate] = useState("");
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportPDF = async () => {
+        setIsExporting(true);
+        try {
+            const params = {
+                search: searchTerm || undefined,
+                date_range: exportDateRange !== "all" ? exportDateRange : undefined,
+                event_type: exportEventType !== "all" ? exportEventType : undefined,
+                start_date: exportStartDate || undefined,
+                end_date: exportEndDate || undefined,
+            };
+
+            const response = await adminApi.get("export-revenue-pdf/", {
+                params,
+                responseType: "blob",
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement("a");
+            link.href = url;
+            const fileName = `revenue_report_${new Date().toISOString().split("T")[0]}.pdf`;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+
+            setExportModalOpen(false);
+        } catch (error) {
+            console.error("Error exporting PDF:", error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const fetchRevenueSummary = async () => {
         try {
@@ -36,12 +71,12 @@ const Revenue_Overview = () => {
                 end_date: endDate || undefined,
             };
 
-            const response = await adminApi.get('revenue-summary/', { params });
+            const response = await adminApi.get("revenue-summary/", { params });
             setTotalRevenue(parseFloat(response.data.total_revenue));
             setTodayRevenue(parseFloat(response.data.today_revenue));
             setMonthlyRevenue(parseFloat(response.data.monthly_revenue));
         } catch (error) {
-            console.error('Error fetching revenue summary:', error);
+            console.error("Error fetching revenue summary:", error);
         }
     };
 
@@ -58,13 +93,13 @@ const Revenue_Overview = () => {
                 end_date: endDate || undefined,
             };
 
-            const response = await adminApi.get('revenue-distributions/', { params });
+            const response = await adminApi.get("revenue-distributions/", { params });
             const data = response.data.results || response.data;
-            
+
             setRevenueData(data);
             setTotalItems(response.data.count || data.length);
         } catch (error) {
-            console.error('Error fetching revenue data:', error);
+            console.error("Error fetching revenue data:", error);
         } finally {
             setIsLoading(false);
         }
@@ -82,6 +117,13 @@ const Revenue_Overview = () => {
         setCurrentPage(1);
         setStartDate("");
         setEndDate("");
+    };
+
+    const resetExportFilters = () => {
+        setExportDateRange("all");
+        setExportEventType("all");
+        setExportStartDate("");
+        setExportEndDate("");
     };
 
     const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -181,14 +223,104 @@ const Revenue_Overview = () => {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Reset
                 </Button>
-                <Button onClick={() => { fetchRevenueSummary(); fetchRevenueData(); }}>
+                <Button
+                    onClick={() => {
+                        fetchRevenueSummary();
+                        fetchRevenueData();
+                    }}
+                >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
                 </Button>
-                <Button variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                </Button>
+                <Dialog className="w-[100px]" open={exportModalOpen} onOpenChange={setExportModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline">
+                            <Download className="h-4 w-4 mr-2" />
+                            Export
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Export Revenue Report</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Date Range</label>
+                                    <select
+                                        value={exportDateRange}
+                                        onChange={(e) => setExportDateRange(e.target.value)}
+                                        className="w-full border rounded-md p-2 bg-white dark:bg-gray-800"
+                                    >
+                                        <option value="all">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                        <option value="year">This Year</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Event Type</label>
+                                    <select
+                                        value={exportEventType}
+                                        onChange={(e) => setExportEventType(e.target.value)}
+                                        className="w-full border rounded-md p-2 bg-white dark:bg-gray-800"
+                                    >
+                                        <option value="all">All Event Types</option>
+                                        <option value="Conference">Conference</option>
+                                        <option value="Workshop">Workshop</option>
+                                        <option value="Seminar">Seminar</option>
+                                        <option value="Concert">Concert</option>
+                                        <option value="Festival">Festival</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {exportDateRange === "custom" && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Start Date</label>
+                                        <Input
+                                            type="date"
+                                            value={exportStartDate}
+                                            onChange={(e) => setExportStartDate(e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">End Date</label>
+                                        <Input
+                                            type="date"
+                                            value={exportEndDate}
+                                            onChange={(e) => setExportEndDate(e.target.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 pt-4">
+                                <Button variant="outline" onClick={resetExportFilters} disabled={isExporting}>
+                                    Reset
+                                </Button>
+                                <Button onClick={handleExportPDF} disabled={isExporting}>
+                                    {isExporting ? (
+                                        <>
+                                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                            Exporting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Export PDF
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <Card>
@@ -256,7 +388,7 @@ const Revenue_Overview = () => {
                                 variant="outline"
                                 size="sm"
                                 disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                onClick={() => setCurrentPage((prev) => prev - 1)}
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -277,7 +409,7 @@ const Revenue_Overview = () => {
                                 variant="outline"
                                 size="sm"
                                 disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                onClick={() => setCurrentPage((prev) => prev + 1)}
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
@@ -303,4 +435,4 @@ const Revenue_Overview = () => {
     );
 };
 
-export default Revenue_Overview;  
+export default Revenue_Overview;

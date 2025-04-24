@@ -4,6 +4,7 @@ from event.models import Event
 from users.models import Booking, WalletTransaction
 from django.db.models import Q
 from datetime import datetime, timedelta
+from django.utils import timezone
 
 class RevenueDistributionFilter(django_filters.FilterSet):
     search = django_filters.CharFilter(method='filter_search')
@@ -194,5 +195,36 @@ class EventFilter(django_filters.FilterSet):
         return queryset
         
             
-            
-    
+class SubscriptionAnalyticsFilter(django_filters.FilterSet):
+    time_range = django_filters.ChoiceFilter(
+        choices=[
+            ('today', 'Today'),
+            ('week', 'This Week'),
+            ('month', 'This Month'),
+            ('year', 'This Year'),
+        ],
+        method='filter_time_range'
+    )
+    plan_type = django_filters.ChoiceFilter(
+        field_name='plan__name',
+        choices=[
+            ('basic', 'Basic'),
+            ('premium', 'Premium'),
+        ]
+    )
+
+    class Meta:
+        model = UserSubscription
+        fields = []
+
+    def filter_time_range(self, queryset, name, value):
+        today = timezone.now()
+        if value == 'today':
+            start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif value == 'week':
+            start_date = today - timedelta(days=today.weekday())
+        elif value == 'month':
+            start_date = today.replace(day=1)
+        else:
+            start_date = today.replace(month=1, day=1)
+        return queryset.filter(start_date__gte=start_date)
