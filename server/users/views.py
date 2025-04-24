@@ -1349,3 +1349,175 @@ class UserPlanDetails(APIView):
             return Response({"success": True, "subscription": serializer.data})
         except UserSubscription.DoesNotExist:
             return Response({"success": False, "error": "No active subscripton found."}, status=status.HTTP_404_NOT_FOUND)
+        
+class RenewSubscription(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            cu_subscription = UserSubscription.objects.select_related("plan").get(user=user, is_active=True)
+            if not cu_subscription.plan.active:
+                return Response({"success":False, "error":"Plan currently unavailable"}, status=status.HTTP_404_NOT_FOUND)
+            current_plan = {
+                    'id': cu_subscription.plan.id,
+                    'name': cu_subscription.plan.name,
+                    'end_date': cu_subscription.end_date.strftime('%Y-%m-%d'),
+                    'expired': cu_subscription.is_expired(),
+                }
+
+            plan_data = SubscriptionPlanSerializer(cu_subscription.plan)
+            
+            try:
+                wallet_balance = user.wallet.balance
+            except Wallet.DoesNotExist:
+                wallet_balance = 0
+            
+            return Response({"success": True, "plan": plan_data.data, "current_plan": current_plan, "wallet_balance":float(wallet_balance)},
+                            status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({"success": False, "error": f"{e}"}, status=status.HTTP_404_NOT_FOUND)
+
+    
+    def post(self, request):
+        try:
+            plan_id = request.data.get('plan_id')
+            payment_method = request.data.get('payment_method')
+            create_intent = request.data.get('create_intent', False)
+            payment_intent_id = request.data.get('payment_intent_id')
+            
+            user = request.user
+            
+            try:
+                plan = SubscriptionPlan.objects.get(id=plan_id, active=True)
+            except SubscriptionPlan.DoesNotExist:
+                return Response({"success": False, "error": "Plan currently unavailable"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            if payment_method == 'stripe' and create_intent:
+                try:
+                    intent = stripe.PaymentIntent.create(
+                        amount=int(plan.price * 100),
+                        currency='inr',
+                        metadata={
+                            'user_id': user.id,
+                            'plan_id': plan.id,
+                            'plan_name': plan.name,
+                        },
+                    )
+                    return Response({
+                        "success": True,
+                        "client_secret": intent.client_secret
+                    }, status=status.HTTP_200_OK)
+                except Exception as e:
+                    return Response({
+                        "success": False, 
+                        "message": f"Error creating payment intent: {str(e)}"
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+
+            if payment_method == 'wallet':
+                try:
+                    wallet = Wallet.objects.get(user=user)
+                    
+                    if wallet.balance < Decimal(plan.price):
+                        return Response({
+                            "success": False, 
+                            "message": "Insufficient wallet balance"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    transaction_id = str(uuid.uuid4())
+                    
+                    wallet.balance -= Decimal(plan.price)
+                    wallet.save()
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        transaction_type='PAYMENT',
+                        amount=plan.price,
+                        description=f"Payment for {plan.name} subscription",
+                        transaction_id=uuid.UUID(transaction_id)
+                    )
+                    
+                    return self.process_subscription(user, plan, payment_method, transaction_id)
+                except Wallet.DoesNotExist:
+                    return Response({
+                        "success": False, 
+                        "message": "Wallet not found"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            elif payment_method == 'stripe' and payment_intent_id:
+                try:
+                    payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+                    
+                    if payment_intent.status != 'succeeded':
+                        return Response({
+                            "success": False, 
+                            "message": "Payment has not been completed successfully"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    return self.process_subscription(user, plan, payment_method, payment_intent_id)
+                
+                except Exception as e:
+                    return Response({
+                        "success": False, 
+                        "message": f"Error processing payment: {str(e)}"
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            else:
+                return Response({
+                    "success": False, 
+                    "message": "Invalid request parameters"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            print(e)
+            
+
+    def process_subscription(self,user, plan, payment_method, payment_id):
+        start_date = timezone.now()
+        end_date = start_date + timedelta(days=30)
+
+        try:
+            cur_subscription = UserSubscription.objects.get(
+                user=user, is_active=True
+            )
+            
+            cur_subscription.plan = plan
+            cur_subscription.start_date = start_date
+            cur_subscription.end_date = end_date
+            cur_subscription.payment_method = payment_method
+            cur_subscription.payment_id = payment_id
+            cur_subscription.save()
+            
+            subscription = cur_subscription
+            transaction_type = "renewal"
+            
+        except UserSubscription.DoesNotExist:
+            subscription = UserSubscription.objects.create(
+                user=user,
+                plan=plan,
+                start_date=start_date,
+                end_date=end_date,
+                is_active=True,
+                payment_method=payment_method,
+                payment_id=payment_id,
+            )
+            transaction_type = "purchase"
+        
+        SubscriptionTransaction.objects.create(
+            subscription=subscription,
+            amount=plan.price,
+            transaction_type=transaction_type,
+            payment_method=payment_method,
+            transaction_id=payment_id,
+        )
+        
+        return Response({
+            "success": True,
+            "message": "Subscription activated successfully",
+            "subscription": {
+                "plan_name": plan.get_name_display(),
+                "start_date": start_date.strftime('%Y-%m-%d'),
+                "end_date": end_date.strftime('%Y-%m-%d'),
+            }
+        }, status=status.HTTP_200_OK)

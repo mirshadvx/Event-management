@@ -15,11 +15,13 @@ import {
     QrCode,
 } from "lucide-react";
 import api from "@/services/api";
+import { useNavigate } from "react-router-dom";
 
 const Subscription = () => {
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const navigate = useNavigate()
 
     useEffect(() => {
         const fetchData = async () => {
@@ -291,7 +293,7 @@ const Subscription = () => {
                 )}
                 {subscription.is_expired && (
                     <div className="mt-6 flex justify-center">
-                        <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
+                        <button onClick={()=> navigate('/checkout/renew-subscription')} className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
                         Renew Plan
                         </button>
                     </div>
