@@ -56,7 +56,6 @@ const SubscriptionAnalytics = () => {
         setPlanType("all");
     };
 
-    // Line chart for subscription growth
     const growthChartData = {
         labels: analyticsData.growthData.labels,
         datasets: [
@@ -77,7 +76,6 @@ const SubscriptionAnalytics = () => {
         ],
     };
 
-    // Bar chart for transaction types
     const transactionChartData = {
         labels: ["Purchase", "Renewal", "Upgrade"],
         datasets: [
@@ -133,7 +131,6 @@ const SubscriptionAnalytics = () => {
                 </Button>
             </div>
 
-            {/* Revenue Metrics */}
             <div className="grid md:grid-cols-2 gap-4">
                 <Card>
                     <CardHeader>
@@ -153,7 +150,6 @@ const SubscriptionAnalytics = () => {
                 </Card>
             </div>
 
-            {/* Charts */}
             <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
                 <Card>
                     <CardHeader>

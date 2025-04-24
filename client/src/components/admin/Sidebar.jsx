@@ -21,7 +21,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
         { name: "Events", icon: <MdEvent className="w-6 h-6" />, path: "events" },
         { name: "Coupons", icon: <TicketPercent className="w-6 h-6" />, path: "coupons" },
         { name: "Achievements", icon: <BarChart className="w-6 h-6" />, path: "achievements" },
-        { name: "Ticket purchases", icon: <TicketX className="w-6 h-6" />, path: "ticket-purchase" },
+        // { name: "Ticket purchases", icon: <TicketX className="w-6 h-6" />, path: "ticket-purchase" },
     ];
 
     const financeItems = [
