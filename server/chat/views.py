@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status , views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from users.models import Profile
@@ -7,6 +7,9 @@ from .models import *
 from .serializers import *
 from rest_framework.exceptions import PermissionDenied, NotFound
 from rest_framework.pagination import PageNumberPagination
+import jwt
+from django.conf import settings
+from rest_framework_simplejwt.tokens import AccessToken
 
 class MessagePagination(PageNumberPagination):
     page_size = 50
@@ -15,7 +18,7 @@ class MessagePagination(PageNumberPagination):
 
 class ConversationListCreateView(generics.ListCreateAPIView):
     serializer_class = ConversationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user
@@ -83,3 +86,14 @@ class MessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
         
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class PassSocketToken(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            token = AccessToken.for_user(user)
+            return Response({"token": str(token)}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Unable to generate token"}, status=status.HTTP_400_BAD_REQUEST)

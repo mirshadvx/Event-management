@@ -19,6 +19,7 @@ import ResetPassword from "./pages/User/Auth/ResetPassword";
 // import { SkeletonTheme } from "react-loading-skeleton";
 import SubscriptionCheckout from "./pages/User/Checkout/SubscriptionCheckout";
 import RenewSubscription from "./pages/User/Checkout/RenewSubscription";
+import MainLayout from "./components/layout/user/chat/MainLayout";
 
 function App() {
     const dispatch = useDispatch();
@@ -50,6 +51,7 @@ function App() {
                     <Route path="/checkout/:eventId" element={<CheckoutPage />} />
                     <Route path="/checkout/subscription" element={<SubscriptionCheckout />} />
                     <Route path="/checkout/renew-subscription" element={<RenewSubscription />} />
+                    <Route path="/chat" element={<MainLayout />} />
                     {AuthRoutes()}
                     {DashboardRoutes()}
                     {AdminRoutes()}

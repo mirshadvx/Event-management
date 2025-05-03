@@ -14,7 +14,6 @@ class Conversation(models.Model):
     objects = ConversationManager()
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def __str__(self):
         participant_names = " ,".join([user.username for user in self.participants.all()])
         return f'Conversation with {participant_names}'

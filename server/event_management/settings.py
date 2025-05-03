@@ -204,7 +204,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),  # Still allows Authorization header
     "AUTH_COOKIE": "access_token",  # Name of the cookie
     "AUTH_COOKIE_REFRESH": "refresh_token",
-    "AUTH_COOKIE_SECURE": True,  # Set to False for local development
+    "AUTH_COOKIE_SECURE": False,  # Set to False for local development
     "AUTH_COOKIE_HTTP_ONLY": True,
     "AUTH_COOKIE_PATH": "/",
     "AUTH_COOKIE_SAMESITE": "Lax",

@@ -114,7 +114,11 @@ const Header = () => {
 
                         <div className="flex items-center gap-4">
                             <IoIosNotifications className="text-white w-6 h-6 cursor-pointer" />
-                            <IoMdChatbubbles className="text-white w-6 h-6 cursor-pointer" />
+                            <IoMdChatbubbles
+                                className="text-white w-6 h-6 cursor-pointer"
+                                onClick={() => handleNavigation("/chat")}
+                            />
+
                             <div className="relative" ref={dropdownRef}>
                                 <div
                                     className="flex items-center gap-2 bg-[#00FF82] px-3 py-1.5 rounded-lg cursor-pointer"

@@ -30,11 +30,11 @@ class ConversationSerializer(serializers.ModelSerializer):
         return obj.messages.filter(read=False).exclude(sender=self.context['request'].user).count()
         
 class MessageSerializer(serializers.ModelSerializer):
-    sender = UserListSerializer(read_only=True)
+    sender = UserListSerializer()
 
     class Meta:
         model = Message
-        fields = ["id", "conversation", "sender", "content", "timestamp", "is_read"]
+        fields = ["id", "conversation", "sender", "content", "timestamp", "read"]
     
 class CreateMessageSerializer(serializers.ModelSerializer):
     class Meta:
