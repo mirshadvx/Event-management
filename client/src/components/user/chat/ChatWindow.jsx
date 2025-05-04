@@ -407,7 +407,7 @@ const ChatWindow = ({ chatID, chatHeader, onMenuClick, onInfoClick }) => {
                             // <div className="">
                             <div className="w-fit">
                                 <div className="bg-gray-700/40 p-3 rounded-lg rounded-tl-none mt-1">
-                                    <SyncLoader color="#6aff00" margin={1} size={9} speedMultiplier={1} />
+                                    <SyncLoader color="#6aff00" margin={1} size={9} speedMultiplier={0.5} />
                                 </div>
                             </div>
                         )}

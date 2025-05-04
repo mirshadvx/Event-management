@@ -21,7 +21,11 @@ const ChatListItem = ({ chat, isActive, onClick }) => {
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
                         <h3 className="text-sm font-medium text-white truncate">{chat.title}</h3>
-                        <span className="text-xs text-gray-400">{chat.lastActive}</span>
+                        <span className="text-xs text-gray-400">{new Date(chat.lastActive).toLocaleTimeString([],{
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true,
+                        })}</span>
                     </div>
                     <p className="text-xs text-gray-400 truncate mt-1">{chat.lastMessage}</p>
                 </div>
