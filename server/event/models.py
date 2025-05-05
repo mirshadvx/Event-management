@@ -93,7 +93,6 @@ class TicketPurchase(models.Model):
     unique_qr_code = models.CharField(max_length=36, unique=True, default=uuid.uuid4) 
     booking_id = models.CharField(max_length=50, null=True, blank=True)
 
-
     def __str__(self):
         return f"{self.quantity} {self.ticket.ticket_type} tickets for {self.event.event_title}  -- {self.buyer.username}"
 

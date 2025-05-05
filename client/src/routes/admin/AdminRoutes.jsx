@@ -14,10 +14,7 @@ import Plan from "@/components/layout/admin/subscription/plan";
 import SubsOverview from "@/components/layout/admin/subscription/SubsOverview";
 import SubscriptionAnalytics from "@/components/layout/admin/subscription/SubscriptionAnalytics";
 import Events from "@/components/layout/admin/Events";
-
-function fun() {
-    return <h1>hit out let</h1>;
-}
+import LandingPage from "@/components/layout/admin/LandingPage";
 
 const AdminRoutes = () => {
     return (
@@ -29,7 +26,7 @@ const AdminRoutes = () => {
                 </Admin_ProtectedRoute>
             }
         >
-            <Route path="dashboard" element={<Users_outlet />} />
+            <Route path="dashboard" element={<LandingPage />} />
             <Route path="users" element={<Users_outlet />} />
             <Route path="oranizer-requests" element={<Organizer_Request />} />
             <Route path="coupons" element={<Coupon_layout />} />
@@ -42,7 +39,7 @@ const AdminRoutes = () => {
             <Route path="subscription/overview" element={<SubsOverview />} />
             <Route path="subscription/analytics" element={<SubscriptionAnalytics />} />
             <Route path="events" element={<Events />} />
-            <Route index element={fun()} />
+            <Route index element={ <LandingPage />} />
         </Route>
     );
 };
