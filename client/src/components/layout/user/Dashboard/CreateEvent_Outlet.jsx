@@ -377,7 +377,7 @@ const CreateEvent_Outlet = () => {
                                         onSelect={(date) => setValue("start_date", date, { shouldValidate: true })}
                                         initialFocus
                                         className="bg-gray-900 text-white rounded-4xl"
-                                        disabled={(date) => date < today}
+                                        disabled={(date) => date <= today}
                                     />
                                 </PopoverContent>
                             </Popover>
