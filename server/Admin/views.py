@@ -7,8 +7,8 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status, generics
 from rest_framework.decorators import action
-from .models import (OrganizerRequest, Coupon, Badge, UserBadge, RevenueDistribution, SubscriptionPlan, UserSubscription, SubscriptionTransaction)
-from users.models import Profile, Booking, WalletTransaction
+from .models import *
+from users.models import *
 from .serializers import (OrganizerRequestSerializer, ProfileSerializer, ProfileSerializerAdmin, CouponSerializer,
                           BadgeSerializer, UserBadgeSerializer, RevenueDistributionSerializer, RevenueSummarySerializer,
                           BookingSerializerHistory, RefundHistorySerializer, SubscriptionPlanSerializer,
@@ -20,8 +20,7 @@ from rest_framework.pagination import PageNumberPagination, LimitOffsetPaginatio
 from django.db import transaction
 from django.db.models import Q
 import cloudinary.uploader
-from .filters import (RevenueDistributionFilter, BookingFilterHistory, RefundHistoryFilter, UsersSubscriptionFilter,
-                      EventFilter, SubscriptionAnalyticsFilter)
+from .filters import *
 from django_filters.rest_framework import DjangoFilterBackend
 from .serializers import RevenueDistributionSerializer
 from django.db.models import Sum, Count
@@ -30,7 +29,7 @@ from .paginations import BookingPaginationHistory, RefundHistoryPagination, Subs
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework.viewsets import ModelViewSet
-from event.models import Event
+from event.models import *
 from .permissions import IsAdminUser
 from users.permissions import IsActiveUser
 import logging
@@ -832,3 +831,103 @@ class ExportRevenuePDF(APIView):
         filename = f"revenue_report_{datetime.now().strftime('%Y-%m-%d')}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+    
+
+class DashBoardView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            event_filter = DashBoardFilter(request.query_params, queryset=Event.objects.all())
+            filtered_events = event_filter.qs
+            total_events = filtered_events.count()
+            total_users = Profile.objects.count()
+            
+            total_tickets = TicketPurchase.objects.filter(
+                event__in=filtered_events
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+
+            total_tickets_cancelled = TicketRefund.objects.filter(
+                event__in=filtered_events
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+
+            total_revenue = RevenueDistribution.objects.filter(
+                event__in=filtered_events
+            ).aggregate(total=Sum('total_revenue'))['total'] or 0
+
+            event_stats = {
+                'created': filtered_events.filter(is_published=True).count(),
+                'ongoing': filtered_events.filter(
+                    start_date__lte=timezone.now().date(),
+                    end_date__gte=timezone.now().date(),
+                    is_published=True
+                ).count(),
+                'completed': filtered_events.filter(end_date__lt=timezone.now().date()).count()
+            }
+
+            user_stats = {
+                'normal': Profile.objects.filter(organizerVerified=False).count(),
+                'organizers': Profile.objects.filter(organizerVerified=True).count(),
+                'requestedOrganizers': OrganizerRequest.objects.filter(status='pending').count()
+            }
+
+            categories = [choice[0] for choice in Event.EVENT_TYPE_CHOICES]
+            revenue_by_category = []
+            for category in categories:
+                revenue = RevenueDistribution.objects.filter(
+                    event__event_type=category,
+                    event__in=filtered_events
+                ).aggregate(total=Sum('total_revenue'))['total'] or 0
+                revenue_by_category.append(float(revenue))
+
+            revenue_by_category_data = {
+                'categories': categories,
+                'revenue': revenue_by_category
+            }
+
+            ticket_types = [choice[0] for choice in Ticket.TICKET_TYPE_CHOICES]
+            purchased_tickets = []
+            canceled_tickets = []
+            for ticket_type in ticket_types:
+                purchased = TicketPurchase.objects.filter(
+                    ticket__ticket_type=ticket_type,
+                    event__in=filtered_events
+                ).aggregate(total=Sum('quantity'))['total'] or 0
+
+                canceled = TicketRefund.objects.filter(
+                    ticket_type=ticket_type,
+                    event__in=filtered_events
+                ).aggregate(total=Sum('quantity'))['total'] or 0
+
+                purchased_tickets.append({
+                    'ticket_type': ticket_type,
+                    'quantity' : purchased
+                })
+                canceled_tickets.append({
+                    'ticket_type': ticket_type,
+                    'quantity': -abs(canceled)
+                })
+
+            ticket_stats = {
+                'purchased': purchased_tickets,
+                'canceled': canceled_tickets
+            }
+
+            data = {
+                'totalEvents': total_events,
+                'totalUsers': total_users,
+                'totalTickets': total_tickets,
+                'totalTicketsCancelled': total_tickets_cancelled,
+                'totalRevenue': float(total_revenue),
+                'eventStats': event_stats,
+                'userStats': user_stats,
+                'revenueByCategory': revenue_by_category_data,
+                'ticketStats': ticket_stats
+            }
+
+            return Response(data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Dashboard data processing failed.")
+            return Response( {"error": "An error occurred while generating the dashboard data."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR )

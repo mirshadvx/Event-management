@@ -8,7 +8,7 @@ from .views import (admin_login,OrganizerRequestList,
     CouponDetail, CouponBulkUpdateStatus, BadgeListCreateView, BadgeDetailView, UserBadgeListView,
     RevenueDistributionListView, RevenueSummaryView, TransactionHistoryListView, RefundHistoryListView,
     SubscriptionPlanViewset, UserSubscriptionListView, UserSubscriptionStatus, SubscriptionAnalytics,
-    EventList, ExportRevenuePDF)
+    EventList, ExportRevenuePDF, DashBoardView)
 
 router = DefaultRouter()
 router.register(r'subscription-plans', SubscriptionPlanViewset, basename='subscription-plan')
@@ -40,4 +40,5 @@ urlpatterns = [
     path('subscriptions-analytics/', SubscriptionAnalytics.as_view(), name='subscriptions-analytics'),
     path('events/', EventList.as_view(), name='event-list'),
     path('export-revenue-pdf/', ExportRevenuePDF.as_view(), name='export-revenue-pdf'),
+    path('dashboard-data/',DashBoardView.as_view(), name='dashboard-datas'),
 ]

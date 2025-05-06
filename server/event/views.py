@@ -37,6 +37,7 @@ class EventPreviewPagination(PageNumberPagination):
     
 class EventPreviewList(APIView):
     pagination_class = EventPreviewPagination
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         queryset = Event.objects.filter(is_published=True).annotate(
@@ -56,6 +57,7 @@ class EventPreviewList(APIView):
     
     
 class EventDetailViewExplore(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self, request, event_id):
         try:
             event = Event.objects.get(id=event_id)

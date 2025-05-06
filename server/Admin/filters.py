@@ -228,3 +228,38 @@ class SubscriptionAnalyticsFilter(django_filters.FilterSet):
         else:
             start_date = today.replace(month=1, day=1)
         return queryset.filter(start_date__gte=start_date)
+    
+class DashBoardFilter(django_filters.FilterSet):
+    event_type = django_filters.MultipleChoiceFilter(
+        field_name='event_type',
+        choices=Event.EVENT_TYPE_CHOICES
+    )
+    date_range = django_filters.CharFilter(method='filter_date_range')
+    start_date = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
+
+    class Meta:
+        model = Event
+        fields = ['event_type', 'date_range', 'start_date', 'end_date']
+
+    def filter_date_range(self, queryset, name, value):
+        now = timezone.now()
+        today = now.date()
+        
+        if value == 'all':
+            return queryset
+        elif value == 'today':
+            return queryset.filter(created_at__date=today)
+        elif value == 'week':
+            start_of_week = today - timedelta(days=today.weekday())
+            return queryset.filter(created_at__date__gte=start_of_week)
+        elif value == 'month':
+            start_of_month = today.replace(day=1)
+            return queryset.filter(created_at__date__gte=start_of_month)
+        elif value == 'year':
+            start_of_year = today.replace(month=1, day=1)
+            return queryset.filter(created_at__date__gte=start_of_year)
+        elif value == 'custom':
+            return queryset
+     
+        return queryset

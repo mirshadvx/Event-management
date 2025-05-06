@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bar, Pie } from "react-chartjs-2";
 import {
     Chart as ChartJS,
@@ -17,10 +17,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Filter, RefreshCw } from "lucide-react";
 import { TbCurrencyRupee } from "react-icons/tb";
+import api from "@/services/api";
+import { HashLoader } from "react-spinners";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement);
 
 const LandingPage = () => {
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [dateRange, setDateRange] = useState("all");
     const [eventType, setEventType] = useState("all");
@@ -39,42 +44,137 @@ const LandingPage = () => {
         textSecondary: "#D1D5DB",
     };
 
-    const eventStats = {
-        created: 120,
-        ongoing: 45,
-        contacted: 30,
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async (filters = {}) => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+
+            if (filters.dateRange && filters.dateRange !== "all") {
+                params.append("date_range", filters.dateRange);
+            }
+            if (filters.eventType && filters.eventType !== "all") {
+                params.append("event_type", filters.eventType);
+            }
+            if (filters.startDate) {
+                params.append("start_date", filters.startDate);
+            }
+            if (filters.endDate) {
+                params.append("end_date", filters.endDate);
+            }
+            const response = await api.get("admin/dashboard-data/", {
+                params,
+            });
+
+            setDashboardData(response.data);
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching dashboard data:", err);
+            setError("Failed to load dashboard data. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const userStats = {
-        normal: 500,
-        organizers: 50,
-        requestedOrganizers: 10,
+    const applyFilters = () => {
+        fetchDashboardData({
+            dateRange,
+            eventType,
+            startDate: dateRange === "custom" ? startDate : "",
+            endDate: dateRange === "custom" ? endDate : "",
+        });
+        setShowFilters(false);
     };
 
-    const revenueByCategory = {
-        categories: ["Conference", "Workshop", "Seminar", "Concert", "Festival"],
-        revenue: [5000, 3000, 2000, 7000, 4000],
+    const resetFilters = () => {
+        setDateRange("all");
+        setEventType("all");
+        setStartDate("");
+        setEndDate("");
     };
 
-    const ticketStats = {
-        purchased: [120, 80, 60],
-        canceled: [-50, -30, -100],
+    const generateTicketChartData = () => {
+        if (!dashboardData) return null;
+
+        const purchasedData = dashboardData.ticketStats.purchased.map((item) => item.quantity);
+        const canceledData = dashboardData.ticketStats.canceled.map((item) => item.quantity);
+        const labels = dashboardData.ticketStats.purchased.map((item) => item.ticket_type);
+
+        return {
+            labels,
+            datasets: [
+                {
+                    label: "Purchased",
+                    data: purchasedData,
+                    backgroundColor: colors.secondary,
+                },
+                {
+                    label: "Canceled",
+                    data: canceledData,
+                    backgroundColor: colors.accent2,
+                },
+            ],
+        };
     };
 
-    const ticketChartData = {
-        labels: ["Regular", "VIP", "Gold"],
-        datasets: [
-            {
-                label: "Purchased",
-                data: ticketStats.purchased,
-                backgroundColor: colors.secondary,
-            },
-            {
-                label: "Canceled",
-                data: ticketStats.canceled,
-                backgroundColor: colors.accent2,
-            },
-        ],
+    const generateUserChartData = () => {
+        if (!dashboardData) return null;
+
+        return {
+            labels: ["Normal Users", "Organizers", "Requested Organizers"],
+            datasets: [
+                {
+                    label: "User Distribution",
+                    data: [
+                        dashboardData.userStats.normal,
+                        dashboardData.userStats.organizers,
+                        dashboardData.userStats.requestedOrganizers,
+                    ],
+                    backgroundColor: [colors.primary, colors.accent1, colors.accent3],
+                    borderColor: [colors.cardBg, colors.cardBg, colors.cardBg],
+                    borderWidth: 2,
+                },
+            ],
+        };
+    };
+
+    const generateRevenueChartData = () => {
+        if (!dashboardData) return null;
+
+        return {
+            labels: dashboardData.revenueByCategory.categories,
+            datasets: [
+                {
+                    label: "Revenue (₹)",
+                    data: dashboardData.revenueByCategory.revenue,
+                    backgroundColor: [colors.primary, colors.secondary, colors.accent1, colors.accent2, colors.accent3],
+                    borderRadius: 6,
+                },
+            ],
+        };
+    };
+
+    const generateEventChartData = () => {
+        if (!dashboardData) return null;
+
+        return {
+            labels: ["Created", "Ongoing", "Completed"],
+            datasets: [
+                {
+                    label: "Events",
+                    data: [
+                        dashboardData.eventStats.created,
+                        dashboardData.eventStats.ongoing,
+                        dashboardData.eventStats.completed,
+                    ],
+                    backgroundColor: [colors.primary, colors.accent1, colors.secondary],
+                    borderRadius: 6,
+                },
+            ],
+        };
     };
 
     const chartOptions = {
@@ -153,19 +253,6 @@ const LandingPage = () => {
         },
     };
 
-    const userChartData = {
-        labels: ["Normal Users", "Organizers", "Requested Organizers"],
-        datasets: [
-            {
-                label: "User Distribution",
-                data: [userStats.normal, userStats.organizers, userStats.requestedOrganizers],
-                backgroundColor: [colors.primary, colors.accent1, colors.accent3],
-                borderColor: [colors.cardBg, colors.cardBg, colors.cardBg],
-                borderWidth: 2,
-            },
-        ],
-    };
-
     const pieOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -191,42 +278,31 @@ const LandingPage = () => {
         },
     };
 
-    const revenueChartData = {
-        labels: revenueByCategory.categories,
-        datasets: [
-            {
-                label: "Revenue (₹)",
-                data: revenueByCategory.revenue,
-                backgroundColor: [colors.primary, colors.secondary, colors.accent1, colors.accent2, colors.accent3],
-                borderRadius: 6,
-            },
-        ],
-    };
+    if (loading) {
+        return (
+            <div className="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center">
+                <div className="flex flex-col items-center space-y-4">
+                    <HashLoader color="#54c955" size={57} />
+                </div>
+            </div>
+        );
+    }
 
-    const eventChartData = {
-        labels: ["Created", "Ongoing", "Contacted"],
-        datasets: [
-            {
-                label: "Events",
-                data: [eventStats.created, eventStats.ongoing, eventStats.contacted],
-                backgroundColor: [colors.primary, colors.accent1, colors.secondary],
-                borderRadius: 6,
-            },
-        ],
-    };
+    if (error) {
+        return (
+            <div className="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center">
+                <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md text-center">
+                    <h2 className="text-xl font-bold text-red-400 mb-4">Error</h2>
+                    <p className="mb-4">{error}</p>
+                    <Button onClick={() => fetchDashboardData()}>Try Again</Button>
+                </div>
+            </div>
+        );
+    }
 
-    const totalEvents = 100;
-    const totalUsers = 100;
-    const totalRevenue = 100;
-    const totalTickets = 100;
-    const totalTicketsCancelled = 100;
-
-    const resetFilters = () => {
-        setDateRange("all");
-        setEventType("all");
-        setStartDate("");
-        setEndDate("");
-    };
+    if (!dashboardData) {
+        return null;
+    }
 
     return (
         <div className="bg-gray-900 text-gray-100 min-h-screen">
@@ -251,7 +327,7 @@ const LandingPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-gray-400">Total Events</p>
-                            <p className="text-2xl font-bold">{totalEvents}</p>
+                            <p className="text-2xl font-bold">{dashboardData.totalEvents}</p>
                         </div>
                     </div>
 
@@ -274,7 +350,7 @@ const LandingPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-gray-400">Total Users</p>
-                            <p className="text-2xl font-bold">{totalUsers}</p>
+                            <p className="text-2xl font-bold">{dashboardData.totalUsers}</p>
                         </div>
                     </div>
 
@@ -297,7 +373,7 @@ const LandingPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-gray-400">Tickets Buy</p>
-                            <p className="text-2xl font-bold">{totalTickets}</p>
+                            <p className="text-2xl font-bold">{dashboardData.totalTickets}</p>
                         </div>
                     </div>
                     <div className="bg-gray-800 p-4 rounded-lg shadow flex items-center md:col-span-2">
@@ -319,32 +395,9 @@ const LandingPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-gray-400">Tickets Cancelled</p>
-                            <p className="text-2xl font-bold">{totalTicketsCancelled}</p>
+                            <p className="text-2xl font-bold">{dashboardData.totalTicketsCancelled}</p>
                         </div>
                     </div>
-
-                    {/* <div className="bg-gray-800 p-4 rounded-lg shadow flex items-center md:col-span-2">
-                        <div className="rounded-full bg-pink-100 bg-opacity-10 p-3 mr-4">
-                            <svg
-                                className="w-6 h-6 text-pink-500"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                ></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-400">Total Revenue</p>
-                            <p className="text-2xl font-bold">{totalRevenue.toLocaleString()}</p>
-                        </div>
-                    </div> */}
 
                     <div className="bg-gray-800 p-4 rounded-lg shadow flex items-center md:col-span-2">
                         <div className="rounded-full bg-pink-100 bg-opacity-10 p-3 mr-4">
@@ -352,7 +405,7 @@ const LandingPage = () => {
                         </div>
                         <div>
                             <p className="text-sm text-gray-400">Total Revenue</p>
-                            <p className="text-2xl font-bold">{totalRevenue}</p>
+                            <p className="text-2xl font-bold">₹{dashboardData.totalRevenue.toLocaleString()}</p>
                         </div>
                     </div>
 
@@ -361,7 +414,7 @@ const LandingPage = () => {
                         variant="outline"
                         onClick={() => setShowFilters(true)}
                     >
-                        <div className="flex items-center justify-center gap-3  w-full h-full">
+                        <div className="flex items-center justify-center gap-3 w-full h-full">
                             <Filter />
                             <span className="text-xl">Filters</span>
                         </div>
@@ -398,11 +451,11 @@ const LandingPage = () => {
                                     className="w-full border-gray-600 bg-gray-700 rounded-md px-3 py-2 text-gray-200"
                                 >
                                     <option value="all">All Event Types</option>
-                                    <option value="Conference">Conference</option>
-                                    <option value="Workshop">Workshop</option>
-                                    <option value="Seminar">Seminar</option>
-                                    <option value="Concert">Concert</option>
-                                    <option value="Festival">Festival</option>
+                                    {dashboardData.revenueByCategory.categories.map((category, index) => (
+                                        <option key={index} value={category}>
+                                            {category}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -431,7 +484,7 @@ const LandingPage = () => {
                         )}
 
                         <DialogFooter>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between w-full">
                                 <Button
                                     variant="outline"
                                     className="text-gray-300 border-gray-600 hover:bg-gray-700"
@@ -440,13 +493,22 @@ const LandingPage = () => {
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                     Reset Filters
                                 </Button>
-                                <Button
-                                    variant="ghost"
-                                    className="text-black hover:bg-gray-700 bg-amber-50"
-                                    onClick={() => setShowFilters(false)}
-                                >
-                                    Close
-                                </Button>
+                                <div className="space-x-2">
+                                    <Button
+                                        variant="ghost"
+                                        className="bg-gray-700 text-gray-200 hover:bg-gray-600"
+                                        onClick={() => setShowFilters(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="text-black hover:bg-amber-400 bg-amber-50"
+                                        onClick={applyFilters}
+                                    >
+                                        Apply Filters
+                                    </Button>
+                                </div>
                             </div>
                         </DialogFooter>
                     </DialogContent>
@@ -456,18 +518,16 @@ const LandingPage = () => {
                     <div className="bg-gray-800 p-4 rounded-lg shadow md:col-span-3">
                         <h2 className="text-lg font-semibold mb-4">Tickets Overview</h2>
                         <div className="h-64">
-                            <Bar data={ticketChartData} options={ticketOptions} />
+                            <Bar data={generateTicketChartData()} options={ticketOptions} />
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-4">
                             <div className="bg-gray-900 p-3 rounded-md">
                                 <p className="text-sm text-gray-400">Total Purchased</p>
-                                <p className="text-xl font-bold">{ticketStats.purchased.reduce((a, b) => a + b, 0)}</p>
+                                <p className="text-xl font-bold">{dashboardData.totalTickets}</p>
                             </div>
                             <div className="bg-gray-900 p-3 rounded-md">
                                 <p className="text-sm text-gray-400">Total Canceled</p>
-                                <p className="text-xl font-bold text-pink-500">
-                                    {ticketStats.canceled}
-                                </p>
+                                <p className="text-xl font-bold text-pink-500">{dashboardData.totalTicketsCancelled}</p>
                             </div>
                         </div>
                     </div>
@@ -475,20 +535,20 @@ const LandingPage = () => {
                     <div className="bg-gray-800 p-4 rounded-lg shadow md:col-span-3">
                         <h2 className="text-lg font-semibold mb-4">Events Overview</h2>
                         <div className="h-64">
-                            <Bar data={eventChartData} options={chartOptions} />
+                            <Bar data={generateEventChartData()} options={chartOptions} />
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-2">
-                            <div className="bg-gray-900 p-2 rounded-md text-center">
+                            <div className="bg-gray-900 p-3 rounded-md text-center">
                                 <p className="text-xs text-gray-400">Created</p>
-                                <p className="text-lg font-bold">{eventStats.created}</p>
+                                <p className="text-lg font-bold">{dashboardData.eventStats.created}</p>
                             </div>
-                            <div className="bg-gray-900 p-2 rounded-md text-center">
+                            <div className="bg-gray-900 p-3 rounded-md text-center">
                                 <p className="text-xs text-gray-400">Ongoing</p>
-                                <p className="text-lg font-bold">{eventStats.ongoing}</p>
+                                <p className="text-lg font-bold">{dashboardData.eventStats.ongoing}</p>
                             </div>
-                            <div className="bg-gray-900 p-2 rounded-md text-center">
-                                <p className="text-xs text-gray-400">Contacted</p>
-                                <p className="text-lg font-bold">{eventStats.contacted}</p>
+                            <div className="bg-gray-900 p-3 rounded-md text-center">
+                                <p className="text-xs text-gray-400">Completed</p>
+                                <p className="text-lg font-bold">{dashboardData.eventStats.completed}</p>
                             </div>
                         </div>
                     </div>
@@ -496,14 +556,14 @@ const LandingPage = () => {
                     <div className="bg-gray-800 p-4 rounded-lg shadow md:col-span-2">
                         <h2 className="text-lg font-semibold mb-4">Users Analytics</h2>
                         <div className="h-64">
-                            <Pie data={userChartData} options={pieOptions} />
+                            <Pie data={generateUserChartData()} options={pieOptions} />
                         </div>
                     </div>
 
                     <div className="bg-gray-800 p-4 rounded-lg shadow md:col-span-4">
                         <h2 className="text-lg font-semibold mb-4">Revenue by Event Categories</h2>
                         <div className="h-64">
-                            <Bar data={revenueChartData} options={chartOptions} />
+                            <Bar data={generateRevenueChartData()} options={chartOptions} />
                         </div>
                     </div>
                 </div>

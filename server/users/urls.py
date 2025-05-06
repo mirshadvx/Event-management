@@ -1,14 +1,7 @@
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenRefreshView,)
-from .views import ( CustomTokenObtainPairView, CustomRefreshTokenView,
-                    logout, is_authenticated, register, verify_otp, google_login,
-                    get_user_profile, OrganizerRequestHandle, UpdateProfileInfo,
-                    UpdateProfilePicture, CheckOrganizerStatus, CheckoutAPIView,
-                    ApplyCouponAPIView,joined_events,cancel_ticket, WalletDetail,
-                    ForgotPasswordView,ResetPasswordView, SubscriptionCheckout,
-                    OrganizerRequestStatus, UpgradePlan, UserPlanDetails,
-                    RenewSubscription)
+from .views import *
 from users.services.stripe_webhooks import stripe_webhook
 
 urlpatterns = [
