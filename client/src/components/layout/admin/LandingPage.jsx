@@ -51,22 +51,27 @@ const LandingPage = () => {
     const fetchDashboardData = async (filters = {}) => {
         setLoading(true);
         try {
-            const params = new URLSearchParams();
+            const queryParams = {};
 
             if (filters.dateRange && filters.dateRange !== "all") {
-                params.append("date_range", filters.dateRange);
+                queryParams.date_range = filters.dateRange;
             }
+
             if (filters.eventType && filters.eventType !== "all") {
-                params.append("event_type", filters.eventType);
+                queryParams.event_type = filters.eventType;
             }
-            if (filters.startDate) {
-                params.append("start_date", filters.startDate);
+
+            if (filters.dateRange === "custom") {
+                if (filters.startDate) {
+                    queryParams.start_date = filters.startDate;
+                }
+                if (filters.endDate) {
+                    queryParams.end_date = filters.endDate;
+                }
             }
-            if (filters.endDate) {
-                params.append("end_date", filters.endDate);
-            }
+
             const response = await api.get("admin/dashboard-data/", {
-                params,
+                params: queryParams,
             });
 
             setDashboardData(response.data);
