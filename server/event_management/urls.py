@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/v1/admin/', include('Admin.urls')),
     path('api/v1/event/',include('event.urls')),
     path('api/v1/chat/',include('chat.urls')),
+    path('api/v1/organizer/',include('organizer.urls')),
 ]
 
 if settings.DEBUG:

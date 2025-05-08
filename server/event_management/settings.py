@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'django_celery_beat',
     'django_filters',
+    'organizer',
 ]
 
 MIDDLEWARE = [

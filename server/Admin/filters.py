@@ -5,7 +5,7 @@ from users.models import Booking, WalletTransaction
 from django.db.models import Q
 from datetime import datetime, timedelta
 from django.utils import timezone
-
+\
 class RevenueDistributionFilter(django_filters.FilterSet):
     search = django_filters.CharFilter(method='filter_search')
     date_range = django_filters.CharFilter(method='filter_date_range')
