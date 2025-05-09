@@ -28,18 +28,30 @@ class OrganizerEventsFilter(django_filters.FilterSet):
             end_week = start_week + timedelta(days=6)
             return queryset.filter(start_date__range=[start_week, end_week])
         elif value == 'Month':
-            return queryset.filter(start_date__year=today.year, start_week__month=today.month)
+            return queryset.filter(start_date__year=today.year, start_date__month=today.month)
         return queryset
     
     def filter_organized(self, queryset, name, value):
         if value:
-            return queryset.filter(is_published=True, is_draft=False)
+            today = now().date()
+            return queryset.filter(
+                is_published=True,
+                is_draft=False,
+                end_date__lt=today
+            )
         return queryset
-    
+
     def filter_ongoing(self, queryset, name, value):
         if value:
-            today = now().date()
-            return queryset.filter(end_date__gte=today, is_published=True)
+            curr_datetime = now()
+            curr_date = curr_datetime.date()
+            curr_time = curr_datetime.time()
+            return queryset.filter(
+                is_published=True,
+                end_date__gte=curr_date,
+                revenue_distributed=False,
+                end_time__gte=curr_time
+            )
         return queryset
     
     def filter_drafted(self, queryset, name, value):
