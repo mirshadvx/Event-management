@@ -16,12 +16,25 @@ import {
 } from "lucide-react";
 import api from "@/services/api";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { get_ProfileData } from "@/store/user/userSlice";
 
 const Subscription = () => {
+    const { user, loading: userLoading } = useSelector((state) => state.user);
+    const dispatch = useDispatch();
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState(null);
     const [transactions, setTransactions] = useState([]);
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!user && !userLoading) {
+            dispatch(get_ProfileData());
+        }
+        if (user && user.plan == null) {
+            navigate("/checkout/subscription");
+        }
+    }, [user, userLoading, dispatch, navigate]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -286,15 +299,19 @@ const Subscription = () => {
                 </div>
                 {subscription.plan.name === "basic" && (
                     <div className="mt-6 flex justify-center">
-                        <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
+                        <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg"
+                        onClick={()=> navigate("/checkout/subscription")}>
                             Upgrade to Premium
                         </button>
                     </div>
                 )}
                 {subscription.is_expired && (
                     <div className="mt-6 flex justify-center">
-                        <button onClick={()=> navigate('/checkout/renew-subscription')} className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg">
-                        Renew Plan
+                        <button
+                            onClick={() => navigate("/checkout/renew-subscription")}
+                            className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg"
+                        >
+                            Renew Plan
                         </button>
                     </div>
                 )}
