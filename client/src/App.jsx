@@ -37,7 +37,6 @@ function App() {
     }, [isAuthenticated, user, loading, dispatch]);
 
     return (
-        // <SkeletonTheme baseColor="#202020" highlightColor="#444">
         <BrowserRouter>
             <div className="relative">
                 <Toaster richColors position="top-right" />

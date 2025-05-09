@@ -1,4 +1,4 @@
- import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Calendar, MapPin, Users, Eye } from "lucide-react";
 import { FaHeart } from "react-icons/fa";
 import { MdKeyboardDoubleArrowRight } from "react-icons/md";
@@ -386,28 +386,6 @@ const EventOutlet = () => {
                             </option>
                         ))}
                     </select>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-300 ${
-                            activeTab === "joined"
-                                ? "bg-[#00EF93] text-black shadow-md"
-                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                        onClick={() => setActiveTab("joined")}
-                    >
-                        Joined Events
-                    </button>
-                    <button
-                        className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-300 ${
-                            activeTab === "organized"
-                                ? "bg-[#00EF93] text-black shadow-md"
-                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                        onClick={() => setActiveTab("organized")}
-                    >
-                        Organized Events
-                    </button>
                 </div>
             </div>
 

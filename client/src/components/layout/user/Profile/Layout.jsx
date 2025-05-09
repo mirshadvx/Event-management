@@ -57,7 +57,7 @@ const Layout = () => {
     const navItems = [
         { icon: <AiFillHome size={22} />, label: "Home", path: "/" },
         { icon: <FaUserAlt size={22} />, label: "Profile", path: "/profile", exact: true },
-        { icon: <FaCodeMerge size={22} />, label: "My events", path: "/profile/events" },
+        { icon: <FaCodeMerge size={22} />, label: "My Bookings", path: "/profile/events" },
         { icon: <FaCreditCard size={22} />, label: "Subscription", path: "/profile/subscription" },        
         { icon: <IoWallet size={22} />, label: "Wallet", path: "/profile/wallet" },
     ];
