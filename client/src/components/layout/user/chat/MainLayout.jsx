@@ -26,7 +26,7 @@ const MainLayout = () => {
     const toggleInfo = () => setIsInfoOpen(!isInfoOpen);
 
     const MobileLayout = () => (
-        <div className="relative flex-1 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+        <div className="relative flex-1 h-[calc(100vh-64px)] overflow-hidden flex flex-col pt-14">
             <div className="flex-1 flex flex-col relative z-10 bg-gray-900 overflow-hidden">
                 <ChatWindow
                     chatID={activeChatID}
@@ -76,7 +76,7 @@ const MainLayout = () => {
     );
 
     const DesktopLayout = () => (
-        <div className="flex h-[calc(100vh-64px)]">
+        <div className="flex h-[calc(100vh-64px)] pt-15">
             <div className="w-80 flex-shrink-0">
                 <ChatSidebar
                     activeChatID={activeChatID}

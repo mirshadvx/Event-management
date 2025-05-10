@@ -4,7 +4,7 @@ import Header from "../../../common/user/Home/Header";
 const Layout = ({ children }) => {
     return (
         // <div className="min-h-screen bg-[#af3434]">
-        <div className="min-h-screen bg-[#333030]">
+        <div className="min-h-screen bg-[#333030] pt-12">
             <Header />
             { children }
         </div>

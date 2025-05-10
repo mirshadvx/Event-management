@@ -9,9 +9,14 @@ const Header = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    const [scrollDir, setScrollDir] = useState("up");
+    const [scrollPosition, setScrollPosition] = useState(0);
+    const [visible, setVisible] = useState(true);
+    const [headerBg, setHeaderBg] = useState(false);
 
     const dropdownRef = useRef(null);
     const mobileMenuRef = useRef(null);
+    const prevScrollY = useRef(0);
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { isAuthenticated, user, loading } = useSelector((state) => state.user);
@@ -27,6 +32,37 @@ const Header = () => {
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            setScrollPosition(currentScrollY);
+            
+            // Determine scroll direction
+            if (currentScrollY > prevScrollY.current) {
+                setScrollDir("down");
+            } else {
+                setScrollDir("up");
+            }
+            
+            prevScrollY.current = currentScrollY;
+            
+            // Show/hide header based on scroll direction and position
+            if (currentScrollY < 50) {
+                setVisible(true); // Always show at top
+                setHeaderBg(false);
+            } else if (scrollDir === "up") {
+                setVisible(true);
+                setHeaderBg(true);
+            } else if (scrollDir === "down" && currentScrollY > 100) {
+                setVisible(false);
+                setHeaderBg(true);
+            }
+        };
+        
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, [scrollDir]);
 
     useEffect(() => {
         if (!user && isAuthenticated && !loading) {
@@ -76,7 +112,15 @@ const Header = () => {
     const isDesktop = windowWidth >= 768;
 
     return (
-        <header className="w-full px-4 lg:px-6 py-2 z-50 relative">
+        <header 
+            className={`w-full px-4 lg:px-6 py-2 z-50 fixed left-0 right-0 transition-all duration-300 ease-in-out
+                ${visible ? "top-0" : "-top-20"}
+                ${headerBg ? 
+                    "bg-[#1e1e1e]/10 backdrop-blur-md" : 
+                    ""
+                }
+            `}
+        >
             <div className="max-w-[1350px] mx-auto flex justify-between items-center">
                 <div className="flex items-center gap-2 z-20">
                     <div className="w-8 h-6 bg-[#134638] rounded-sm"></div>

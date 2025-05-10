@@ -199,7 +199,7 @@ const Layout = () => {
     const isMobileView = windowWidth < 1024;
 
     return (
-        <div className="bg-[#181717] py-3 px-4 sm:px-6 min-h-screen mx-2 md:mt-3 sm:mx-6 lg:mx-10 rounded-xl">
+        <div className="bg-[#181717] py-3 px-4 sm:px-6 min-h-screen mx-2 md:mt-0 sm:mx-6 lg:mx-10 rounded-xl">
             <div className="max-w-[1400px] mx-auto">
                 {isMobileView && (
                     <div className="flex lg:flex-row gap-1 justify-between">

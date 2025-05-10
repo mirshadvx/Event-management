@@ -67,7 +67,7 @@ const Home = ({ children }) => {
                     {/* Optional overlay for additional depth */}
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_0%,rgba(0,0,0,0.2)_100%)]" />
                     <Header />
-                    <div className="min-h-screen text-white p-8">
+                    <div className="min-h-screen text-white p-8 pt-30">
                         {/* Hero Section */}
                         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-start mb-24">
                             <div>
