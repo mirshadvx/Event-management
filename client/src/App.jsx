@@ -20,6 +20,7 @@ import ResetPassword from "./pages/User/Auth/ResetPassword";
 import SubscriptionCheckout from "./pages/User/Checkout/SubscriptionCheckout";
 import RenewSubscription from "./pages/User/Checkout/RenewSubscription";
 import MainLayout from "./components/layout/user/chat/MainLayout";
+import GlobalProfile from "./pages/User/home/GlobalProfile";
 
 function App() {
     const dispatch = useDispatch();
@@ -45,12 +46,13 @@ function App() {
                     <Route path="/" element={<Home />} />
                     <Route path="/admin/login" element={<Login />} />
                     <Route path="/explore" element={<Explore />} />
-                    <Route path="/forgot-password" element={<ForgotPassword/>} />
-                    <Route path="/reset-password/:token" element={<ResetPassword/>} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
                     <Route path="/checkout/:eventId" element={<CheckoutPage />} />
                     <Route path="/checkout/subscription" element={<SubscriptionCheckout />} />
                     <Route path="/checkout/renew-subscription" element={<RenewSubscription />} />
                     <Route path="/chat" element={<MainLayout />} />
+                    <Route path="user/:username" element={<GlobalProfile />} />
                     {AuthRoutes()}
                     {DashboardRoutes()}
                     {AdminRoutes()}
