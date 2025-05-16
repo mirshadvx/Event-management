@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import (EventCreateView, EventPreviewList, EventDetailViewExplore,
-                    like_or_comment)
+from .views import *
 
 urlpatterns = [
     path('create-event/',EventCreateView.as_view(),name='event_create'),
     path('preview-explore/', EventPreviewList.as_view(), name='event-preview-list'),
     path('preview-explore/<int:event_id>/', EventDetailViewExplore.as_view(), name='event-details-modal'),
-    path('interact/<int:event_id>/', like_or_comment,name='like_or_comment'),
+    path('stream/create/', LiveStreamCreateView.as_view(), name='stream-create'),
+    path('stream/<int:event_id>/', LiveStreamDetailView.as_view(), name='stream-detail'),
+    path('stream/<int:event_id>/end/', LiveStreamDetailView.as_view(), name='stream-end'),
 ]

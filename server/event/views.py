@@ -2,13 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .models import Event, Like, Comment
-from .serializers import EventSerializer
+from .models import Event, Like, Comment, LiveStream
+from .serializers import EventSerializer, LiveStreamSerializer
 from django.db.models import Count
 from .serializers import EventPreviewSerializer, EventSerializerExplore
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import api_view, permission_classes
-
+from django.shortcuts import get_object_or_404
+import logging
+logger = logging.getLogger(__name__)
 
 class EventCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -22,10 +24,8 @@ class EventCreateView(APIView):
                     'data': EventSerializer(event).data
                 }, status=status.HTTP_201_CREATED)
             else:
-                print("Validation errors:", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"Exception in EventCreateView: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
@@ -109,3 +109,86 @@ def like_or_comment(request, event_id):
 
     else:
         return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+class LiveStreamCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            logger.info(f"Received data: {request.data}")
+            event_id = request.data.get('event_id')
+            room_id = request.data.get('room_id')
+            stream_status = request.data.get('stream_status', 'live')
+            
+            event = get_object_or_404(Event, id=event_id)
+
+            if event.organizer != request.user:
+                return Response(
+                    {"error": "You do not have permission to create a stream for this event"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            existing_stream = LiveStream.objects.filter(event=event, stream_status='live').first()
+            if existing_stream:
+                existing_stream.room_id = room_id
+                existing_stream.save()
+                serializer = LiveStreamSerializer(existing_stream)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            live_stream = LiveStream.objects.create(
+                event=event,
+                room_id=room_id,
+                stream_status=stream_status,
+                organizer=request.user )
+
+            serializer = LiveStreamSerializer(live_stream)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error creating live stream: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LiveStreamDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, event_id):
+        try:
+            live_stream = LiveStream.objects.filter(
+                event__id=event_id, 
+                stream_status='live'
+            ).order_by('-created_at').first()
+            
+            if not live_stream:
+                return Response(
+                    {"error": "No active livestream found for this event"}, 
+                    status=status.HTTP_404_NOT_FOUND )
+                
+            serializer = LiveStreamSerializer(live_stream)
+            return Response(serializer.data)
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+    def put(self, request, event_id):
+        try:
+            live_stream = get_object_or_404(
+                LiveStream, 
+                event__id=event_id, 
+                stream_status='live' )
+            
+            if live_stream.organizer != request.user:
+                return Response(
+                    {"error": "You don't have permission to update this stream"}, 
+                    status=status.HTTP_403_FORBIDDEN)
+                
+            stream_status = request.data.get('stream_status')
+            if stream_status:
+                live_stream.stream_status = stream_status
+                live_stream.save()
+                
+            serializer = LiveStreamSerializer(live_stream)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

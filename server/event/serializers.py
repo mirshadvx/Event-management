@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, Ticket, Like, Comment
+from .models import *
 from users.models import Profile
 import json
 import cloudinary.uploader
@@ -151,3 +151,11 @@ class EventSerializerExplore(serializers.ModelSerializer):
             return obj.likes.filter(user=user_pro).exists()
         return False
         
+class LiveStreamSerializer(serializers.ModelSerializer):
+    event_name = serializers.CharField(source='event.name', read_only=True)
+    organizer_name = serializers.CharField(source='organizer.user.username', read_only=True)
+    
+    class Meta:
+        model = LiveStream
+        fields = ['id', 'event', 'event_name', 'room_id', 'stream_status', 'organizer_name', 'created_at']
+        read_only_fields = ['id', 'created_at']

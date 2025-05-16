@@ -8,10 +8,10 @@ class CookieJWTAuthentication(JWTAuthentication):
             return None
         
         validated_token = self.get_validated_token(access_token)
-        print(validated_token,"its auth class")
+        # print(validated_token,"its auth class")
         try:
             user = self.get_user(validated_token)
-            print(user)
+            # print(user)
         except:
             return None
         

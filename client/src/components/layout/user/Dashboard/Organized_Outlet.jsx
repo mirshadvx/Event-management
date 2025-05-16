@@ -3,6 +3,17 @@ import { Search, Calendar, ChevronDown, X, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogTrigger,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+    DialogPortal,
+    DialogOverlay,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -11,6 +22,8 @@ import api from "@/services/api";
 import { toast } from "sonner";
 import { HiChevronDoubleUp } from "react-icons/hi";
 import { HashLoader } from "react-spinners";
+import { v4 as uuidv4 } from "uuid";
+import { generateKitToken, createZegoInstance, joinRoomAsHost, destroyZegoInstance } from "@/services/ZegoService";
 
 const Organized_Outlet = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -26,6 +39,12 @@ const Organized_Outlet = () => {
     const [filterType, setFilterType] = useState("organized");
     const observer = useRef();
     const [initialLoad, setInitialLoad] = useState(true);
+    const [isGoLiveModalOpen, setIsGoLiveModalOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    const liveStreamRef = useRef(null);
+    const zegoInstanceRef = useRef(null);
+    const [isStreamLive, setIsStreamLive] = useState(false);
+    const [roomID, setRoomID] = useState("");
 
     const categories = ["Conference", "Workshop", "Seminar"];
     const timeFilters = ["All", "Today", "Week", "Month", "Custom"];
@@ -84,6 +103,80 @@ const Organized_Outlet = () => {
         [searchQuery, category, timeFilter, customStartDate, customEndDate, filterType]
     );
 
+    const checkStreamStatus = async (event) => {
+        try {
+            const response = await api.get(`event/stream/${event.id}/`);
+            if (response.data && response.data.stream_status === "live") {
+                setIsStreamLive(true);
+                setRoomID(response.data.room_id);
+                return response.data.room_id;
+            } else {
+                setIsStreamLive(false);
+                setRoomID("");
+            }
+            return null;
+        } catch (error) {
+            console.error("Error checking stream status:", error);
+            setIsStreamLive(false);
+            return null;
+        }
+    };
+
+    const startLiveStream = async (event, existingRoomID = null) => {
+        try {
+            const roomID = existingRoomID || `event_${event.id}_${uuidv4()}`;
+            const userID = `organizer_${Math.random().toString(36).substring(2)}`;
+            const userName = `Organizer_${event.organizer_name || "Host"}`;
+
+            const kitToken = generateKitToken(roomID, userID, userName);
+
+            const zp = createZegoInstance(kitToken);
+            zegoInstanceRef.current = zp;
+
+            joinRoomAsHost(zp, liveStreamRef.current, roomID);
+
+            if (!existingRoomID) {
+                await api.post("event/stream/create/", {
+                    event_id: event.id,
+                    room_id: roomID,
+                    stream_status: "live",
+                });
+            }
+
+            setIsStreamLive(true);
+            setRoomID(roomID);
+            toast.success("Live stream started successfully!");
+        } catch (error) {
+            console.error("Error starting live stream:", error);
+            toast.error("Failed to start live stream");
+        }
+    };
+
+    const endLiveStream = async () => {
+        try {
+            if (selectedEvent && zegoInstanceRef.current) {
+                await api.put(`event/stream/${selectedEvent.id}/`, {
+                    stream_status: "ended",
+                });
+
+                destroyZegoInstance(zegoInstanceRef.current);
+                zegoInstanceRef.current = null;
+
+                setIsStreamLive(false);
+                setRoomID("");
+                toast.success("Live stream ended successfully!");
+            }
+        } catch (error) {
+            console.error("Error ending live stream:", error);
+            toast.error("Failed to end live stream");
+        }
+    };
+
+    const cleanupStream = () => {
+        destroyZegoInstance(zegoInstanceRef.current);
+        zegoInstanceRef.current = null;
+    };
+
     useEffect(() => {
         setPage(1);
         setEvents([]);
@@ -96,6 +189,12 @@ const Organized_Outlet = () => {
             fetchEvents(page);
         }
     }, [page, fetchEvents, initialLoad]);
+
+    useEffect(() => {
+        return () => {
+            cleanupStream();
+        };
+    }, []);
 
     const lastEventElementRef = useCallback(
         (node) => {
@@ -128,6 +227,38 @@ const Organized_Outlet = () => {
     const handleFilterChange = (type) => {
         setFilterType(type);
         setPage(1);
+
+        setIsStreamLive(false);
+        setRoomID("");
+        if (zegoInstanceRef.current) {
+            cleanupStream();
+        }
+    };
+
+    const handleGoLive = async (event) => {
+        setSelectedEvent(event);
+        setIsGoLiveModalOpen(true);
+
+        setIsStreamLive(false);
+
+        const existingRoomID = await checkStreamStatus(event);
+        if (existingRoomID) {
+            startLiveStream(event, existingRoomID);
+        }
+    };
+
+    const confirmGoLive = () => {
+        if (selectedEvent && !isStreamLive) {
+            startLiveStream(selectedEvent);
+        }
+    };
+
+    const handleModalClose = () => {
+        if (!isStreamLive) {
+            cleanupStream();
+        }
+        setIsGoLiveModalOpen(false);
+        setSelectedEvent(null);
     };
 
     return (
@@ -410,6 +541,15 @@ const Organized_Outlet = () => {
                                                         >
                                                             Analytics
                                                         </Button>
+
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="border-gray-600 text-black"
+                                                            onClick={() => handleGoLive(event)}
+                                                        >
+                                                            Go live
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -439,6 +579,35 @@ const Organized_Outlet = () => {
                     </div>
                 )}
             </div>
+
+            <Dialog open={isGoLiveModalOpen} onOpenChange={handleModalClose}>
+                <DialogPortal>
+                    <DialogOverlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+                    <DialogContent className="bg-white text-black z-50">
+                        <DialogHeader>
+                            <DialogTitle>Go Live</DialogTitle>
+                            <DialogDescription>
+                                {isStreamLive
+                                    ? "Your stream is live. You can end it below."
+                                    : "Start the live stream for this event."}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div ref={liveStreamRef} className="w-full h-[400px]" />
+                        <DialogFooter className="flex flex-row justify-end gap-2">
+                            <Button variant="outline" onClick={handleModalClose}>
+                                Cancel
+                            </Button>
+                            {isStreamLive ? (
+                                <Button variant="destructive" onClick={endLiveStream}>
+                                    End Stream
+                                </Button>
+                            ) : (
+                                <Button onClick={confirmGoLive}>Start Stream</Button>
+                            )}
+                        </DialogFooter>
+                    </DialogContent>
+                </DialogPortal>
+            </Dialog>
         </div>
     );
 };

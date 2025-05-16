@@ -8,7 +8,7 @@ from .serializers import *
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from users.models import Profile
+from users.models import Profile, Booking
 
 class OrganizedList(APIView):
     pagination_class = OrganizedListPagination
@@ -88,3 +88,30 @@ class FollowView(APIView):
         except Exception as e:
             return Response( {"error": "An unexpected error occurred"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR )
+            
+class ParticipatedList(APIView):
+    pagination_class = OrganizedListPagination
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+
+            event_ids = Booking.objects.filter(
+                user=user,
+                ticket_purchases__isnull=False
+            ).values_list('event_id', flat=True).distinct()
+
+            queryset = Event.objects.filter(id__in=event_ids)
+
+            filtered_queryset = ParticipantedEventsFilter(request.GET, queryset=queryset).qs
+
+            paginator = self.pagination_class()
+            page = paginator.paginate_queryset(filtered_queryset, request)
+            serializer = ParticipatedEventSerializer(page, many=True)
+
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            print("Error:", e)
+            return Response({"error": "Data not found"}, status=status.HTTP_400_BAD_REQUEST)

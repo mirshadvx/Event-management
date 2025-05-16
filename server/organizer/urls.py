@@ -5,4 +5,5 @@ urlpatterns = [
     path('organized-list/', OrganizedList.as_view(), name='organized_list'),
     path('user-details/', UserProfileDetails.as_view(), name='user_details'),
     path('toggle-follow/', FollowView.as_view(), name='toggle_follow'),
+    path('participated-list/', ParticipatedList.as_view(), name='participated_list'),
 ]

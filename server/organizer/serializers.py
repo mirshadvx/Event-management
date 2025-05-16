@@ -47,3 +47,10 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         fields = ['follower', 'followed', 'created_at']
+        
+class ParticipatedEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = ["id","event_banner", "event_type", "venue_name",
+                  "start_date", "end_date", "start_time", "end_time",
+                  ]

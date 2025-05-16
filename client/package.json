@@ -36,6 +36,7 @@
     "@stripe/react-stripe-js": "^3.6.0",
     "@stripe/stripe-js": "^6.1.0",
     "@tailwindcss/vite": "^4.0.7",
+    "@zegocloud/zego-uikit-prebuilt": "^2.14.3-beta",
     "axios": "^1.8.4",
     "chart.js": "^4.4.9",
     "class-variance-authority": "^0.7.1",
@@ -70,6 +71,7 @@
     "tailwind-scrollbar": "^4.0.1",
     "tailwind-variants": "^0.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

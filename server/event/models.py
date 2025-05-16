@@ -117,5 +117,18 @@ class Comment(models.Model):
     def __str__(self):
         return f"{self.user.username} commented on {self.event.event_title}"
     
+class LiveStream(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='live_streams')
+    room_id = models.CharField(max_length=100, unique=True)
+    stream_status = models.CharField(max_length=20, choices=[
+        ('live', 'Live'),
+        ('ended', 'Ended')
+    ], default='live')
+    organizer = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
     
-# booking = models.ForeignKey('users.Booking', on_delete=models.CASCADE, related_name='ticket_purchases', null=True, blank=True)
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Stream for {self.event}"
