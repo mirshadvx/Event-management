@@ -11,4 +11,6 @@ urlpatterns = [
     path('group-conversations/<int:group_id>/messages/', GroupMessageListCreateView.as_view(), name='group-message-list-create'),
     path('group-conversations/<int:group_id>/messages/<int:pk>/', GroupMessageRetrieveDestroyView.as_view(), name='group-message-detail'),
     path('group-messages/<int:message_id>/read/', MarkGroupMessageAsReadView.as_view(), name='mark-group-message-read'),
+    path('notifications/', NotificationList.as_view(), name='notification-list'),
+    path('notifications/<int:pk>/', NotificationDetail.as_view(), name='notification-detail'),
 ]

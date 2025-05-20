@@ -170,3 +170,26 @@ class MarkGroupMessageAsReadView(views.APIView):
         
         message.read_by.add(request.user)
         return Response({"success": True}, status=status.HTTP_200_OK)
+
+class NotificationList(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        notifications = Notification.objects.filter(user=request.user)
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
+
+    def delete(self, request):
+        Notification.objects.filter(user=request.user).delete()
+        return Response({'message': 'all notifications deleted'}, status=status.HTTP_204_NO_CONTENT)
+
+class NotificationDetail(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, pk):
+        try:
+            notification = Notification.objects.get(pk=pk, user=request.user)
+            notification.delete()
+            return Response({'message': 'notification deleted'}, status=status.HTTP_204_NO_CONTENT)
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
