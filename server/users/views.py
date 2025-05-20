@@ -647,6 +647,13 @@ class CheckoutAPIView(APIView):
                 coupon.used_count += 1
                 coupon.used_by.add(user)
                 coupon.save()
+                
+            try:
+                event = Event.objects.get(id=event_id)
+                if hasattr(event, 'group_chat') and event.group_chat:
+                    event.group_chat.participants.add(request.user)   
+            except Exception as e:
+                logger.error(f"Error in user adding on group chat time {str(e)}")
 
             return Response({
                 "message": "Payment successful!",

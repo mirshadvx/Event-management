@@ -42,6 +42,27 @@ const ChatSidebar = ({ activeChatID, setActiveChatID, activeTab, setActiveTab, s
             };
 
             fetchChats();
+        } else if (activeTab === "Events") {
+            const fetchGroupchats = async () => {
+                try {
+                    const response = await chatApi.getGroupConversations();
+                    const transformedChats = response.data.map((chat) => {
+                        return {
+                            id: chat.id,
+                            title: chat.name,
+                            profilePicture: chat.profile_picture || null,
+                            lastActive: chat.last_message?.timestamp || chat.created_at,
+                            lastMessage: chat.last_message?.content || "",
+                            unreadCount: chat.unread_count || 0,
+                        };
+                    });
+                    setChats(transformedChats);
+                } catch (error) {
+                    console.error("Error fetching chats:", error);
+                    setChats([]);
+                }
+            };
+            fetchGroupchats();
         } else {
             setChats([]);
         }

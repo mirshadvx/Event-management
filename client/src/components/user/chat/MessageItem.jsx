@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import { Check, CheckCheck } from "lucide-react";
 
-const MessageItem = ({ message, user }) => {
+const MessageItem = ({ message, user, activeTab }) => {
     const formattedTime = message.timestamp;
 
     if (message.isOwn) {
@@ -23,25 +23,28 @@ const MessageItem = ({ message, user }) => {
     }
 
     return (
-        <div className="flex flex-col space-y-1 ">
+        <div className="flex flex-col space-y-1">
             <div className="flex items-start space-x-2">
-                {/* <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-          {user.avatar ? (
-            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div> */}
+                {activeTab == "Events" && (
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                        {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white">
+                                {user.name.charAt(0).toUpperCase()}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="flex flex-col">
-                    {/* <p className="text-sm font-medium text-white">{user.name}</p> */}
+                    {activeTab == "Events" && <p className="text-sm font-medium text-white">{user.name}</p>}
                     <div className="bg-gray-700 p-3 rounded-lg rounded-tl-none mt-1 max-w-[80%]">
                         <p className="text-sm">{message.content}</p>
                     </div>
                 </div>
             </div>
-            <span className="text-xs text-gray-400 ">{formattedTime}</span>
+            <span className="text-xs text-gray-400">{formattedTime}</span>
         </div>
     );
 };
@@ -49,7 +52,7 @@ const MessageItem = ({ message, user }) => {
 MessageItem.propTypes = {
     message: PropTypes.shape({
         id: PropTypes.string.isRequired,
-        content: PropTypes.string.isProcessed,
+        content: PropTypes.string.isRequired,
         senderId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
         timestamp: PropTypes.string.isRequired,
         isOwn: PropTypes.bool,
@@ -62,6 +65,7 @@ MessageItem.propTypes = {
         name: PropTypes.string.isRequired,
         avatar: PropTypes.string,
     }).isRequired,
+    activeTab: PropTypes.string,
 };
 
 export default MessageItem;

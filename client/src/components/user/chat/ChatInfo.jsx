@@ -25,13 +25,13 @@ const ChatInfo = ({ chatID }) => {
             <div className="p-4 flex flex-col items-center">
                 <div className="w-20 h-20 rounded-full overflow-hidden mb-4">
                     <img
-                        // src={`https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`}
-                        // alt={chat.title}
+                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`}
+                        alt={chat.title}
                         className="w-full h-full object-cover"
                     />
                 </div>
-                {/* <h2 className="text-xl font-bold text-white mb-1">{chat.title}</h2> */}
-                {/* <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
+                <h2 className="text-xl font-bold text-white mb-1">{chat.title}</h2>
+                <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
                     <Calendar className="h-4 w-4" />
                     <span>{chat.dateRange}</span>
                 </div>
@@ -46,9 +46,9 @@ const ChatInfo = ({ chatID }) => {
                 <button className="flex items-center space-x-1 bg-[#00FF8C] text-gray-900 px-4 py-2 rounded-md text-sm font-medium hover:bg-[#00FF8C]/90 transition-colors">
                     <Share2 className="h-4 w-4" />
                     <span>Share</span>
-                </button> */}
+                </button>
             </div>
-            {/* <div className="flex-1 border-t border-gray-700 p-4 overflow-y-auto">
+            <div className="flex-1 border-t border-gray-700 p-4 overflow-y-auto">
                 <h3 className="text-white font-medium mb-3">Participants</h3>
                 <div className="space-y-3">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -67,7 +67,7 @@ const ChatInfo = ({ chatID }) => {
                         </div>
                     ))}
                 </div>
-            </div> */}
+            </div>
         </div>
     );
 };

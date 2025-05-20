@@ -97,3 +97,76 @@ class PassSocketToken(views.APIView):
             return Response({"token": str(token)}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": "Unable to generate token"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+class GroupConversationListView(generics.ListAPIView):
+    serializer_class = GroupConversationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        return GroupConversation.objects.filter(participants=user).order_by('-updated_at')
+
+class GroupConversationDetailView(generics.RetrieveAPIView):
+    serializer_class = GroupConversationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        return GroupConversation.objects.filter(participants=user)
+
+class GroupMessageListCreateView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = MessagePagination
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CreateGroupMessageSerializer
+        return GroupMessageSerializer
+
+    def get_queryset(self):
+        group_id = self.kwargs.get('group_id')
+        group = get_object_or_404(GroupConversation, id=group_id)
+        if self.request.user not in group.participants.all():
+            raise PermissionDenied("You are not a participant in this group conversation")
+        return GroupMessage.objects.filter(conversation=group).order_by('timestamp')
+    
+    def perform_create(self, serializer):
+        group_id = self.kwargs.get('group_id')
+        group = get_object_or_404(GroupConversation, id=group_id)
+        if self.request.user not in group.participants.all():
+            raise PermissionDenied("You are not a participant in this group conversation")
+        message = serializer.save(sender=self.request.user, conversation=group)
+        # Add sender to read_by automatically
+        message.read_by.add(self.request.user)
+
+class GroupMessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
+    serializer_class = GroupMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        group_id = self.kwargs.get('group_id')
+        return GroupMessage.objects.filter(conversation_id=group_id)
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.sender != request.user and instance.conversation.admin != request.user:
+            return Response({"error": "Only the sender or group admin can delete this message"}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class MarkGroupMessageAsReadView(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        message_id = kwargs.get('message_id')
+        message = get_object_or_404(GroupMessage, id=message_id)
+        
+        if request.user not in message.conversation.participants.all():
+            return Response({"error": "You are not a participant in this group"}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        message.read_by.add(request.user)
+        return Response({"success": True}, status=status.HTTP_200_OK)

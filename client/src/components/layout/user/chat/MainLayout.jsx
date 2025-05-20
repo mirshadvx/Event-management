@@ -25,6 +25,12 @@ const MainLayout = () => {
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     const toggleInfo = () => setIsInfoOpen(!isInfoOpen);
 
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setActiveChatID(null);
+        setChatHeader(null);
+    };
+
     const MobileLayout = () => (
         <div className="relative flex-1 h-[calc(100vh-64px)] overflow-hidden flex flex-col pt-14">
             <div className="flex-1 flex flex-col relative z-10 bg-gray-900 overflow-hidden">
@@ -33,6 +39,7 @@ const MainLayout = () => {
                     chatHeader={chatHeader}
                     onMenuClick={toggleSidebar}
                     onInfoClick={toggleInfo}
+                    activeTab={activeTab}
                 />
             </div>
 
@@ -49,7 +56,7 @@ const MainLayout = () => {
                         setIsSidebarOpen(false);
                     }}
                     activeTab={activeTab}
-                    setActiveTab={setActiveTab}
+                    setActiveTab={handleTabChange}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                 />
@@ -85,13 +92,13 @@ const MainLayout = () => {
                         setChatHeader(title);
                     }}
                     activeTab={activeTab}
-                    setActiveTab={setActiveTab}
+                    setActiveTab={handleTabChange}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                 />
             </div>
             <div className="flex-1">
-                <ChatWindow chatID={activeChatID} chatHeader={chatHeader} onMenuClick={() => {}} onInfoClick={() => {}} />
+                <ChatWindow chatID={activeChatID} chatHeader={chatHeader} onMenuClick={() => {}} onInfoClick={() => {}} activeTab={activeTab} />
             </div>
             <div className="w-80 flex-shrink-0">
                 <ChatInfo chatID={activeChatID} />

@@ -1,7 +1,6 @@
 import PropTypes from "prop-types";
-import { ArrowRight } from "lucide-react";
-import { useState } from "react";
 import { IoIosSend } from "react-icons/io";
+import { useState } from "react";
 
 const MessageInput = ({ onSendMessage, onTyping }) => {
     const [message, setMessage] = useState("");

@@ -9,6 +9,7 @@ from .serializers import EventPreviewSerializer, EventSerializerExplore
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
+from chat.models import GroupConversation
 import logging
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,12 @@ class EventCreateView(APIView):
             serializer = EventSerializer(data=request.data, context={'request': request})
             if serializer.is_valid():
                 event = serializer.save()
+                group_chat = GroupConversation.objects.create(
+                    name=f"{event.event_title} chat",
+                    admin=request.user,
+                    event=event
+                )
+                group_chat.participants.add(request.user)
                 return Response({'success': True, 'message': 'Event created successfully',
                     'data': EventSerializer(event).data
                 }, status=status.HTTP_201_CREATED)
