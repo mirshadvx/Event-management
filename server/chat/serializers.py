@@ -92,3 +92,8 @@ class CreateGroupMessageSerializer(serializers.ModelSerializer):
         if not value.strip():
             raise serializers.ValidationError("Message cannot be empty!")
         return value
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'user', 'message', 'created_at']
