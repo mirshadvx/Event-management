@@ -11,6 +11,11 @@ from decimal import Decimal
 from Admin.models import RevenueDistribution
 from users.models import WalletTransaction
 from .filters import EventFilterDistribution
+from .models import Profile
+from chat.models import Notification
+from celery import shared_task
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +114,23 @@ def distribute_event_revenue():
             continue
 
     print("Revenue distribution completed at:", timezone.now())
+    
+
+def send_user_notification(user_id, message):
+    try:
+        user = Profile.objects.get(id=user_id)
+        notification = Notification.objects.create(user=user, message=message)
+        notification.save()
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{user_id}',
+            {
+                'type': 'send_notification',
+                'id': notification.id,
+                'message': message,
+                'created_at': str(notification.created_at)
+            }
+        )
+    except Profile.DoesNotExist:
+        logger.error(f"user doen't exist {user_id}")

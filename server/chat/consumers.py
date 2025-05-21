@@ -382,6 +382,7 @@ class GroupChatConsumer(AsyncWebsocketConsumer):
         except GroupMessage.DoesNotExist:
             pass
         
+
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
@@ -389,12 +390,26 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
-        self.notification_group_name = f'notifications_{self.user.id}'
-        await self.channel_layer.group_add(self.notification_group_name, self.channel_name)
+        self.user_id = self.scope['url_route']['kwargs']['user_id']
+
+        if str(self.user.id) != self.user_id:
+            await self.close(code=4001)
+            return
+
+        self.notification_group_name = f'notifications_{self.user_id}'
+
+        await self.channel_layer.group_add(
+            self.notification_group_name,
+            self.channel_name
+        )
+
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.notification_group_name, self.channel_name)
+        await self.channel_layer.group_discard(
+            self.notification_group_name,
+            self.channel_name
+        )
 
     async def receive(self, text_data):
         pass
@@ -402,6 +417,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def send_notification(self, event):
         await self.send(text_data=json.dumps({
             'type': 'notification',
+            'id': event['id'],
             'message': event['message'],
             'created_at': event['created_at']
         }))

@@ -278,20 +278,20 @@ LOGGING = {
     },
 }
 
-CELERY_BEAT_SCHEDULE = {
-    'distribute-revenue-every-minute': {
-        'task': 'users.tasks.distribute_event_revenue',
-        'schedule': crontab(minute='*/2'),
-    },
-}
-
-# this works the every midnight to call the task distribute_event_revenue function
 # CELERY_BEAT_SCHEDULE = {
-#     'distribute-revenue-every-midnight': {
+#     'distribute-revenue-every-minute': {
 #         'task': 'users.tasks.distribute_event_revenue',
-#         'schedule': crontab(hour=0, minute=0),
+#         'schedule': crontab(minute='*/2'),
 #     },
 # }
+
+# this works the every midnight to call the task distribute_event_revenue function
+CELERY_BEAT_SCHEDULE = {
+    'distribute-revenue-every-midnight': {
+        'task': 'users.tasks.distribute_event_revenue',
+        'schedule': crontab(hour=0, minute=0),
+    },
+}
 
 STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')

@@ -42,6 +42,7 @@ from rest_framework.pagination import PageNumberPagination
 import logging
 from django.db import transaction
 from django.conf import settings
+from .tasks import send_user_notification
 
 logger = logging.getLogger(__name__)
 
