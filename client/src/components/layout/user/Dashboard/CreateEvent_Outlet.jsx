@@ -106,6 +106,7 @@ const CreateEvent_Outlet = () => {
             tickets: [{ ticketType: "", ticketPrice: "", ticketQuantity: "", ticketDescription: "" }],
             age_restriction: false,
             special_instructions: "",
+            cancel_ticket: false,
             event_banner: null,
             promotional_image: null,
         },
@@ -119,13 +120,14 @@ const CreateEvent_Outlet = () => {
 
     const totalTicketQuantity = formValues.tickets.reduce((sum, ticket) => sum + (parseInt(ticket.ticketQuantity) || 0), 0);
     const capacityCount = parseInt(formValues.capacity) || 0;
-
     useEffect(() => {
         if (eventId) {
             const fetchEventData = async () => {
                 try {
                     const response = await api.get(`event/get-event/${eventId}/`);
                     const eventData = response.data;
+
+                    console.log("Fetched event data:", eventData);
 
                     setValue("event_title", eventData.event_title);
                     setValue("event_type", eventData.event_type);
@@ -139,9 +141,14 @@ const CreateEvent_Outlet = () => {
                     setValue("end_time", eventData.end_time);
                     setValue("visibility", eventData.visibility);
                     setValue("capacity", eventData.capacity);
-                    setValue("age_restriction", eventData.age_restriction);
-                    setValue("special_instructions", eventData.special_instructions);
-                    setValue("cancel_ticket", eventData.cancel_ticket);
+
+                    // Fix: Convert boolean values properly and trigger validation
+                    setValue("age_restriction", Boolean(eventData.age_restriction), { shouldValidate: true });
+                    setValue("cancel_ticket", Boolean(eventData.cancel_ticket), { shouldValidate: true });
+                    setValue("special_instructions", eventData.special_instructions || "");
+
+                    console.log("age_restriction:", eventData.age_restriction, "Type:", typeof eventData.age_restriction);
+                    console.log("cancel_ticket:", eventData.cancel_ticket, "Type:", typeof eventData.cancel_ticket);
 
                     if (eventData.tickets && eventData.tickets.length > 0) {
                         remove();
@@ -213,19 +220,26 @@ const CreateEvent_Outlet = () => {
         formData.append("is_draft", action === "draft" ? "true" : "false");
         formData.append("is_published", action === "publish" ? "true" : "false");
 
+        if (eventId) {
+            formData.append("event_id", eventId);
+        }
+
         try {
             console.log("Submitting event data...");
             for (let [key, value] of formData.entries()) console.log(`${key}:`, value);
 
-            const response = await api.post("event/create-event/", formData, {
+            const response = await api[eventId ? "put" : "post"]("event/create-event/", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             console.log("Published successfully:", response.data);
 
-            toast.success(`Event ${action === "draft" ? "saved as draft" : "published"} successfully!`, {
-                duration: 3000,
-                className: "text-white p-4 rounded-md",
-            });
+            toast.success(
+                `Event ${action === "draft" ? "saved as draft" : eventId ? "updated" : "published"} successfully!`,
+                {
+                    duration: 3000,
+                    className: "text-white p-4 rounded-md",
+                }
+            );
             navigate("/dashboard");
         } catch (error) {
             console.error("Submission error:", error);
@@ -759,7 +773,8 @@ const CreateEvent_Outlet = () => {
                     <div className="flex items-center space-x-2 mb-4">
                         <Checkbox
                             id="age_restriction"
-                            {...register("age_restriction")}
+                            checked={watch("age_restriction")}
+                            onCheckedChange={(checked) => setValue("age_restriction", checked, { shouldValidate: true })}
                             className="bg-[#1E1E1E] text-green-500 focus:ring-green-500"
                             disabled={loading}
                         />
@@ -770,7 +785,8 @@ const CreateEvent_Outlet = () => {
                     <div className="flex items-center space-x-2 mb-4">
                         <Checkbox
                             id="cancel_ticket"
-                            {...register("cancel_ticket")}
+                            checked={watch("cancel_ticket")}
+                            onCheckedChange={(checked) => setValue("cancel_ticket", checked, { shouldValidate: true })}
                             className="bg-[#1E1E1E] text-green-500 focus:ring-green-500"
                             disabled={loading}
                         />

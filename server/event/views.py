@@ -17,32 +17,50 @@ class EventCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        return self.handle_event(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        print(request.data)
+        return self.handle_event(request, *args, **kwargs)
+
+    def handle_event(self, request, *args, **kwargs):
+        event_id = request.data.get('event_id')
         try:
-            serializer = EventSerializer(data=request.data, context={'request': request})
+            if event_id:
+                event = Event.objects.get(id=event_id, organizer=request.user)
+                serializer = EventSerializer(event, data=request.data, context={'request': request})
+            else:
+                serializer = EventSerializer(data=request.data, context={'request': request})
+
             if serializer.is_valid():
                 event = serializer.save()
-                group_chat = GroupConversation.objects.create(
-                    name=f"{event.event_title} chat",
-                    admin=request.user,
-                    event=event
-                )
-                group_chat.participants.add(request.user)
-                return Response({'success': True, 'message': 'Event created successfully',
+
+                if not event_id:
+                    group_chat = GroupConversation.objects.create(
+                        name=f"{event.event_title} chat",
+                        admin=request.user,
+                        event=event
+                    )
+                    group_chat.participants.add(request.user)
+
+                return Response({
+                    'success': True,
+                    'message': 'Event created successfully' if not event_id else 'Event updated successfully',
                     'data': EventSerializer(event).data
-                }, status=status.HTTP_201_CREATED)
+                }, status=status.HTTP_201_CREATED if not event_id else status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Event.DoesNotExist:
+            return Response({"error": "Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(e)
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class EventPreviewPagination(PageNumberPagination):
     page_size = 9
     page_size_query_param = 'limit'
     max_page_size = 100
 
-    
 class EventPreviewList(APIView):
     pagination_class = EventPreviewPagination
     permission_classes = [IsAuthenticated]
@@ -211,12 +229,3 @@ class GetEvent(APIView):
             return Response(seriazlier.data)
         except Event.DoesNotExist:
             return Response({"error": "Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    def patch(self, request, event_id):
-        try:
-            instance = get_object_or_404(Event, id=event_id)
-            serializer = EventSerializer(instance, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-        except Exception as e:
-            print(e)

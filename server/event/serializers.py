@@ -5,9 +5,9 @@ import json
 import cloudinary.uploader
 
 class EventSerializer(serializers.ModelSerializer):
-    tickets = serializers.CharField()  # Handle tickets as a JSON string
-    event_banner = serializers.FileField(required=False, allow_null=True)  # Handle file upload
-    promotional_image = serializers.FileField(required=False, allow_null=True)  # Handle file upload
+    tickets = serializers.CharField()
+    event_banner = serializers.FileField(required=False, allow_null=True)
+    promotional_image = serializers.FileField(required=False, allow_null=True)
 
     class Meta:
         model = Event
@@ -22,6 +22,12 @@ class EventSerializer(serializers.ModelSerializer):
         read_only_fields = ['organizer', 'created_at', 'updated_at']
 
     def create(self, validated_data):
+        return self.save_event(validated_data)
+
+    def update(self, instance, validated_data):
+        return self.save_event(validated_data, instance)
+
+    def save_event(self, validated_data, instance=None):
         try:
             tickets_data = json.loads(validated_data.pop('tickets'))
             request = self.context.get('request')
@@ -33,34 +39,33 @@ class EventSerializer(serializers.ModelSerializer):
             if 'promotional_image' in validated_data and validated_data['promotional_image']:
                 upload_result = cloudinary.uploader.upload(validated_data.pop('promotional_image'))
                 validated_data['promotional_image'] = upload_result['url']
-            
+
             validated_data['age_restriction'] = bool(validated_data.get('age_restriction', False))
             validated_data['is_draft'] = bool(validated_data.get('is_draft', False))
             validated_data['is_published'] = bool(validated_data.get('is_published', False))
 
-            validated_data['organizer'] = request.user
-
-            event = Event.objects.create(**validated_data)
+            if instance:
+                for key, value in validated_data.items():
+                    setattr(instance, key, value)
+                instance.save()
+                Ticket.objects.filter(event=instance).delete()
+            else:
+                validated_data['organizer'] = request.user
+                instance = Event.objects.create(**validated_data)
 
             for ticket_data in tickets_data:
                 Ticket.objects.create(
-                    event=event,
+                    event=instance,
                     ticket_type=ticket_data['ticketType'],
                     price=ticket_data['ticketPrice'],
                     quantity=ticket_data['ticketQuantity'],
                     description=ticket_data.get('ticketDescription', '')
                 )
 
-            return event
+            return instance
         except Exception as e:
-            print(f"Error in serializer create method: {e}")
+            print(f"Error in serializer save method: {e}")
             raise
-
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation['event_banner'] = instance.event_banner if instance.event_banner else None
-        representation['promotional_image'] = instance.promotional_image if instance.promotional_image else None
-        return representation
 
 class EventPreviewSerializer(serializers.ModelSerializer):
     like_count = serializers.SerializerMethodField()
