@@ -10,6 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from chat.models import GroupConversation
+from django.utils import timezone
 import logging
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class EventCreateView(APIView):
     def put(self, request, *args, **kwargs):
         print(request.data)
         return self.handle_event(request, *args, **kwargs)
-
+    
     def handle_event(self, request, *args, **kwargs):
         event_id = request.data.get('event_id')
         try:
@@ -32,7 +33,13 @@ class EventCreateView(APIView):
             else:
                 serializer = EventSerializer(data=request.data, context={'request': request})
 
-            if serializer.is_valid():
+            if serializer.is_valid():             
+                validated_data = serializer.validated_data
+                if validated_data.get('is_published', False):
+                    validated_data['published_at'] = timezone.now().date()
+                else:
+                    validated_data['published_at'] = timezone.now().date()
+
                 event = serializer.save()
 
                 if not event_id:

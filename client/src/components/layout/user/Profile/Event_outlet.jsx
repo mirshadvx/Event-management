@@ -266,7 +266,7 @@ const EventOutlet = () => {
                                     <GiTicket className="w-6 h-6" />
                                 </button>
                             )}
-                            {!isOrganized && item.tickets && item.tickets.length > 0 && (
+                            {!isOrganized && item.tickets && item.tickets.length > 0 && event.cancel_ticket && (
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <Button

@@ -715,11 +715,17 @@ def cancel_ticket(request):
     try:
         user = request.user
         data = request.data
-        print(request.data)
-        
         event_id = data.get("event_id")
         booking_id = data.get("booking_id")
         tickets_to_cancel = data.get("tickets",[])
+        
+        try:
+            che_event = Event.objects.get(id=event_id)
+            if not che_event.cancel_ticket:
+                return Response( {"error": "Ticket cancellation is not allowed for this event."},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Event.DoesNotExist:
+            return Response({"Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)        
         
         if not event_id or not booking_id or not tickets_to_cancel:
             return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
@@ -733,11 +739,9 @@ def cancel_ticket(request):
             return Response({"error": "Cancellation only acceptable for before event start before 2 days!"}, 
                         status=status.HTTP_400_BAD_REQUEST)
             
-
         wallet = get_object_or_404(Wallet, user=user)
 
         total_all_ticket_count = TicketPurchase.objects.filter(event=event,buyer=user,booking_id=booking_id).aggregate(Sum('quantity'))['quantity__sum'] or 0
-        print(total_all_ticket_count, "IIIIIIIIIIIIIIIIIIII")
         
         refund_amount = Decimal('0.00')
         total_cancel_ticket_count = 0

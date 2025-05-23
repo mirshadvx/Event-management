@@ -162,7 +162,7 @@ class ProfileEventSerializer(serializers.ModelSerializer):
             "id", "event_title", "event_type", "description",
             "venue_name", "address", "city",
             "start_date", "end_date", "start_time", "end_time",
-            "visibility", "capacity", "age_restriction",
+            "visibility", "capacity", "age_restriction", "cancel_ticket",
             "special_instructions", "event_banner",
             "organizer_username", "organizer_profile_picture",
             "like_count", "liked"
