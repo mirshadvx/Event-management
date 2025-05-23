@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from "react";
 import { Search, Calendar, ChevronDown, X, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,15 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import api from "@/services/api";
 import { toast } from "sonner";
-import { HiChevronDoubleUp } from "react-icons/hi";
 import { HashLoader } from "react-spinners";
 import { v4 as uuidv4 } from "uuid";
 import { generateKitToken, createZegoInstance, joinRoomAsHost, destroyZegoInstance } from "@/services/ZegoService";
+
+import OrganizedEventCard from "@/components/user/Dashboard/OrganizedEventCard";
+import OngoingEventCard from "@/components/user/Dashboard/OngoingEventCard";
+const OrganizedModal = lazy(() => import("@/components/user/Dashboard/OrganizedModal"));
+const OngoingModal = lazy(() => import("@/components/user/Dashboard/OngoingModal"));
+const DraftedModal = lazy(() => import("@/components/user/Dashboard/DraftedModal"));
 
 const Organized_Outlet = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +50,11 @@ const Organized_Outlet = () => {
     const zegoInstanceRef = useRef(null);
     const [isStreamLive, setIsStreamLive] = useState(false);
     const [roomID, setRoomID] = useState("");
+    const [selectedEventId, setSelectedEventId] = useState(null);
+
+    const [isOrganizedModalOpen, setIsOrganizedModalOpen] = useState(false);
+    const [isOngoingModalOpen, setIsOngoingModalOpen] = useState(false);
+    const [isDraftedModalOpen, setIsDraftedModalOpen] = useState(false);
 
     const categories = ["Conference", "Workshop", "Seminar"];
     const timeFilters = ["All", "Today", "Week", "Month", "Custom"];
@@ -214,16 +224,6 @@ const Organized_Outlet = () => {
         setExpandedEventId(expandedEventId === eventId ? null : eventId);
     };
 
-    const formatEventDate = (dateStr) => {
-        if (!dateStr) return "";
-        return format(new Date(dateStr), "MMM dd, yyyy");
-    };
-
-    const formatEventTime = (timeStr) => {
-        if (!timeStr) return "";
-        return timeStr.substring(0, 5);
-    };
-
     const handleFilterChange = (type) => {
         setFilterType(type);
         setPage(1);
@@ -259,6 +259,93 @@ const Organized_Outlet = () => {
         }
         setIsGoLiveModalOpen(false);
         setSelectedEvent(null);
+    };
+
+    const handleOpenOrganizedModal = (eventId) => {
+        setSelectedEventId(eventId);
+        setIsOrganizedModalOpen(true);
+    };
+
+    const handleCloseOrganizedModal = () => {
+        setIsOrganizedModalOpen(false);
+    };
+
+    const handleOpenOngoingModal = (eventId) => {
+        setSelectedEventId(eventId);
+        setIsOngoingModalOpen(true);
+    };
+
+    const handleCloseOngoingModal = () => {
+        setIsOngoingModalOpen(false);
+    };
+
+    const handleOpenDraftedModal = () => {
+        setIsDraftedModalOpen(true);
+    };
+
+    const handleCloseDraftedModal = () => {
+        setIsDraftedModalOpen(false);
+    };
+
+    const handleEditEvent = (event) => {
+        console.log("Edit event:", event);
+    };
+
+    const handlePublishEvent = async (event) => {
+        try {
+            await api.put(`event/${event.id}/publish/`);
+            toast.success("Event published successfully!");
+
+            fetchEvents(1, true);
+        } catch (error) {
+            console.error("Error publishing event:", error);
+            toast.error("Failed to publish event");
+        }
+    };
+
+    const renderEventCard = (event, index) => {
+        const isLastElement = events.length === index + 1;
+        const isExpanded = expandedEventId === event.id;
+
+        const commonProps = {
+            event,
+            isExpanded,
+            onToggleDetails: toggleEventDetails,
+            isLastElement,
+            lastEventElementRef,
+        };
+
+        switch (filterType) {
+            case "organized":
+                return (
+                    <OrganizedEventCard
+                        key={event.id}
+                        {...commonProps}
+                        onAnalyticsClick={() => handleOpenOrganizedModal(event.id)}
+                        onGoLiveClick={handleGoLive}
+                    />
+                );
+            case "ongoing":
+                return (
+                    <OngoingEventCard
+                        key={event.id}
+                        {...commonProps}
+                        onAnalyticsClick={() => handleOpenOngoingModal(event.id)}
+                        onGoLiveClick={handleGoLive}
+                    />
+                );
+            case "drafted":
+                return (
+                    <OngoingEventCard
+                        key={event.id}
+                        {...commonProps}
+                        onAnalyticsClick={handleOpenOngoingModal}
+                        onGoLiveClick={handleGoLive}
+                    />
+                );
+            default:
+                return null;
+        }
     };
 
     return (
@@ -434,130 +521,7 @@ const Organized_Outlet = () => {
 
                 {events.length > 0 ? (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {events.map((event, index) => {
-                            const isLastElement = events.length === index + 1;
-                            const isExpanded = expandedEventId === event.id;
-
-                            return (
-                                <div
-                                    key={event.id}
-                                    ref={isLastElement ? lastEventElementRef : null}
-                                    className="relative rounded-md overflow-hidden shadow-lg"
-                                >
-                                    <div className="relative">
-                                        <div
-                                            className="aspect-[3/4] bg-cover bg-center"
-                                            style={{
-                                                backgroundImage: event.event_banner
-                                                    ? `url(${event.event_banner})`
-                                                    : "url('/placeholder-event.jpg')",
-                                            }}
-                                        >
-                                            {!event.event_banner && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                                                    <span className="text-gray-400">No Image</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="absolute bottom-0 left-0 right-0 px-3 flex justify-end items-center">
-                                            <Button
-                                                variant="outline"
-                                                className="bg-[#2A2A2A]/90 border-none text-white rounded-t-md rounded-b-none justify-center gap-1 py-1"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleEventDetails(event.id);
-                                                }}
-                                            >
-                                                <HiChevronDoubleUp className="text-4xl" />
-                                            </Button>
-                                        </div>
-
-                                        <div
-                                            className={`absolute left-0 right-0 bottom-0 bg-[#2A2A2A] transition-all duration-300 ease-in-out overflow-hidden ${
-                                                isExpanded ? "h-full" : "h-0"
-                                            }`}
-                                        >
-                                            <div className="p-4">
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <h3 className="text-lg font-bold text-white">{event.event_type}</h3>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="group p-1"
-                                                        onClick={() => toggleEventDetails(event.id)}
-                                                    >
-                                                        <X
-                                                            size={20}
-                                                            className="text-white group-hover:text-black transition-colors duration-200"
-                                                        />
-                                                    </Button>
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Venue</p>
-                                                        <p className="text-white flex items-center">
-                                                            <MapPin size={16} className="mr-1" /> {event.venue_name}
-                                                        </p>
-                                                    </div>
-
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Start</p>
-                                                        <p className="text-white">
-                                                            {formatEventDate(event.start_date)} at{" "}
-                                                            {formatEventTime(event.start_time)}
-                                                        </p>
-                                                    </div>
-
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">End</p>
-                                                        <p className="text-white">
-                                                            {formatEventDate(event.end_date)} at{" "}
-                                                            {formatEventTime(event.end_time)}
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-2 gap-2 mt-2">
-                                                        <div>
-                                                            <p className="text-gray-400 text-sm">Status</p>
-                                                            <p className="text-white">
-                                                                {event.is_published ? "Published" : "Draft"}
-                                                            </p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-gray-400 text-sm">Revenue</p>
-                                                            <p className="text-white">
-                                                                {event.revenue_distributed ? "Distributed" : "Pending"}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex justify-between mt-4">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="border-gray-600 text-black"
-                                                        >
-                                                            Analytics
-                                                        </Button>
-
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="border-gray-600 text-black"
-                                                            onClick={() => handleGoLive(event)}
-                                                        >
-                                                            Go live
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        {events.map((event, index) => renderEventCard(event, index))}
                     </div>
                 ) : !loading ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -568,11 +532,13 @@ const Organized_Outlet = () => {
                         <p className="text-gray-400 mt-2">Try adjusting your search</p>
                     </div>
                 ) : null}
+
                 {loading && (
                     <div className="text-white text-center pt-2 md:pt-27 flex justify-center">
                         <HashLoader color="#54c955" size={57} />
                     </div>
                 )}
+
                 {!hasMore && events.length > 0 && (
                     <div className="text-gray-400 text-center py-8 border-t border-gray-800 mt-8">
                         You've reached the end of the list
@@ -592,7 +558,7 @@ const Organized_Outlet = () => {
                                     : "Start the live stream for this event."}
                             </DialogDescription>
                         </DialogHeader>
-                        <div ref={liveStreamRef} className="w-full h-[400px]" />
+                        <div ref={liveStreamRef} className="w-full h-96" />
                         <DialogFooter className="flex flex-row justify-end gap-2">
                             <Button variant="outline" onClick={handleModalClose}>
                                 Cancel
@@ -608,6 +574,16 @@ const Organized_Outlet = () => {
                     </DialogContent>
                 </DialogPortal>
             </Dialog>
+
+            <Suspense fallback={<HashLoader color="#54c955" size={57} />}>
+                <OrganizedModal
+                    isOpen={isOrganizedModalOpen}
+                    onClose={handleCloseOrganizedModal}
+                    eventId={selectedEventId}
+                />
+                <OngoingModal isOpen={isOngoingModalOpen} onClose={handleCloseOngoingModal} eventId={selectedEventId} />
+                <DraftedModal isOpen={isDraftedModalOpen} onClose={handleCloseDraftedModal} />
+            </Suspense>
         </div>
     );
 };

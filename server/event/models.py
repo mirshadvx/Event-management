@@ -47,6 +47,7 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     revenue_distributed = models.BooleanField(default=False)
+    published_at = models.DateField()
     
     def __str__(self):
         return f"{self.event_title} by {self.organizer.username}"

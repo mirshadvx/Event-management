@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from event.models import Event
-from users.models import Profile, Booking
+from users.models import Profile, Booking, TicketRefund
 from event.models import Event
 from .models import *
+from event.models import Event
+from users.models import Booking
 
 class EventOrganizerList(serializers.ModelSerializer):
     class Meta:
@@ -54,3 +56,33 @@ class ParticipatedEventSerializer(serializers.ModelSerializer):
         fields = ["id","event_banner", "event_type", "venue_name",
                   "start_date", "end_date", "start_time", "end_time",
                   ]
+        
+
+
+class TicketDetailSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    purchases = serializers.IntegerField()
+    cancellations = serializers.IntegerField()
+
+class TicketTypeSerializer(serializers.Serializer):
+    details = TicketDetailSerializer(many=True)
+    totalPurchases = serializers.IntegerField()
+    totalCancellations = serializers.IntegerField()
+    revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class TicketStatsSerializer(serializers.Serializer):
+    regular = TicketTypeSerializer()
+    vip = TicketTypeSerializer()
+    gold = TicketTypeSerializer()
+
+class SummarySerializer(serializers.Serializer):
+    totalRevenue = serializers.DecimalField(max_digits=15, decimal_places=2)
+    totalParticipants = serializers.IntegerField()
+    totalLimit = serializers.IntegerField()
+    totalPurchases = serializers.IntegerField()
+    totalCancellations = serializers.IntegerField()
+
+class EventStatsSerializer(serializers.Serializer):
+    eventId = serializers.CharField()
+    ticketStats = TicketStatsSerializer()
+    summary = SummarySerializer()

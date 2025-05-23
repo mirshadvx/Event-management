@@ -5,8 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { logoutReducer, get_ProfileData } from "../../../../store/user/userSlice";
 import { useNavigate } from "react-router-dom";
 import NotificationPanel from "@/components/user/Home/notification/NotificationPanel";
-import { connectWebSocket, disconnectWebSocket } from "@/services/notification/notificationSocket";
-import { fetchNotifications } from "@/services/notification/notificationService";
+import { connectWebSocket, disconnectWebSocket } from "@/services/user/notification/notificationSocket";
+import { fetchNotifications } from "@/services/user/notification/notificationService";
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);

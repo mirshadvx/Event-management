@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Search, Settings, Menu, Info } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { get_ProfileData } from "@/store/user/userSlice";
-import { socketService } from "@/services/chat/socketService";
+import { socketService } from "@/services/user/chat/socketService";
 import chatApi from "@/services/chatApi";
 import MessageItem from "./MessageItem";
 import MessageInput from "./MessageInput";
