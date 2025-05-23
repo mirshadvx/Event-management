@@ -26,6 +26,7 @@ import { generateKitToken, createZegoInstance, joinRoomAsHost, destroyZegoInstan
 
 import OrganizedEventCard from "@/components/user/Dashboard/OrganizedEventCard";
 import OngoingEventCard from "@/components/user/Dashboard/OngoingEventCard";
+import DraftedEventCard from "@/components/user/Dashboard/DraftedEventCard";
 const OrganizedModal = lazy(() => import("@/components/user/Dashboard/OrganizedModal"));
 const OngoingModal = lazy(() => import("@/components/user/Dashboard/OngoingModal"));
 const DraftedModal = lazy(() => import("@/components/user/Dashboard/DraftedModal"));
@@ -336,7 +337,7 @@ const Organized_Outlet = () => {
                 );
             case "drafted":
                 return (
-                    <OngoingEventCard
+                    <DraftedEventCard
                         key={event.id}
                         {...commonProps}
                         onAnalyticsClick={handleOpenOngoingModal}

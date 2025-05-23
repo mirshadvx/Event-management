@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Event, Like, Comment, LiveStream
-from .serializers import EventSerializer, LiveStreamSerializer
+from .serializers import EventSerializer, LiveStreamSerializer, EventCompleteDataSerializer
 from django.db.models import Count
 from .serializers import EventPreviewSerializer, EventSerializerExplore
 from rest_framework.pagination import PageNumberPagination
@@ -33,6 +33,7 @@ class EventCreateView(APIView):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print(e)
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
@@ -199,3 +200,23 @@ class LiveStreamDetailView(APIView):
             
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class GetEvent(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, reqeust, event_id):
+        try:
+            event = Event.objects.get(id=event_id)
+            seriazlier = EventCompleteDataSerializer(event)
+            return Response(seriazlier.data)
+        except Event.DoesNotExist:
+            return Response({"error": "Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def patch(self, request, event_id):
+        try:
+            instance = get_object_or_404(Event, id=event_id)
+            serializer = EventSerializer(instance, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+        except Exception as e:
+            print(e)

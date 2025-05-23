@@ -4,11 +4,6 @@ from users.models import Profile
 import json
 import cloudinary.uploader
 
-# class TicketSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Ticket
-#         fields = ['ticket_type', 'price', 'quantity', 'description']
-
 class EventSerializer(serializers.ModelSerializer):
     tickets = serializers.CharField()  # Handle tickets as a JSON string
     event_banner = serializers.FileField(required=False, allow_null=True)  # Handle file upload
@@ -22,17 +17,15 @@ class EventSerializer(serializers.ModelSerializer):
             'start_time', 'end_time', 'visibility', 'capacity',
             'age_restriction', 'special_instructions', 'event_banner',
             'promotional_image', 'is_draft', 'is_published', 'tickets',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'cancel_ticket',
         ]
         read_only_fields = ['organizer', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         try:
-            # Extract tickets data and remove it from validated_data
             tickets_data = json.loads(validated_data.pop('tickets'))
             request = self.context.get('request')
 
-            # Handle file uploads to Cloudinary
             if 'event_banner' in validated_data and validated_data['event_banner']:
                 upload_result = cloudinary.uploader.upload(validated_data.pop('event_banner'))
                 validated_data['event_banner'] = upload_result['url']
@@ -40,23 +33,15 @@ class EventSerializer(serializers.ModelSerializer):
             if 'promotional_image' in validated_data and validated_data['promotional_image']:
                 upload_result = cloudinary.uploader.upload(validated_data.pop('promotional_image'))
                 validated_data['promotional_image'] = upload_result['url']
-
-            # Convert string booleans to Python booleans
-            # validated_data['age_restriction'] = validated_data.get('age_restriction', 'false').lower() == 'true'
-            # validated_data['is_draft'] = validated_data.get('is_draft', 'false').lower() == 'true'
-            # validated_data['is_published'] = validated_data.get('is_published', 'false').lower() == 'true'
             
             validated_data['age_restriction'] = bool(validated_data.get('age_restriction', False))
             validated_data['is_draft'] = bool(validated_data.get('is_draft', False))
             validated_data['is_published'] = bool(validated_data.get('is_published', False))
 
-            # Set organizer from authenticated user
             validated_data['organizer'] = request.user
 
-            # Create the event
             event = Event.objects.create(**validated_data)
 
-            # Create tickets
             for ticket_data in tickets_data:
                 Ticket.objects.create(
                     event=event,
@@ -72,18 +57,10 @@ class EventSerializer(serializers.ModelSerializer):
             raise
 
     def to_representation(self, instance):
-        # Ensure the response includes the URLs as strings
         representation = super().to_representation(instance)
         representation['event_banner'] = instance.event_banner if instance.event_banner else None
         representation['promotional_image'] = instance.promotional_image if instance.promotional_image else None
         return representation
-
-# class EventPreviewSerializer(serializers.ModelSerializer):
-#     like_count = serializers.IntegerField()
-#     comment_count = serializers.IntegerField()
-#     class Meta:
-#         model = Event
-#         fields = ['id', 'event_title', 'event_banner', 'like_count', 'comment_count']
 
 class EventPreviewSerializer(serializers.ModelSerializer):
     like_count = serializers.SerializerMethodField()
@@ -159,3 +136,14 @@ class LiveStreamSerializer(serializers.ModelSerializer):
         model = LiveStream
         fields = ['id', 'event', 'event_name', 'room_id', 'stream_status', 'organizer_name', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+class TicketsEventsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ticket
+        fields = "__all__"     
+           
+class EventCompleteDataSerializer(serializers.ModelSerializer):
+    tickets = TicketsEventsSerializer(many=True, read_only=True)
+    class Meta:
+        model = Event
+        fields = "__all__"

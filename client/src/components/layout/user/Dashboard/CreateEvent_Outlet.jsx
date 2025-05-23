@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, Upload, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -17,16 +17,22 @@ import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import FileInput from "./FileInput";
 import ImageCropper from "./ImageCropper";
 import api from "@/services/api";
-
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 const today = new Date();
-today.setHours(0, 0, 0, 0); 
+today.setHours(0, 0, 0, 0);
 
 const CreateEvent_Outlet = () => {
     const [imageState, setImageState] = useState({
         event_banner: { src: "", cropped: "", isCropping: false },
         promotional_image: { src: "", cropped: "", isCropping: false },
     });
+
+    const location = useLocation();
+    const navigate = useNavigate();
+    const eventId = new URLSearchParams(location.search).get("eventId");
 
     const onImageSelected = (field) => (selectedImg) => {
         setImageState((prev) => ({
@@ -110,11 +116,66 @@ const CreateEvent_Outlet = () => {
     const [loading, setLoading] = useState(false);
     const availableTicketTypes = ["Regular", "Gold", "VIP"];
     const formValues = watch();
-    const navigate = useNavigate();
 
-   
     const totalTicketQuantity = formValues.tickets.reduce((sum, ticket) => sum + (parseInt(ticket.ticketQuantity) || 0), 0);
     const capacityCount = parseInt(formValues.capacity) || 0;
+
+    useEffect(() => {
+        if (eventId) {
+            const fetchEventData = async () => {
+                try {
+                    const response = await api.get(`event/get-event/${eventId}/`);
+                    const eventData = response.data;
+
+                    setValue("event_title", eventData.event_title);
+                    setValue("event_type", eventData.event_type);
+                    setValue("description", eventData.description);
+                    setValue("venue_name", eventData.venue_name);
+                    setValue("address", eventData.address);
+                    setValue("city", eventData.city);
+                    setValue("start_date", new Date(eventData.start_date));
+                    setValue("end_date", new Date(eventData.end_date));
+                    setValue("start_time", eventData.start_time);
+                    setValue("end_time", eventData.end_time);
+                    setValue("visibility", eventData.visibility);
+                    setValue("capacity", eventData.capacity);
+                    setValue("age_restriction", eventData.age_restriction);
+                    setValue("special_instructions", eventData.special_instructions);
+                    setValue("cancel_ticket", eventData.cancel_ticket);
+
+                    if (eventData.tickets && eventData.tickets.length > 0) {
+                        remove();
+                        eventData.tickets.forEach((ticket) => {
+                            append({
+                                ticketType: ticket.ticket_type,
+                                ticketPrice: ticket.price,
+                                ticketQuantity: ticket.quantity,
+                                ticketDescription: ticket.description,
+                            });
+                        });
+                    }
+
+                    if (eventData.event_banner) {
+                        setImageState((prev) => ({
+                            ...prev,
+                            event_banner: { ...prev.event_banner, cropped: eventData.event_banner },
+                        }));
+                    }
+                    if (eventData.promotional_image) {
+                        setImageState((prev) => ({
+                            ...prev,
+                            promotional_image: { ...prev.promotional_image, cropped: eventData.promotional_image },
+                        }));
+                    }
+                } catch (error) {
+                    console.error("Error fetching event data:", error);
+                    toast.error("Error fetching event data: " + (error.response?.data?.detail || error.message));
+                }
+            };
+
+            fetchEventData();
+        }
+    }, [eventId, setValue, append, remove]);
 
     const onSubmit = async (data, action) => {
         setLoading(true);
@@ -135,6 +196,7 @@ const CreateEvent_Outlet = () => {
         formData.append("visibility", data.visibility);
         formData.append("capacity", data.capacity || 0);
         formData.append("age_restriction", data.age_restriction ? "true" : "false");
+        formData.append("cancel_ticket", data.cancel_ticket ? "true" : "false");
         if (data.special_instructions) formData.append("special_instructions", data.special_instructions);
 
         if (data.event_banner instanceof File) formData.append("event_banner", data.event_banner);
@@ -237,7 +299,6 @@ const CreateEvent_Outlet = () => {
     return (
         <div className="bg-[#444444] text-white p-6 max-w-7xl mx-auto rounded-2xl">
             <form onSubmit={handleSubmit((data) => onSubmit(data, "publish"))} className="space-y-6 grid grid-cols-2 gap-4">
-                {/* Basic Information */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Event Details</h2>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -291,7 +352,6 @@ const CreateEvent_Outlet = () => {
                     </div>
                 </div>
 
-                {/* Venue Details */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0 mt-4">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Venue Details</h2>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -337,7 +397,6 @@ const CreateEvent_Outlet = () => {
                     </div>
                 </div>
 
-                {/* Event Branding */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Event Branding</h2>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -346,7 +405,6 @@ const CreateEvent_Outlet = () => {
                     </div>
                 </div>
 
-                {/* Schedule Event */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0 mt-4">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Schedule Event</h2>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -540,7 +598,6 @@ const CreateEvent_Outlet = () => {
                     </div>
                 </div>
 
-                {/* Event Settings */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0 mt-4">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Event Settings</h2>
                     <div className="grid md:grid-cols-2 gap-4">
@@ -584,7 +641,6 @@ const CreateEvent_Outlet = () => {
                     </div>
                 </div>
 
-                {/* Ticket Details */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0 mt-4">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Ticket Details</h2>
                     {fields.map((ticket, index) => (
@@ -675,7 +731,7 @@ const CreateEvent_Outlet = () => {
                             )}
                         </div>
                     ))}
-                    {/* Display total ticket count */}
+
                     <div className="mb-4">
                         <p className="text-white">
                             Total Tickets: {totalTicketQuantity}
@@ -698,27 +754,39 @@ const CreateEvent_Outlet = () => {
                     )}
                 </div>
 
-                {/* Extra Information */}
                 <div className="bg-[#2C2C2C] p-4 rounded-lg m-0">
                     <h2 className="text-lg font-semibold mb-4 text-green-500">Extra Information</h2>
-                    <div className="flex items-center mb-4">
-                        <input
-                            type="checkbox"
+                    <div className="flex items-center space-x-2 mb-4">
+                        <Checkbox
+                            id="age_restriction"
                             {...register("age_restriction")}
-                            className="mr-2 bg-[#1E1E1E] text-green-500 focus:ring-green-500"
+                            className="bg-[#1E1E1E] text-green-500 focus:ring-green-500"
                             disabled={loading}
                         />
-                        <label className="text-white">Age Restriction</label>
+                        <Label htmlFor="age_restriction" className="text-white">
+                            Age Restriction 18+
+                        </Label>
                     </div>
-                    <textarea
+                    <div className="flex items-center space-x-2 mb-4">
+                        <Checkbox
+                            id="cancel_ticket"
+                            {...register("cancel_ticket")}
+                            className="bg-[#1E1E1E] text-green-500 focus:ring-green-500"
+                            disabled={loading}
+                        />
+                        <Label htmlFor="cancel_ticket" className="text-white">
+                            Allow Ticket Cancellation
+                        </Label>
+                    </div>
+                    <Textarea
+                        id="special_instructions"
                         {...register("special_instructions")}
                         placeholder="Any additional information for attendees"
-                        className="w-full bg-[#1E1E1E] text-white border-2 border-[#3C3C3C] rounded-lg p-2 h-24 focus:outline-none focus:border-green-500"
+                        className="w-full bg-[#1E1E1E] text-white border-2 border-[#3C3C3C] rounded-lg p-2 h-24 focus:outline-none"
                         disabled={loading}
                     />
                 </div>
 
-                {/* Action Buttons */}
                 <div className="col-span-full flex justify-end items-center space-x-4">
                     <Button
                         type="button"
