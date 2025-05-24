@@ -1,20 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { get_ProfileData } from "@/store/user/userSlice";
-import {
-    Edit2,
-    Save,
-    AlertCircle,
-    Camera,
-    Twitter,
-    Linkedin,
-    Instagram,
-    Github,
-    Globe,
-    MapPin,
-    Mail,
-    Phone,
-    X,
-} from "lucide-react";
+import { Edit2, Save, AlertCircle, Camera, MapPin, Mail, Phone, X } from "lucide-react";
 import { MdVerifiedUser } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import EditProfileModal from "@/components/common/user/Profile/profile/EditProfileModal";
@@ -171,19 +157,6 @@ const Profile_outlet = () => {
         }));
     };
 
-    const handleToggleChange = (name) => {
-        if (name.includes(".")) {
-            const [parent, child] = name.split(".");
-            setUserData((prev) => ({
-                ...prev,
-                [parent]: {
-                    ...prev[parent],
-                    [child]: !prev[parent][child],
-                },
-            }));
-        }
-    };
-
     const handleSave = (updatedData) => {
         setUserData((prev) => ({
             ...prev,
@@ -205,22 +178,6 @@ const Profile_outlet = () => {
     ];
 
     const skills = ["Event Planning", "Team Management", "Budget Control", "Marketing"];
-
-    const renderSocialIcon = (platform) => {
-        switch (platform) {
-            case "twitter":
-                return <Twitter className="text-[#00EF93]" size={20} />;
-            case "linkedin":
-                return <Linkedin className="text-[#00EF93]" size={20} />;
-            case "instagram":
-                return <Instagram className="text-[#00EF93]" size={20} />;
-            case "github":
-                return <Github className="text-[#00EF93]" size={20} />;
-            case "website":
-            default:
-                return <Globe className="text-[#00EF93]" size={20} />;
-        }
-    };
 
     const isProfileComplete = () => {
         return (
@@ -396,95 +353,9 @@ const Profile_outlet = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
+                {/* <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
                     <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Social Links</h3>
-                    <div className="space-y-6">
-                        {user.social_media_links &&
-                            user.social_media_links.map((link, index) => (
-                                <div key={index} className="flex items-start gap-4">
-                                    {renderSocialIcon(link.platform)}
-                                    <div className="w-full">
-                                        <label className="block text-[#9ca3af] mb-2">
-                                            {link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
-                                        </label>
-                                        <p className="text-[#ffffff]">
-                                            <a
-                                                href={link.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="hover:underline"
-                                            >
-                                                {link.url}
-                                            </a>
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        {(!user.social_media_links || user.social_media_links.length === 0) && (
-                            <p className="text-[#9ca3af]">No social links added yet.</p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
-                    <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Account Settings</h3>
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium text-[#ffffff]">Notifications</p>
-                                <p className="text-[#9ca3af] text-sm mt-1">Receive event updates</p>
-                            </div>
-                            <div
-                                className={`w-12 h-6 rounded-full relative transition-colors duration-200 ease-in-out ${
-                                    userData.preferences.notifications ? "bg-[#10b981]" : "bg-[#2a2a4a]"
-                                } cursor-default`}
-                                onClick={() => handleToggleChange("preferences.notifications")}
-                            >
-                                <div
-                                    className={`absolute w-5 h-5 bg-white rounded-full top-[2px] transition-transform duration-200 ease-in-out shadow-md ${
-                                        userData.preferences.notifications ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium text-[#ffffff]">Marketing Emails</p>
-                                <p className="text-[#9ca3af] text-sm mt-1">Receive marketing emails</p>
-                            </div>
-                            <div
-                                className={`w-12 h-6 rounded-full relative transition-colors duration-200 ease-in-out ${
-                                    userData.preferences.marketingEmails ? "bg-[#10b981]" : "bg-[#2a2a4a]"
-                                } cursor-default`}
-                                onClick={() => handleToggleChange("preferences.marketingEmails")}
-                            >
-                                <div
-                                    className={`absolute w-5 h-5 bg-white rounded-full top-[2px] transition-transform duration-200 ease-in-out shadow-md ${
-                                        userData.preferences.marketingEmails ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium text-[#ffffff]">Two-Factor Auth</p>
-                                <p className="text-[#9ca3af] text-sm mt-1">Enable two-factor authentication</p>
-                            </div>
-                            <div
-                                className={`w-12 h-6 rounded-full relative transition-colors duration-200 ease-in-out ${
-                                    userData.preferences.twoFactorAuth ? "bg-[#10b981]" : "bg-[#2a2a4a]"
-                                } cursor-default`}
-                                onClick={() => handleToggleChange("preferences.twoFactorAuth")}
-                            >
-                                <div
-                                    className={`absolute w-5 h-5 bg-white rounded-full top-[2px] transition-transform duration-200 ease-in-out shadow-md ${
-                                        userData.preferences.twoFactorAuth ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </div> */}
 
                 <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
                     <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Performance</h3>
@@ -522,39 +393,6 @@ const Profile_outlet = () => {
                             <span className="text-[#ffffff]">{skill}</span>
                         </div>
                     ))}
-                </div>
-            </div>
-
-            <div className="bg-[#252543] rounded-xl p-8 mt-8 shadow-lg">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-semibold text-[#00EF93]">Recent Activity</h3>
-                    <a
-                        href="/profile/events"
-                        className="text-[#10b981] text-sm hover:underline transition-colors duration-200"
-                    >
-                        View All Events
-                    </a>
-                </div>
-                <div className="space-y-4">
-                    {/* <div className="bg-[#2a2a4a] rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between hover:shadow-lg hover:-translate-y-1 transition-all duration-200 shadow-sm cursor-pointer">
-                        <div>
-                            <h4 className="font-medium text-lg text-[#ffffff]">Music</h4>
-                            <div className="flex items-center gap-3 text-[#9ca3af] text-sm mt-2">
-                                <span>Mumbai</span>
-                                <span>•</span>
-                                <span>167 Attendees</span>
-                                <span>•</span>
-                                <span>₹299.00</span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4 mt-2 md:mt-0">
-                            <span className="text-[#9ca3af]">Mar 15-17, 2025</span>
-                            <span className="bg-[#10b981] text-[#252543] px-3 py-1 rounded-md text-sm font-medium">
-                                Upcoming
-                            </span>
-                        </div>
-                    </div> */}
-                    {/* Similar for Django Meet */}
                 </div>
             </div>
 
