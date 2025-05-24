@@ -26,10 +26,12 @@ const SubscriptionCheckout = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!userLoading && user && user.plan === "premium") {
+        if (!userLoading && user && user.plan == "basic" && !user.plan_expired) {
+            return;
+        } else if (!userLoading && user && !user.plan_expired) {
             navigate("/", {
                 state: {
-                    message: "You already have a Premium subscription.",
+                    message: "You already have a Subscription plan",
                 },
             });
         }
@@ -176,7 +178,7 @@ const SubscriptionCheckout = () => {
         );
     }
 
-    if (user?.plan === "basic") {
+    if (user?.plan === "basic" && !user.plan_expired) {
         return <UpgradePremium />;
     }
 

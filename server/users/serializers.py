@@ -51,6 +51,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     social_media_links = SocialMediaLinkSerializer(many=True)
     settings = UserSettingsSerializer()
     plan = serializers.SerializerMethodField()
+    plan_expired = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -68,6 +69,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "social_media_links",
             "settings",
             "plan",
+            "plan_expired",
         ]
         read_only_fields = ["email", "created_at"]
 
@@ -106,8 +108,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if subscription:
             return subscription.plan.name
         return None
-            
 
+    def get_plan_expired(self, obj):
+        subscription = obj.user_subscription.first()
+        value = subscription.is_expired()
+        return value
+            
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet

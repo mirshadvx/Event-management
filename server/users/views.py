@@ -1369,7 +1369,7 @@ class RenewSubscription(APIView):
     def get(self, request):
         try:
             user = request.user
-            cu_subscription = UserSubscription.objects.select_related("plan").get(user=user, is_active=True)
+            cu_subscription = UserSubscription.objects.select_related("plan").get(user=user)
             if not cu_subscription.plan.active:
                 return Response({"success":False, "error":"Plan currently unavailable"}, status=status.HTTP_404_NOT_FOUND)
             current_plan = {
@@ -1390,6 +1390,7 @@ class RenewSubscription(APIView):
                             status=status.HTTP_200_OK)
             
         except Exception as e:
+            print(e)
             return Response({"success": False, "error": f"{e}"}, status=status.HTTP_404_NOT_FOUND)
 
     

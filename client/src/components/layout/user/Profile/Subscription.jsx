@@ -297,7 +297,7 @@ const Subscription = () => {
                         </div>
                     </div>
                 </div>
-                {subscription.plan.name === "basic" && (
+                {subscription.plan.name === "basic" && !user.plan_expired && (
                     <div className="mt-6 flex justify-center">
                         <button className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg"
                         onClick={()=> navigate("/checkout/subscription")}>
@@ -308,7 +308,8 @@ const Subscription = () => {
                 {subscription.is_expired && (
                     <div className="mt-6 flex justify-center">
                         <button
-                            onClick={() => navigate("/checkout/renew-subscription")}
+                            // onClick={() => navigate("/checkout/renew-subscription")}
+                            onClick={()=> navigate("/checkout/subscription")}
                             className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg"
                         >
                             Renew Plan

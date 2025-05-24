@@ -156,7 +156,6 @@ class UserSubscription(models.Model):
     def is_valid(self):
         return self.is_active and not self.is_expired()
 
-    
     def can_join_event(self):
         return self.events_joined_current_month <= self.plan.event_join_limit
     
