@@ -60,13 +60,11 @@ class OrganizerEventsFilter(django_filters.FilterSet):
             curr_date = curr_datetime.date()
             curr_time = curr_datetime.time()
             
-            # Events where today is between start_date and end_date
             ongoing_events = queryset.filter(
                 is_published=True,
                 revenue_distributed=False
             ).filter(
-                Q(start_date__lte=curr_date, end_date__gt=curr_date) |  # Ongoing multi-day events
-                Q(start_date__lte=curr_date, end_date=curr_date, end_time__gte=curr_time)  # Ends today but time not passed
+                Q(end_date__gt=curr_date)
             )
             
             return ongoing_events
