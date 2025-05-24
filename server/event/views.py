@@ -44,11 +44,15 @@ class EventCreateView(APIView):
 
                 if not event_id:
                     group_chat = GroupConversation.objects.create(
-                        name=f"{event.event_title} chat",
+                        name=event.event_title,
                         admin=request.user,
                         event=event
                     )
                     group_chat.participants.add(request.user)
+                elif event_id:
+                    group_chat = get_object_or_404(GroupConversation, event=event)
+                    group_chat.name = event.event_title
+                    group_chat.save()
 
                 return Response({
                     'success': True,
