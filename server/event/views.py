@@ -11,6 +11,9 @@ from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from chat.models import GroupConversation
 from django.utils import timezone
+from rest_framework import generics, filters
+from .filters import EventFilter
+from django_filters.rest_framework import DjangoFilterBackend
 import logging
 logger = logging.getLogger(__name__)
 
@@ -72,25 +75,21 @@ class EventPreviewPagination(PageNumberPagination):
     page_size_query_param = 'limit'
     max_page_size = 100
 
-class EventPreviewList(APIView):
+class EventPreviewList(generics.ListAPIView):
+    serializer_class = EventPreviewSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_class = EventFilter
+    search_fields = ['event_title', 'description', 'venue_name', 'city']
     pagination_class = EventPreviewPagination
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        queryset = Event.objects.filter(is_published=True).annotate(
+    def get_queryset(self):
+        now = timezone.now().date()
+        queryset = Event.objects.filter(is_published=True, start_date__gte=now).annotate(
             like_count=Count('likes', distinct=True),
             comment_count=Count('comments', distinct=True)
         ).order_by('-created_at')
-        
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(queryset, request)
-        
-        if page is not None:
-            serializer = EventPreviewSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = EventPreviewSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return queryset
     
     
 class EventDetailViewExplore(APIView):

@@ -8,11 +8,10 @@ import { FcLike } from "react-icons/fc";
 import { FaComment } from "react-icons/fa";
 
 const eventFilters = {
-    category: ["Music", "Education", "Gaming", "Sports", "Art", "Social"],
+    category: ["Conference", "Workshop", "Seminar", "Concert", "Festival"],
     location: ["New York", "Los Angeles", "Chicago", "Houston", "Miami"],
     time: ["Today", "This Week", "This Month", "Upcoming"],
-    type: ["Paid", "Free"],
-    popularity: ["Most Liked", "Most Attended", "Trending"],
+    // popularity: ["Most Liked", "Most Attended", "Trending"],
 };
 
 const Layout = () => {
@@ -33,7 +32,6 @@ const Layout = () => {
     const [activeFilters, setActiveFilters] = useState({
         category: null,
         time: null,
-        type: null,
         popularity: null,
     });
     const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 0);
@@ -82,31 +80,43 @@ const Layout = () => {
         }
     }
 
-    const EVENTS_PER_PAGE = 3;
+    const EVENTS_PER_PAGE = 9;
 
     const fetchEvents = useCallback(
         async (pageNum) => {
             setLoading(true);
             try {
-                const response = await api.get("event/preview-explore/", {
-                    params: {
-                        page: pageNum,
-                        limit: EVENTS_PER_PAGE,
-                        search: searchQuery,
-                        location: locationSearch,
-                        category: activeFilters.category || "",
-                        time: activeFilters.time || "",
-                        type: activeFilters.type || "",
-                        sort: activeFilters.popularity || "",
-                    },
-                });
+                const params = {
+                    page: pageNum,
+                    limit: EVENTS_PER_PAGE,
+                };
+
+                if (searchQuery.trim()) {
+                    params.search = searchQuery.trim();
+                }
+                if (locationSearch.trim()) {
+                    params.location = locationSearch.trim();
+                }
+                if (activeFilters.category && activeFilters.category !== "all") {
+                    params.category = activeFilters.category;
+                }
+                if (activeFilters.time && activeFilters.time !== "all") {
+                    params.time = activeFilters.time;
+                }
+                if (activeFilters.popularity && activeFilters.popularity !== "all") {
+                    params.popularity = activeFilters.popularity;
+                }
+
+                const response = await api.get("event/preview-explore/", { params });
                 const newEvents = response.data.results || response.data;
+
                 setEvents((prevEvents) => {
                     if (pageNum === 1) return newEvents;
                     const existingIds = new Set(prevEvents.map((event) => event.id));
                     const uniqueNewEvents = newEvents.filter((event) => !existingIds.has(event.id));
                     return [...prevEvents, ...uniqueNewEvents];
                 });
+
                 setHasMore(response.data.next !== null);
             } catch (error) {
                 console.error("Error fetching events:", error);
@@ -122,7 +132,7 @@ const Layout = () => {
         setPage(1);
         setEvents([]);
         fetchEvents(1);
-    }, [fetchEvents, searchQuery, locationSearch, activeFilters]);
+    }, [fetchEvents]);
 
     useEffect(() => {
         getlocation();
@@ -163,7 +173,7 @@ const Layout = () => {
     };
 
     const handleFilterChange = (type, value) => {
-        setActiveFilters((prev) => ({ ...prev, [type]: value }));
+        setActiveFilters((prev) => ({ ...prev, [type]: value === "all" ? null : value }));
     };
 
     const handleSearchSubmit = (e) => {
@@ -176,8 +186,14 @@ const Layout = () => {
         setMobileFiltersOpen(!mobileFiltersOpen);
     };
 
+    const clearAllFilters = () => {
+        setActiveFilters({ category: null, time: null, popularity: null });
+        setSearchQuery("");
+        setLocationSearch("");
+    };
+
     const renderFilterSelect = (type, placeholder, width = "w-full") => (
-        <Select onValueChange={(value) => handleFilterChange(type, value)} value={activeFilters[type] || undefined}>
+        <Select onValueChange={(value) => handleFilterChange(type, value)} value={activeFilters[type] || ""}>
             <SelectTrigger
                 className={`${width} bg-[#2A2A2A] text-white border border-gray-600 rounded-lg shadow-sm hover:bg-gray-700 focus:ring-2 focus:ring-gray-500`}
             >
@@ -202,8 +218,8 @@ const Layout = () => {
         <div className="bg-[#181717] py-3 px-4 sm:px-6 min-h-screen mx-2 md:mt-0 sm:mx-6 lg:mx-10 rounded-xl">
             <div className="max-w-[1400px] mx-auto">
                 {isMobileView && (
-                    <div className="flex lg:flex-row gap-1 justify-between">
-                        <div className="relative">
+                    <div className="flex lg:flex-row gap-1 justify-between mb-4">
+                        <div className="relative flex-1">
                             <Search
                                 className="absolute left-3 top-[38%] transform -translate-y-1/2 text-gray-400"
                                 size={18}
@@ -211,12 +227,13 @@ const Layout = () => {
                             <input
                                 type="text"
                                 placeholder="Search Events"
-                                className="pl-10 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                className="w-full pl-10 pr-4 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyPress={(e) => e.key === "Enter" && handleSearchSubmit(e)}
                             />
                         </div>
-                        <div className="relative">
+                        <div className="relative flex-1 mx-2">
                             <MapPin
                                 className="absolute left-2 top-[38%] transform -translate-y-1/2 text-gray-400"
                                 size={18}
@@ -224,22 +241,22 @@ const Layout = () => {
                             <input
                                 type="text"
                                 placeholder="Search Location"
-                                className="w-full pl-7 pr-4 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                className="w-full pl-8 pr-4 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                 value={locationSearch}
                                 onChange={(e) => setLocationSearch(e.target.value)}
+                                onKeyPress={(e) => e.key === "Enter" && handleSearchSubmit(e)}
                             />
                         </div>
-                        <div className="flex items-center justify-between mb-4">
-                            <button
-                                onClick={toggleMobileFilters}
-                                className="p-3 rounded-lg bg-[#2A2A2A] text-white hover:bg-gray-700 transition-colors"
-                                aria-label="Toggle filters"
-                            >
-                                {mobileFiltersOpen ? <X size={23} /> : <Menu size={23} />}
-                            </button>
-                        </div>
+                        <button
+                            onClick={toggleMobileFilters}
+                            className="p-3 rounded-lg bg-[#2A2A2A] text-white hover:bg-gray-700 transition-colors"
+                            aria-label="Toggle filters"
+                        >
+                            {mobileFiltersOpen ? <X size={23} /> : <Menu size={23} />}
+                        </button>
                     </div>
                 )}
+
                 <form onSubmit={handleSearchSubmit} className="mb-4">
                     {!isMobileView && (
                         <div className="flex md:flex-col lg:flex-row gap-3 justify-between">
@@ -250,7 +267,7 @@ const Layout = () => {
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Search Events"
+                                    placeholder="Search events by title, description, venue, or organizer..."
                                     className="w-full pl-10 pr-4 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -263,7 +280,7 @@ const Layout = () => {
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Search Location"
+                                    placeholder="Search by city, venue, or address..."
                                     className="w-full pl-10 pr-4 py-2.5 bg-[#2A2A2A] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                     value={locationSearch}
                                     onChange={(e) => setLocationSearch(e.target.value)}
@@ -272,8 +289,7 @@ const Layout = () => {
                             <div className="flex flex-wrap gap-3 mb-4">
                                 {renderFilterSelect("category", "Category", "w-36")}
                                 {renderFilterSelect("time", "Time", "w-36")}
-                                {renderFilterSelect("type", "Type", "w-32")}
-                                {renderFilterSelect("popularity", "Popularity", "w-40")}
+                                {/* {renderFilterSelect("popularity", "Sort By", "w-40")} */}
                             </div>
                         </div>
                     )}
@@ -282,7 +298,7 @@ const Layout = () => {
                 {mobileFiltersOpen && (
                     <div className="bg-[#222] rounded-lg p-4 mb-4 space-y-3 animate-slideDown">
                         <h2 className="text-white text-lg font-semibold mb-2">Filters</h2>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
                             <div className="space-y-2">
                                 <label className="text-gray-300 text-sm">Category</label>
                                 {renderFilterSelect("category", "Category")}
@@ -291,17 +307,21 @@ const Layout = () => {
                                 <label className="text-gray-300 text-sm">Time</label>
                                 {renderFilterSelect("time", "Time")}
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-gray-300 text-sm">Type</label>
-                                {renderFilterSelect("type", "Type")}
-                            </div>
-                            <div className="space-y-2">
+                            {/* <div className="space-y-2">
                                 <label className="text-gray-300 text-sm">Sort By</label>
-                                {renderFilterSelect("popularity", "Popularity")}
-                            </div>
+                                {renderFilterSelect("popularity", "Sort By")}
+                            </div> */}
                         </div>
-                        <div className="pt-2 flex justify-end">
+                        <div className="pt-2 flex justify-between">
                             <button
+                                type="button"
+                                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                                onClick={clearAllFilters}
+                            >
+                                Clear All
+                            </button>
+                            <button
+                                type="button"
                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                                 onClick={toggleMobileFilters}
                             >
@@ -310,8 +330,25 @@ const Layout = () => {
                         </div>
                     </div>
                 )}
-                {Object.values(activeFilters).some(Boolean) && (
+
+                {(Object.values(activeFilters).some(Boolean) || searchQuery || locationSearch) && (
                     <div className="flex flex-wrap gap-2 mb-4">
+                        {searchQuery && (
+                            <div className="bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-sm flex items-center">
+                                Search: "{searchQuery}"
+                                <button className="ml-2 hover:text-white" onClick={() => setSearchQuery("")}>
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        )}
+                        {locationSearch && (
+                            <div className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm flex items-center">
+                                Location: "{locationSearch}"
+                                <button className="ml-2 hover:text-white" onClick={() => setLocationSearch("")}>
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        )}
                         {Object.entries(activeFilters).map(([key, value]) =>
                             value && value !== "all" ? (
                                 <div
@@ -325,18 +362,12 @@ const Layout = () => {
                                 </div>
                             ) : null
                         )}
-                        {Object.values(activeFilters).some(Boolean) && (
-                            <button
-                                className="text-gray-400 hover:text-white text-sm underline"
-                                onClick={() =>
-                                    setActiveFilters({ category: null, time: null, type: null, popularity: null })
-                                }
-                            >
-                                Clear all
-                            </button>
-                        )}
+                        <button className="text-gray-400 hover:text-white text-sm underline" onClick={clearAllFilters}>
+                            Clear all
+                        </button>
                     </div>
                 )}
+
                 {events.length > 0 ? (
                     <div className="w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-4">
                         {events.map((event, index) => {
@@ -363,14 +394,21 @@ const Layout = () => {
                                         )}
                                     </div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center p-4">
+                                        <div className="text-center mb-4">
+                                            <h3 className="text-white text-lg font-semibold truncate">
+                                                {event.event_title}
+                                            </h3>
+                                            <p className="text-gray-300 text-sm">{event.city}</p>
+                                          
+                                        </div>
                                         <div className="flex items-center space-x-4 text-sm">
                                             <p className="text-white flex items-center">
-                                                <FcLike size={36} />
-                                                <span className="text-4xl">{event.like_count || 0}</span>
+                                                <FcLike size={20} />
+                                                <span className="ml-1 text-lg">{event.like_count || 0}</span>
                                             </p>
                                             <p className="text-white flex items-center">
-                                                <FaComment size={26} />
-                                                <span className="pl-2 mr-1 text-4xl">{event.comment_count || 0}</span>
+                                                <FaComment size={16} />
+                                                <span className="ml-1 text-lg">{event.comment_count || 0}</span>
                                             </p>
                                         </div>
                                     </div>
@@ -385,14 +423,22 @@ const Layout = () => {
                         </div>
                         <h3 className="text-white text-xl font-semibold">No events found</h3>
                         <p className="text-gray-400 mt-2">Try adjusting your search or filters</p>
+                        <button
+                            onClick={clearAllFilters}
+                            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                            Clear All Filters
+                        </button>
                     </div>
                 ) : null}
+
                 {loading && (
                     <div className="text-white text-center py-8">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-400"></div>
                         <p className="mt-2 text-gray-300">Loading events...</p>
                     </div>
                 )}
+
                 {!hasMore && events.length > 0 && (
                     <div className="text-gray-400 text-center py-8 border-t border-gray-800 mt-8">
                         You've reached the end of the list
