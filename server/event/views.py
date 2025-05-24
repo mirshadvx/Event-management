@@ -14,6 +14,7 @@ from django.utils import timezone
 from rest_framework import generics, filters
 from .filters import EventFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.decorators import permission_classes
 import logging
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,7 @@ class EventDetailViewExplore(APIView):
    
     
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def like_or_comment(request, event_id):
     try:
         event = Event.objects.get(id=event_id)
