@@ -142,7 +142,6 @@ const CreateEvent_Outlet = () => {
                     setValue("visibility", eventData.visibility);
                     setValue("capacity", eventData.capacity);
 
-                    // Fix: Convert boolean values properly and trigger validation
                     setValue("age_restriction", Boolean(eventData.age_restriction), { shouldValidate: true });
                     setValue("cancel_ticket", Boolean(eventData.cancel_ticket), { shouldValidate: true });
                     setValue("special_instructions", eventData.special_instructions || "");
@@ -806,7 +805,7 @@ const CreateEvent_Outlet = () => {
                 <div className="col-span-full flex justify-end items-center space-x-4">
                     <Button
                         type="button"
-                        onClick={handleSubmit((data) => onSubmit(data, "discard"))}
+                        onClick={() => navigate("/dashboard")}
                         className="bg-[#3C3C3C] text-white rounded-lg px-4 py-2 hover:bg-[#4C4C4C] transition-colors"
                         disabled={loading}
                     >
