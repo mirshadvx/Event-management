@@ -15,6 +15,7 @@ from rest_framework import generics, filters
 from .filters import EventFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import permission_classes
+from users.tasks import send_user_notification
 import logging
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,8 @@ def like_or_comment(request, event_id):
     
     if action == "like":
         like, liked = Like.objects.get_or_create(user=user, event=event)
+        if liked:
+            send_user_notification(event.organizer.id, f"{request.user.username} liked your {event.event_title}")
         if not liked:
             like.delete()
             return Response({
@@ -135,6 +138,8 @@ def like_or_comment(request, event_id):
             return Response({"error": "Comment text is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         comment = Comment.objects.create(user=user, event=event, text=text)
+        if comment:
+            send_user_notification(event.organizer.id, f"{request.user.username} commented your {event.event_title}")
         response_data = {
             'message': 'Comment added',
             'id': comment.id,
