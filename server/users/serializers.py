@@ -105,14 +105,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_plan(self, obj):
         subscription = obj.user_subscription.first()
-        if subscription:
+        if subscription is not None:
             return subscription.plan.name
         return None
 
     def get_plan_expired(self, obj):
         subscription = obj.user_subscription.first()
-        value = subscription.is_expired()
-        return value
+        if subscription is not None:
+            return subscription.is_expired()
+        return None
             
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:

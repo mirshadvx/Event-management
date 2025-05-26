@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { get_ProfileData } from "@/store/user/userSlice";
-import { Edit2, Save, AlertCircle, Camera, MapPin, Mail, Phone, X } from "lucide-react";
+import { Edit2, Save, AlertCircle, Camera, MapPin, Mail, Phone, X, Award, Calendar, Users, TrendingUp } from "lucide-react";
 import { MdVerifiedUser } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import EditProfileModal from "@/components/common/user/Profile/profile/EditProfileModal";
@@ -31,12 +31,37 @@ const Profile_outlet = () => {
             twoFactorAuth: true,
         },
     });
+
+    const [profileStats, setProfileStats] = useState({
+        organized_events_count: 0,
+        participated_events_count: 0,
+        event_success_rate: 0,
+        achieved_badges: [],
+    });
+    const [statsLoading, setStatsLoading] = useState(true);
+
     const [userOrgaVeri, setuserOrgaVeri] = useState(false);
     const [organizerStatus, setOrganizerStatus] = useState(null);
     const [adminNotes, setAdminNotes] = useState("");
     const [organizerVerified, setOrganizerVerified] = useState(false);
     const wsRef = useRef();
     const baseWebSocketURL = import.meta.env.VITE_WEBSOCKET_URL;
+
+    const fetchProfileStats = async () => {
+        try {
+            setStatsLoading(true);
+            const response = await api.get("/profile/profile-data/");
+            setProfileStats(response.data);
+        } catch (error) {
+            console.error("Error fetching profile stats:", error);
+            toast.error("Failed to load profile statistics", {
+                duration: 3000,
+                className: "text-white p-4 rounded-md",
+            });
+        } finally {
+            setStatsLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!user && !loading) {
@@ -63,6 +88,7 @@ const Profile_outlet = () => {
             setuserOrgaVeri(user.organizerVerified);
             setOrganizerVerified(user.organizerVerified || false);
             fetchOrganiserStatus();
+            fetchProfileStats();
         }
     }, [user, loading, dispatch]);
 
@@ -172,9 +198,30 @@ const Profile_outlet = () => {
     };
 
     const statCards = [
-        { label: "Events Managed", value: "128" },
-        { label: "Attendees", value: "5.6k" },
-        { label: "Rating", value: "4.5" },
+        {
+            label: "Events Organized",
+            value: statsLoading ? "..." : profileStats.organized_events_count.toString(),
+            icon: Calendar,
+            color: "text-blue-400",
+        },
+        {
+            label: "Events Participated",
+            value: statsLoading ? "..." : profileStats.participated_events_count.toString(),
+            icon: Users,
+            color: "text-green-400",
+        },
+        {
+            label: "Success Rate",
+            value: statsLoading ? "..." : `${profileStats.event_success_rate}%`,
+            icon: TrendingUp,
+            color: "text-purple-400",
+        },
+        {
+            label: "Badges Earned",
+            value: statsLoading ? "..." : profileStats.achieved_badges.length.toString(),
+            icon: Award,
+            color: "text-yellow-400",
+        },
     ];
 
     const skills = ["Event Planning", "Team Management", "Budget Control", "Marketing"];
@@ -187,8 +234,6 @@ const Profile_outlet = () => {
             userData.phone.trim() !== "" &&
             userData.location.trim() !== "" &&
             userData.bio.trim() !== ""
-            //  &&
-            // Object.keys(userData.socialLinks).length > 0
         );
     };
 
@@ -231,6 +276,14 @@ const Profile_outlet = () => {
                 });
             }
         }
+    };
+
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
     };
 
     if (loading || !user) {
@@ -277,16 +330,22 @@ const Profile_outlet = () => {
                                     {adminNotes && `Reason for Reject: ${adminNotes}`}
                                 </div>
                             )}
-                            <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-4">
-                                {statCards.map((stat, index) => (
-                                    <div
-                                        key={index}
-                                        className="bg-[#2a2a4a] rounded-lg p-4 hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 shadow-md"
-                                    >
-                                        <span className="text-[#9ca3af] text-sm block mb-1">{stat.label}</span>
-                                        <p className="font-bold text-xl text-[#ffffff]">{stat.value}</p>
-                                    </div>
-                                ))}
+                            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {statCards.map((stat, index) => {
+                                    const IconComponent = stat.icon;
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="bg-[#2a2a4a] rounded-lg p-4 hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 shadow-md"
+                                        >
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <IconComponent className={`${stat.color}`} size={16} />
+                                                <span className="text-[#9ca3af] text-sm">{stat.label}</span>
+                                            </div>
+                                            <p className="font-bold text-xl text-[#ffffff]">{stat.value}</p>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -352,62 +411,89 @@ const Profile_outlet = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                {/* <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
-                    <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Social Links</h3>
-                </div> */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
+                    <h3 className="text-xl font-semibold mb-6 text-[#00EF93] flex items-center gap-2">
+                        <Award className="text-[#00EF93]" size={24} />
+                        Achievements & Badges
+                    </h3>
+                    {statsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="text-[#9ca3af]">Loading badges...</div>
+                        </div>
+                    ) : profileStats.achieved_badges.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {profileStats.achieved_badges.map((badge, index) => (
+                                <div
+                                    key={index}
+                                    className="bg-[#2a2a4a] rounded-lg p-4 hover:shadow-lg transition-all duration-200"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full overflow-hidden bg-[#00EF93] flex items-center justify-center">
+                                            {badge.icon ? (
+                                                <img
+                                                    src={badge.icon}
+                                                    alt={badge.badge_name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <Award className="text-white" size={24} />
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-semibold text-[#ffffff] text-sm">{badge.badge_name}</h4>
+                                            <p className="text-[#9ca3af] text-xs mt-1">{badge.description}</p>
+                                            <p className="text-[#00EF93] text-xs mt-1">{formatDate(badge.date)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Award className="mx-auto text-[#9ca3af] mb-4" size={48} />
+                            <p className="text-[#9ca3af] text-lg">No badges earned yet</p>
+                            <p className="text-[#9ca3af] text-sm mt-2">Participate in events to earn your first badge!</p>
+                        </div>
+                    )}
+                </div>
 
                 <div className="bg-[#252543] rounded-xl p-8 shadow-lg">
-                    <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Performance</h3>
+                    <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Performance Overview</h3>
                     <div className="space-y-6">
                         <div>
                             <div className="flex justify-between mb-2 items-center">
                                 <span className="text-[#ffffff]">Event Success Rate</span>
-                                <span className="text-[#10b981] font-bold">98%</span>
+                                <span className="text-[#10b981] font-bold">
+                                    {statsLoading ? "..." : `${profileStats.event_success_rate}%`}
+                                </span>
                             </div>
                             <div className="h-2 bg-[#2a2a4a] rounded-full overflow-hidden">
-                                <div className="h-full w-[98%] bg-[#10b981] rounded-full"></div>
+                                <div
+                                    className="h-full bg-[#10b981] rounded-full transition-all duration-1000"
+                                    style={{ width: statsLoading ? "0%" : `${profileStats.event_success_rate}%` }}
+                                ></div>
                             </div>
                         </div>
-                        <div>
-                            <div className="flex justify-between mb-2 items-center">
-                                <span className="text-[#ffffff]">Client Satisfaction</span>
-                                <span className="text-[#10b981] font-bold">95%</span>
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                            <div className="bg-[#2a2a4a] rounded-lg p-4 text-center">
+                                <Calendar className="mx-auto text-blue-400 mb-2" size={24} />
+                                <p className="text-[#ffffff] font-bold text-lg">
+                                    {statsLoading ? "..." : profileStats.organized_events_count}
+                                </p>
+                                <p className="text-[#9ca3af] text-sm">Organized</p>
                             </div>
-                            <div className="h-2 bg-[#2a2a4a] rounded-full overflow-hidden">
-                                <div className="h-full w-[95%] bg-[#10b981] rounded-full"></div>
+                            <div className="bg-[#2a2a4a] rounded-lg p-4 text-center">
+                                <Users className="mx-auto text-green-400 mb-2" size={24} />
+                                <p className="text-[#ffffff] font-bold text-lg">
+                                    {statsLoading ? "..." : profileStats.participated_events_count}
+                                </p>
+                                <p className="text-[#9ca3af] text-sm">Participated</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <div className="bg-[#252543] rounded-xl p-8 mt-8 shadow-lg">
-                <h3 className="text-xl font-semibold mb-6 text-[#00EF93]">Skills & Expertise</h3>
-                <div className="flex flex-wrap gap-3">
-                    {skills.map((skill, index) => (
-                        <div
-                            key={index}
-                            className="bg-[#2a2a4a] rounded-lg px-4 py-2 border border-[#3d3d6b] hover:shadow-md hover:border-[#00EF93] transition-all duration-200"
-                        >
-                            <span className="text-[#ffffff]">{skill}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* <div className="bg-[#252543] rounded-xl p-8 mt-8 shadow-lg">
-                <div className="flex items-start gap-4">
-                    <AlertCircle className="text-[#f59e0b]" size={24} />
-                    <div>
-                        <h3 className="text-xl font-semibold mb-3 text-[#00EF93]">Security Notice</h3>
-                        <p className="text-[#9ca3af] leading-relaxed">
-                            To protect your account, please review your security settings regularly and ensure your contact
-                            information is up to date.
-                        </p>
-                    </div>
-                </div>
-            </div> */}
 
             <EditProfileModal
                 isOpen={isModalOpen}

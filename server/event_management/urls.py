@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/v1/event/',include('event.urls')),
     path('api/v1/chat/',include('chat.urls')),
     path('api/v1/organizer/',include('organizer.urls')),
+    path('api/v1/profile/',include('Profile.urls')),
 ]
 
 if settings.DEBUG:

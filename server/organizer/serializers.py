@@ -28,10 +28,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
                   "following_count", "followers_count", "following", "username"]
         
     def get_organized_events_count(self, obj):
-        return Event.objects.filter(organizer=obj).count()
+        return Event.objects.filter(organizer=obj, revenue_distributed=True).count()
     
     def get_participated_events_count(self, obj):
-        return Booking.objects.filter(user=obj).count()
+        return Booking.objects.filter(user=obj, ticket_purchases__isnull=False).distinct().count()
         
     def get_following_count(self, obj):
         return obj.following.count()
