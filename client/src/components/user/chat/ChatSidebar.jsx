@@ -68,8 +68,6 @@ const ChatSidebar = ({ activeChatID, setActiveChatID, activeTab, setActiveTab, s
         }
     }, [activeTab, user]);
 
-    const filteredChats = chats.filter((chat) => chat.title.toLowerCase().includes(searchQuery.toLowerCase()));
-
     return (
         <div className="w-full sm:w-80 bg-gray-800 overflow-hidden flex flex-col border-r border-gray-700 h-[calc(100vh-64px)]">
             <div className="px-3 pt-3 pb-2">
@@ -104,13 +102,13 @@ const ChatSidebar = ({ activeChatID, setActiveChatID, activeTab, setActiveTab, s
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {filteredChats.length > 0 ? (
-                    filteredChats.map((chat) => (
+                {chats.length > 0 ? (
+                    chats.map((chat) => (
                         <ChatListItem
                             key={chat.id}
                             chat={chat}
                             isActive={activeChatID === chat.id}
-                            onClick={() => setActiveChatID(chat.id, chat.title)}
+                            onClick={() => setActiveChatID(chat.id, chat.title, chat.profilePicture)}
                         />
                     ))
                 ) : (

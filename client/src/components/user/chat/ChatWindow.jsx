@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { SyncLoader } from "react-spinners";
 
-const ChatWindow = ({ chatID, chatHeader, onMenuClick, onInfoClick, activeTab }) => {
+const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfoClick, activeTab }) => {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -257,7 +257,7 @@ const ChatWindow = ({ chatID, chatHeader, onMenuClick, onInfoClick, activeTab })
                     </button>
                     <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden">
                         <img
-                            src={`https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`}
+                            src={chatprofilePicture || `https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`}
                             alt={chatHeader || "Chat"}
                             className="w-full h-full object-cover"
                         />

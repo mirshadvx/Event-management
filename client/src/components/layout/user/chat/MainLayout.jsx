@@ -8,6 +8,7 @@ const MainLayout = () => {
     const [activeTab, setActiveTab] = useState("Personal");
     const [activeChatID, setActiveChatID] = useState(null);
     const [chatHeader, setChatHeader] = useState(null);
+    const [profilePicture, setprofilePicture] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -37,6 +38,7 @@ const MainLayout = () => {
                 <ChatWindow
                     chatID={activeChatID}
                     chatHeader={chatHeader}
+                    chatprofilePicture={profilePicture}
                     onMenuClick={toggleSidebar}
                     onInfoClick={toggleInfo}
                     activeTab={activeTab}
@@ -50,9 +52,10 @@ const MainLayout = () => {
             >
                 <ChatSidebar
                     activeChatID={activeChatID}
-                    setActiveChatID={(chatID, title) => {
+                    setActiveChatID={(chatID, title, profilePicture) => {
                         setActiveChatID(chatID);
                         setChatHeader(title);
+                        setprofilePicture(profilePicture);
                         setIsSidebarOpen(false);
                     }}
                     activeTab={activeTab}
@@ -87,9 +90,10 @@ const MainLayout = () => {
             <div className="w-80 flex-shrink-0">
                 <ChatSidebar
                     activeChatID={activeChatID}
-                    setActiveChatID={(chatID, title) => {
+                    setActiveChatID={(chatID, title, profilePicture) => {
                         setActiveChatID(chatID);
                         setChatHeader(title);
+                        setprofilePicture(profilePicture);
                     }}
                     activeTab={activeTab}
                     setActiveTab={handleTabChange}
@@ -98,7 +102,14 @@ const MainLayout = () => {
                 />
             </div>
             <div className="flex-1">
-                <ChatWindow chatID={activeChatID} chatHeader={chatHeader} onMenuClick={() => {}} onInfoClick={() => {}} activeTab={activeTab} />
+                <ChatWindow
+                    chatID={activeChatID}
+                    chatHeader={chatHeader}
+                    chatprofilePicture={profilePicture}
+                    onMenuClick={() => {}}
+                    onInfoClick={() => {}}
+                    activeTab={activeTab}
+                />
             </div>
             <div className="w-80 flex-shrink-0">
                 <ChatInfo chatID={activeChatID} />
