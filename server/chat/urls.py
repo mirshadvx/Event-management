@@ -13,4 +13,5 @@ urlpatterns = [
     path('group-messages/<int:message_id>/read/', MarkGroupMessageAsReadView.as_view(), name='mark-group-message-read'),
     path('notifications/', NotificationList.as_view(), name='notification-list'),
     path('notifications/<int:pk>/', NotificationDetail.as_view(), name='notification-detail'),
-]
+    path('chatInfo/<int:chat_id>/<str:chat_type>/', ChatInfo.as_view(), name="chatInfo"),
+    ]

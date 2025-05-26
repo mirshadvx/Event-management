@@ -97,3 +97,28 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'user', 'message', 'created_at']
+
+class PersonalChatSerializer(serializers.ModelSerializer):
+    participants = UserListSerializer(many=True)
+
+    class Meta:
+        model = Conversation
+        fields = ['id', 'participants', 'created_at']
+
+class GroupChatSerializer(serializers.ModelSerializer):
+    admin = UserListSerializer()
+    participants = UserListSerializer(many=True)
+    event = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GroupConversation
+        fields = ['id', 'name', 'admin', 'participants', 'created_at', 'event']
+
+    def get_event(self, obj):
+        if obj.event:
+            return {
+                'id': obj.event.id,
+                'event_title': obj.event.event_title,
+                'organizer': obj.event.organizer.username
+            }
+        return None

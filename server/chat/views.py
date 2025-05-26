@@ -193,3 +193,24 @@ class NotificationDetail(views.APIView):
             return Response({'message': 'notification deleted'}, status=status.HTTP_204_NO_CONTENT)
         except Notification.DoesNotExist:
             return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+class ChatInfo(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, chat_id, chat_type):
+        if chat_type == 'personal':
+            try:
+                conversation = Conversation.objects.get(id=chat_id)
+                serializer = PersonalChatSerializer(conversation)
+                return Response(serializer.data)
+            except Conversation.DoesNotExist:
+                return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif chat_type == 'group':
+            try:
+                group_conversation = GroupConversation.objects.get(id=chat_id)
+                serializer = GroupChatSerializer(group_conversation)
+                return Response(serializer.data)
+            except GroupConversation.DoesNotExist:
+                return Response({"error": "Group conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"error": "Invalid chat type"}, status=status.HTTP_400_BAD_REQUEST)

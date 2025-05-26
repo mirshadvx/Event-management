@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 import { Calendar, MapPin, Share2, Users } from "lucide-react";
 
-const ChatInfo = ({ chatID }) => {
+const ChatInfo = ({ chatID, tab }) => {
     const chat = chatID
         ? {
               id: chatID,

@@ -70,7 +70,7 @@ const MainLayout = () => {
                     isInfoOpen ? "translate-x-0" : "translate-x-full"
                 }`}
             >
-                <ChatInfo chatID={activeChatID} />
+                <ChatInfo chatID={activeChatID} tab={activeTab} />
             </div>
 
             {(isSidebarOpen || isInfoOpen) && (
@@ -112,7 +112,7 @@ const MainLayout = () => {
                 />
             </div>
             <div className="w-80 flex-shrink-0">
-                <ChatInfo chatID={activeChatID} />
+                <ChatInfo chatID={activeChatID} tab={activeTab} />
             </div>
         </div>
     );
