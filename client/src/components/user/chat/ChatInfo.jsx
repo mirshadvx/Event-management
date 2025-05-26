@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Calendar, MapPin, Share2, Users, User, Crown } from "lucide-react";
 import chatApi from "@/services/user/chat/chatApi";
+import { useNavigate } from "react-router-dom";
 
 const ChatInfo = ({ chatID, tab }) => {
     const [chat, setChat] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchChatInfo = async () => {
@@ -89,7 +91,14 @@ const ChatInfo = ({ chatID, tab }) => {
                     </div>
                 )}
 
-                <h2 className="text-xl font-bold text-white mb-1">{chatTitle}</h2>
+                <h2
+                    className={`text-xl font-bold text-white mb-1 ${
+                        !isGroupChat ? "cursor-pointer hover:underline hover:text-blue-400" : ""
+                    }`}
+                    {...(!isGroupChat ? { onClick: () => navigate(`/user/${chatTitle}`) } : {})}
+                >
+                    {chatTitle}
+                </h2>
 
                 <div className="flex items-center text-gray-400 text-sm space-x-1 mb-2">
                     <Calendar className="h-4 w-4" />
@@ -107,14 +116,21 @@ const ChatInfo = ({ chatID, tab }) => {
                     <div className="bg-gray-700 rounded-lg p-3 mb-4 w-full">
                         <h3 className="text-white font-medium text-sm mb-1">Event</h3>
                         <p className="text-gray-300 text-sm">{chat.event.event_title}</p>
-                        <p className="text-gray-400 text-xs">Organized by {chat.event.organizer}</p>
+                        <p
+                            className="text-gray-400 text-xs  cursor-pointer"
+                            onClick={() => navigate(`/user/${chat.event.organizer}`)}
+                        >
+                            Organized by <span className="underline hover:text-cyan-400">{chat.event.organizer}</span>
+                        </p>
                     </div>
                 )}
 
                 {isGroupChat && chat.admin && (
-                    <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
+                    <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4 cursor-pointer">
                         <Crown className="h-4 w-4" />
-                        <span>Admin: {chat.admin.username}</span>
+                        <span className="hover:text-cyan-400" onClick={() => navigate(`/user/${chat.admin.username}`)}>
+                            Admin: {chat.admin.username}
+                        </span>
                     </div>
                 )}
             </div>
@@ -124,7 +140,11 @@ const ChatInfo = ({ chatID, tab }) => {
                     <h3 className="text-white font-medium mb-3">{isGroupChat ? "Participants" : "Chat with"}</h3>
                     <div className="space-y-3">
                         {chat.participants.map((participant) => (
-                            <div key={participant.id} className="flex items-center space-x-3">
+                            <div
+                                key={participant.id}
+                                className="flex items-center space-x-3 cursor-pointer"
+                                onClick={() => navigate(`/user/${participant.username}`)}
+                            >
                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-600">
                                     <img
                                         src={
@@ -137,7 +157,12 @@ const ChatInfo = ({ chatID, tab }) => {
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center space-x-2">
-                                        <p className="text-sm text-white">{participant.username}</p>
+                                        <p
+                                            className="text-sm text-white hover:underline hover:text-cyan-400 cursor-pointer"
+                                            onClick={() => navigate(`/user/${participant.username}`)}
+                                        >
+                                            {participant.username}
+                                        </p>
                                         {isGroupChat && chat.admin && participant.id === chat.admin.id && (
                                             <Crown className="h-3 w-3 text-yellow-500" />
                                         )}
