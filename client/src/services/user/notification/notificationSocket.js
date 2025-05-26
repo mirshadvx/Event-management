@@ -1,4 +1,4 @@
-import chatApi from "@/services/chatApi";
+import chatApi from "../chat/chatApi";
 
 let socket = null;
 let reconnectAttempts = 0;

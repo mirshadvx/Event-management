@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Search } from "lucide-react";
 import ChatListItem from "./ChatListItem";
 import { useState, useEffect } from "react";
-import chatApi from "@/services/chatApi";
+import chatApi from "@/services/user/chat/chatApi";
 import { useDispatch, useSelector } from "react-redux";
 import { get_ProfileData } from "@/store/user/userSlice";
 

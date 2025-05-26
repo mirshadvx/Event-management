@@ -1,16 +1,51 @@
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Calendar, MapPin, Share2, Users } from "lucide-react";
+import { Calendar, MapPin, Share2, Users, User, Crown } from "lucide-react";
+import chatApi from "@/services/user/chat/chatApi";
 
 const ChatInfo = ({ chatID, tab }) => {
-    const chat = chatID
-        ? {
-              id: chatID,
-              title: `Chat ${chatID}`,
-              dateRange: "Jan 10 - Jan 12, 2025",
-              location: "Online",
-              participants: 10,
-          }
-        : null;
+    const [chat, setChat] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchChatInfo = async () => {
+            if (!chatID || !tab) return;
+
+            setLoading(true);
+            setError(null);
+            const type = tab === "Personal" ? "personal" : "group";
+
+            try {
+                const response = await chatApi.getChatInfo(chatID, type);
+                setChat(response.data);
+            } catch (err) {
+                setError("Failed to fetch chat information");
+                console.error("Error fetching chat info:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchChatInfo();
+    }, [chatID, tab]);
+
+    if (loading) {
+        return (
+            <div className="w-full sm:w-80 bg-gray-800 border-l border-gray-700 p-4 flex flex-col items-center justify-center text-gray-400 h-[calc(100vh-64px)]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="mt-2">Loading chat info...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="w-full sm:w-80 bg-gray-800 border-l border-gray-700 p-4 flex flex-col items-center justify-center text-gray-400 h-[calc(100vh-64px)]">
+                <p className="text-red-400">{error}</p>
+            </div>
+        );
+    }
 
     if (!chat) {
         return (
@@ -20,54 +55,106 @@ const ChatInfo = ({ chatID, tab }) => {
         );
     }
 
+    const isGroupChat = tab === "Events";
+    const chatTitle = isGroupChat ? chat.name : getPersonalChatTitle(chat.participants);
+    const chatImage = isGroupChat
+        ? `https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`
+        : getPersonalChatImage(chat.participants);
+
+    function getPersonalChatTitle(participants) {
+        const otherParticipant = participants.find((p) => p.id !== 1);
+        return otherParticipant ? otherParticipant.username : "Personal Chat";
+    }
+
+    function getPersonalChatImage(participants) {
+        const otherParticipant = participants.find((p) => p.id !== 1);
+        return otherParticipant?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=default`;
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    }
+
     return (
         <div className="w-full sm:w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden h-[calc(100vh-64px)]">
             <div className="p-4 flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full overflow-hidden mb-4">
-                    <img
-                        src={`https://api.dicebear.com/7.x/bottts/svg?seed=${chatID}`}
-                        alt={chat.title}
-                        className="w-full h-full object-cover"
-                    />
-                </div>
-                <h2 className="text-xl font-bold text-white mb-1">{chat.title}</h2>
-                <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
+                {!isGroupChat && (
+                    <div className="w-20 h-20 rounded-full overflow-hidden mb-4">
+                        <img src={chatImage} alt={chatTitle} className="w-full h-full object-cover" />
+                    </div>
+                )}
+
+                <h2 className="text-xl font-bold text-white mb-1">{chatTitle}</h2>
+
+                <div className="flex items-center text-gray-400 text-sm space-x-1 mb-2">
                     <Calendar className="h-4 w-4" />
-                    <span>{chat.dateRange}</span>
+                    <span>Created {formatDate(chat.created_at)}</span>
                 </div>
-                <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
-                    <MapPin className="h-4 w-4" />
-                    <span>{chat.location}</span>
-                </div>
+
                 <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
                     <Users className="h-4 w-4" />
-                    <span>{chat.participants} Participants Joined</span>
+                    <span>
+                        {chat.participants.length} Participant{chat.participants.length !== 1 ? "s" : ""}
+                    </span>
                 </div>
-                <button className="flex items-center space-x-1 bg-[#00FF8C] text-gray-900 px-4 py-2 rounded-md text-sm font-medium hover:bg-[#00FF8C]/90 transition-colors">
-                    <Share2 className="h-4 w-4" />
-                    <span>Share</span>
-                </button>
+
+                {isGroupChat && chat.event && (
+                    <div className="bg-gray-700 rounded-lg p-3 mb-4 w-full">
+                        <h3 className="text-white font-medium text-sm mb-1">Event</h3>
+                        <p className="text-gray-300 text-sm">{chat.event.event_title}</p>
+                        <p className="text-gray-400 text-xs">Organized by {chat.event.organizer}</p>
+                    </div>
+                )}
+
+                {isGroupChat && chat.admin && (
+                    <div className="flex items-center text-gray-400 text-sm space-x-1 mb-4">
+                        <Crown className="h-4 w-4" />
+                        <span>Admin: {chat.admin.username}</span>
+                    </div>
+                )}
             </div>
-            <div className="flex-1 border-t border-gray-700 p-4 overflow-y-auto">
-                <h3 className="text-white font-medium mb-3">Participants</h3>
-                <div className="space-y-3">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
-                                <img
-                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`}
-                                    alt="Participant"
-                                    className="w-full h-full object-cover"
-                                />
+
+            {isGroupChat && (
+                <div className="flex-1 border-t border-gray-700 p-4 overflow-y-auto">
+                    <h3 className="text-white font-medium mb-3">{isGroupChat ? "Participants" : "Chat with"}</h3>
+                    <div className="space-y-3">
+                        {chat.participants.map((participant) => (
+                            <div key={participant.id} className="flex items-center space-x-3">
+                                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-600">
+                                    <img
+                                        src={
+                                            participant.profile_picture ||
+                                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${participant.id}`
+                                        }
+                                        alt={participant.username}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center space-x-2">
+                                        <p className="text-sm text-white">{participant.username}</p>
+                                        {isGroupChat && chat.admin && participant.id === chat.admin.id && (
+                                            <Crown className="h-3 w-3 text-yellow-500" />
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-400">
+                                        {isGroupChat
+                                            ? chat.admin && participant.id === chat.admin.id
+                                                ? "Admin"
+                                                : "Member"
+                                            : "Participant"}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm text-white">Participant {i + 1}</p>
-                                <p className="text-xs text-gray-400">{i % 2 === 0 ? "Speaker" : "Attendee"}</p>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

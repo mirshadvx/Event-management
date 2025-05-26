@@ -1,4 +1,4 @@
-import api from "./api";
+import api from "@/services/api";
 
 const chatApi = {
     getMessages: async (conversationId) => {
@@ -37,6 +37,11 @@ const chatApi = {
 
     getGroupMessages: async (group_id) => {
         const response = await api.get(`chat/group-conversations/${group_id}/messages/`);
+        return response;
+    },
+
+    getChatInfo: async (chatID, type) => {
+        const response = await api.get(`/chat/chatInfo/${chatID}/${type}/`);
         return response;
     },
 };

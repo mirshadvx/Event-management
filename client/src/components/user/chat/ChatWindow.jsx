@@ -4,7 +4,7 @@ import { Search, Settings, Menu, Info } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { get_ProfileData } from "@/store/user/userSlice";
 import { socketService } from "@/services/user/chat/socketService";
-import chatApi from "@/services/chatApi";
+import chatApi from "@/services/user/chat/chatApi";
 import MessageItem from "./MessageItem";
 import MessageInput from "./MessageInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
