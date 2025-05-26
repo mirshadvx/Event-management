@@ -9,3 +9,13 @@ export const getOngoingDetails = async (eventId) => {
     throw error;
   }
 };
+
+export const getRevenueDetails = async (eventId) => {
+  try {
+    const response = await api.get(`organizer/revenue-event/${eventId}/`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching revenue details:', error);
+    throw error;
+  }
+};

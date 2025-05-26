@@ -5,11 +5,12 @@ from event.models import Event
 from .models import *
 from event.models import Event
 from users.models import Booking
+from Admin.models import RevenueDistribution
 
 class EventOrganizerList(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ["id","event_banner", "event_type", "venue_name",
+        fields = ["id","event_title","event_banner", "event_type", "venue_name",
                   "start_date", "end_date", "start_time", "end_time",
                   "is_draft", "is_published", "revenue_distributed"
                   ]
@@ -57,8 +58,6 @@ class ParticipatedEventSerializer(serializers.ModelSerializer):
                   "start_date", "end_date", "start_time", "end_time",
                   ]
         
-
-
 class TicketDetailSerializer(serializers.Serializer):
     date = serializers.DateField()
     purchases = serializers.IntegerField()
@@ -86,3 +85,9 @@ class EventStatsSerializer(serializers.Serializer):
     eventId = serializers.CharField()
     ticketStats = TicketStatsSerializer()
     summary = SummarySerializer()
+
+class EventRevenueSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = RevenueDistribution
+        fields = "__all__"

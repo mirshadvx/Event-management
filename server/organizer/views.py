@@ -13,6 +13,8 @@ from Admin.models import RevenueDistribution
 from event.models import Event, Ticket
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncDate
+from Admin.models import RevenueDistribution
+from rest_framework.generics import RetrieveAPIView
 
 class OrganizedList(APIView):
     pagination_class = OrganizedListPagination
@@ -237,3 +239,12 @@ class EventOngoingData(APIView):
             return Response( {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND )
         except Exception as e:
             return Response( {"error": str(e)},  status=status.HTTP_500_INTERNAL_SERVER_ERROR )
+
+class RevenueEvent(APIView):
+    def get(self, request, event_id):
+        try:
+            revenue = RevenueDistribution.objects.get(event__id=event_id)
+        except RevenueDistribution.DoesNotExist:
+            return Response({"error": "Revenue data for this event was not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = EventRevenueSerializer(revenue)
+        return Response(serializer.data, status=status.HTTP_200_OK)

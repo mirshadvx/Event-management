@@ -14,8 +14,7 @@ const DraftedEventCard = ({
     isLastElement,
     lastEventElementRef,
 }) => {
-
-    const navigate = useNavigate()
+    const navigate = useNavigate();
     const formatEventDate = (dateStr) => {
         if (!dateStr) return "";
         return format(new Date(dateStr), "MMM dd, yyyy");
@@ -84,11 +83,17 @@ const DraftedEventCard = ({
                         </div>
 
                         <div className="space-y-3">
-                            <div>
-                                <p className="text-gray-400 text-sm">Venue</p>
-                                <p className="text-white flex items-center">
-                                    <MapPin size={16} className="mr-1" /> {event.venue_name}
-                                </p>
+                            <div className="flex gap-5">
+                                <div>
+                                    <p className="text-gray-400 text-sm flex items-center">Event Title</p>
+                                    <p className="text-white">{event.event_title}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-400 text-sm flex items-center">
+                                        <MapPin size={14} className="mr-1" /> Venue
+                                    </p>
+                                    <p className="text-white">{event.venue_name}</p>
+                                </div>
                             </div>
 
                             <div>
