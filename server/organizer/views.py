@@ -79,19 +79,15 @@ class FollowView(APIView):
 
             elif follow_action is False:
                 if not follow_exists:
-                    return Response( {"error": "You are not following this user."}, 
-                                    status=status.HTTP_400_BAD_REQUEST )
+                    return Response( {"error": "You are not following this user."}, status=status.HTTP_400_BAD_REQUEST )
                 Follow.objects.filter(follower=request.user, followed=followed_user).delete()
-                return Response( {"message": "Unfollowed successfully."},
-                                status=status.HTTP_200_OK )
+                return Response( {"message": "Unfollowed successfully."}, status=status.HTTP_200_OK )
 
             else:
-                return Response( {"error": "Invalid follow status. Use true for follow, false for unfollow."},
-                                status=status.HTTP_400_BAD_REQUEST )
+                return Response( {"error": "Invalid follow status. Use true for follow, false for unfollow."}, status=status.HTTP_400_BAD_REQUEST )
 
         except Exception as e:
-            return Response( {"error": "An unexpected error occurred"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR )
+            return Response( {"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR )
             
 class ParticipatedList(APIView):
     pagination_class = OrganizedListPagination
@@ -103,17 +99,14 @@ class ParticipatedList(APIView):
 
             event_ids = Booking.objects.filter(
                 user=user,
-                ticket_purchases__isnull=False
-            ).values_list('event_id', flat=True).distinct()
+                ticket_purchases__isnull=False ).values_list('event_id', flat=True).distinct()
 
             queryset = Event.objects.filter(id__in=event_ids)
 
             filtered_queryset = ParticipantedEventsFilter(request.GET, queryset=queryset).qs
-
             paginator = self.pagination_class()
             page = paginator.paginate_queryset(filtered_queryset, request)
             serializer = ParticipatedEventSerializer(page, many=True)
-
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
@@ -123,7 +116,6 @@ class ParticipatedList(APIView):
 class EventOngoingData(APIView):
     def get(self, request, event_id):
         try:
-          
             event = Event.objects.get(id=event_id)
  
             start_range = event.published_at
@@ -138,11 +130,9 @@ class EventOngoingData(APIView):
                 return dates
             
             all_dates = generate_date_range(start_range, end_range)
-            
+
             ticket_stats = {}
-            
             tickets = Ticket.objects.filter(event=event)
-            
             for ticket in tickets:
                 ticket_type_lower = ticket.ticket_type.lower()
               
@@ -150,40 +140,32 @@ class EventOngoingData(APIView):
                     event=event,
                     ticket=ticket,
                     purchased_at__date__gte=start_range,
-                    purchased_at__date__lte=end_range
-                ).annotate(
-                    date=TruncDate('purchased_at')
-                ).values('date').annotate(
+                    purchased_at__date__lte=end_range).annotate(
+                    date=TruncDate('purchased_at')).values('date').annotate(
                     purchases_amount=Sum('total_price'),
                     purchases_users=Sum('quantity'),
-                    purchase_count=Count('id')
-                ).order_by('date')
+                    purchase_count=Count('id') ).order_by('date')
                 
                 refunds_data = TicketRefund.objects.filter(
                     event=event,
                     ticket_type=ticket.ticket_type,
                     refunded_at__date__gte=start_range,
-                    refunded_at__date__lte=end_range
-                ).annotate(
-                    date=TruncDate('refunded_at')
-                ).values('date').annotate(
+                    refunded_at__date__lte=end_range).annotate(
+                    date=TruncDate('refunded_at')).values('date').annotate(
                     cancellations_amount=Sum('amount'),
                     cancellations_users=Sum('quantity'),
-                    refund_count=Count('id')
-                ).order_by('date')
+                    refund_count=Count('id')).order_by('date')
               
                 purchases_by_date = {
                     item['date']: {
                         'amount': float(item['purchases_amount'] or 0),
                         'users': int(item['purchases_users'] or 0)
-                    } for item in purchases_data
-                }
+                    } for item in purchases_data }
                 refunds_by_date = {
                     item['date']: {
                         'amount': float(item['cancellations_amount'] or 0),
                         'users': int(item['cancellations_users'] or 0)
-                    } for item in refunds_data
-                }
+                    } for item in refunds_data }
               
                 details = []
                 total_purchases = 0
@@ -210,8 +192,7 @@ class EventOngoingData(APIView):
                     "details": details,
                     "totalPurchases": total_purchases,
                     "totalCancellations": total_cancellations,
-                    "revenue": revenue
-                }
+                    "revenue": revenue }
             
             total_revenue = sum(stats['revenue'] for stats in ticket_stats.values())
             total_purchases_amount = sum(stats['totalPurchases'] for stats in ticket_stats.values())
@@ -223,15 +204,13 @@ class EventOngoingData(APIView):
                     event=event, 
                     ticket=ticket,
                     purchased_at__date__gte=start_range,
-                    purchased_at__date__lte=end_range
-                ).aggregate(total=Sum('quantity'))['total'] or 0
+                    purchased_at__date__lte=end_range ).aggregate(total=Sum('quantity'))['total'] or 0
                 
                 refunded_tickets = TicketRefund.objects.filter(
                     event=event, 
                     ticket_type=ticket.ticket_type,
                     refunded_at__date__gte=start_range,
-                    refunded_at__date__lte=end_range
-                ).aggregate(total=Sum('quantity'))['total'] or 0
+                    refunded_at__date__lte=end_range ).aggregate(total=Sum('quantity'))['total'] or 0
                 
                 total_participants += (purchased_tickets - refunded_tickets)
             
@@ -252,9 +231,8 @@ class EventOngoingData(APIView):
                     "totalCancellations": total_cancellations_amount
                 }
             }
-            
+        
             return Response(response_data, status=status.HTTP_200_OK)
-            
         except Event.DoesNotExist:
             return Response( {"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND )
         except Exception as e:
