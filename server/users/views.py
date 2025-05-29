@@ -43,6 +43,7 @@ import logging
 from django.db import transaction
 from django.conf import settings
 from .tasks import send_user_notification
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,8 @@ logger = logging.getLogger(__name__)
 #     port=config('REDIS_PORT', 6379, cast=int),
 #     db=config('REDIS_DB', 0, cast=int)
 # )
-redis_client = redis.Redis(host="127.0.0.1", port=6379, db=0)
+redis_client = redis.Redis(host=os.getenv("REDIS_HOST", "redis"),
+                           port=os.getenv("REDIS_PORT"), db=0)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     
