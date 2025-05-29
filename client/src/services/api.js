@@ -15,6 +15,7 @@ export const setApiDispatch = (storeDispatch) => {
 };
 
 export const RegisterApi = (data) => api.post("users/register/", data);
+export const checkUsername = (username) => api.get("users/check-username/", { params: { username } });
 export const verifyOTP = (data) => api.post("users/verify-otp/", data);
 export const login = (data) => api.post("users/token/", data);
 export const refreshToken = () => api.post("users/token/refresh/");
@@ -22,8 +23,8 @@ export const logout = () => api.post("users/logout/");
 export const checkAuth = () => api.post("users/authenticated/");
 export const getProfile = () => api.get("users/profile/");
 export const CheckOrganizerStatus = () => api.get("users/organizer-request-status/");
-export const forgotPassword = (data) => api.post("users/password-reset/", data)
-export const resetPassword = (data) => api.post("users/password-reset/confirm/", data)
+export const forgotPassword = (data) => api.post("users/password-reset/", data);
+export const resetPassword = (data) => api.post("users/password-reset/confirm/", data);
 
 api.interceptors.response.use(
     (response) => response,

@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { useForm } from "react-hook-form";
-import { RegisterApi, verifyOTP } from "../../../services/api";
+import { RegisterApi, verifyOTP, checkUsername } from "../../../services/api";
 import Layout from "../../../components/common/user/auth/layout";
 import { useNavigate } from "react-router-dom";
 import handleGoogleLogin from "../../../components/layout/user/auth/handleGoogleLogin";
@@ -13,7 +13,8 @@ const Register = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
     const [registeredEmail, setRegisteredEmail] = useState("");
-    const [timeLeft, setTimeLeft] = useState(120); 
+    const [timeLeft, setTimeLeft] = useState(120);
+    const [isUsernameAvailable, setIsUsernameAvailable] = useState(true);
     const otpRefs = useRef([]);
     const navigate = useNavigate();
 
@@ -42,7 +43,32 @@ const Register = () => {
         }
     }, [otpSent, timeLeft]);
 
+    useEffect(() => {
+        const username = watch("username");
+        const checkUsernameAvailability = async () => {
+            if (username) {
+                try {
+                    const response = await checkUsername(username);
+                    setIsUsernameAvailable(!response.data.exists);
+                } catch (error) {
+                    console.error("Error checking username availability:", error);
+                }
+            }
+        };
+
+        const debounceTimer = setTimeout(checkUsernameAvailability, 500);
+        return () => clearTimeout(debounceTimer);
+    }, [watch("username")]);
+
     const registerFormData = async (data) => {
+        if (!isUsernameAvailable) {
+            toast.error("Username is already taken. Please choose another one.", {
+                duration: 3000,
+                className: "text-white p-4 rounded-md",
+            });
+            return;
+        }
+
         try {
             const response = await RegisterApi({
                 username: data.username,
@@ -137,7 +163,7 @@ const Register = () => {
                     duration: 3000,
                     className: "text-white p-4 rounded-md",
                 });
-                setTimeLeft(120); // Reset timer
+                setTimeLeft(120);
             }
         } catch (error) {
             toast.error("Failed to resend OTP. Please try again.", {
@@ -157,21 +183,22 @@ const Register = () => {
         <Layout>
             {!otpSent ? (
                 <form onSubmit={handleSubmit(registerFormData)}>
-                    {/* [Previous form fields remain the same] */}
                     <div className="mb-4">
                         <span className="text-gray-300 block mb-2">Enter your Username*</span>
                         <div className="relative">
                             <input
                                 type="text"
                                 className={`w-full bg-gray-800 text-white px-10 py-3 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                                    errors.username ? "border border-red-500" : "border border-gray-700"
+                                    errors.username || !isUsernameAvailable
+                                        ? "border border-red-500"
+                                        : "border border-gray-700"
                                 }`}
                                 placeholder="Username"
                                 {...register("username", {
                                     required: "Username is required",
                                     pattern: {
-                                        value: /^[a-zA-Z0-9._]{3,20}$/,
-                                        message: "Invalid username (3-20 chars, letters, numbers, ., _ only)",
+                                        value: /^[a-zA-Z0-9._]{5,20}$/,
+                                        message: "Invalid username (5-20 chars, letters, numbers, ., _ only)",
                                     },
                                 })}
                             />
@@ -193,6 +220,7 @@ const Register = () => {
                             </div>
                         </div>
                         {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+                        {!isUsernameAvailable && <p className="text-red-500 text-sm mt-1">Username is already taken.</p>}
                     </div>
 
                     <div className="mb-4">
@@ -355,9 +383,7 @@ const Register = () => {
             ) : (
                 <form onSubmit={handleSubmit(verifyOtpSubmit)}>
                     <div className="mb-6">
-                        <label className="text-gray-300 block mb-4 text-center text-lg">
-                            Enter your 6-digit OTP
-                        </label>
+                        <label className="text-gray-300 block mb-4 text-center text-lg">Enter your 6-digit OTP</label>
                         <div className="flex justify-center space-x-2 mb-4">
                             {[...Array(6)].map((_, index) => (
                                 <input
@@ -383,9 +409,8 @@ const Register = () => {
                             ))}
                         </div>
                         <div className="text-center text-gray-400 mb-4">
-                            Time remaining: <span className={timeLeft <= 10 ? "text-red-500" : "text-white"}>
-                                {formatTime(timeLeft)}
-                            </span>
+                            Time remaining:{" "}
+                            <span className={timeLeft <= 10 ? "text-red-500" : "text-white"}>{formatTime(timeLeft)}</span>
                         </div>
                         {timeLeft === 0 && (
                             <p className="text-red-500 text-center mb-4">OTP has expired. Please request a new one.</p>
