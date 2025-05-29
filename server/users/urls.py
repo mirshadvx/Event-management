@@ -10,6 +10,7 @@ urlpatterns = [
     path('logout/',logout,name='logout'),
     path('authenticated/', is_authenticated,name='check_auth'),
     path('register/',register, name='register'),
+    path('check-username/', check_username_exists, name="check_username_exists"),
     path('verify-otp/', verify_otp, name='verify_otp'),
     path('google-login/', google_login, name='google_login'),
     path('profile/',get_user_profile.as_view(), name='profile'),

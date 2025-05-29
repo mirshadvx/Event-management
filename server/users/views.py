@@ -201,6 +201,16 @@ def register(request):
         # return Response(serializer.data)
     return Response({'success': False, 'errors': serializer.errors})
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_username_exists(request):
+    username = request.query_params.get('username', None)
+    if username is None:
+        return Response({"error": "Username is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    exists = User.objects.filter(username=username).exists()
+    return Response({'exists': exists}, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_otp(request):
