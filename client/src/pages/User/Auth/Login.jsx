@@ -60,7 +60,7 @@ const Login = () => {
             <form onSubmit={handleSubmit(loginFormData)}>
                 {/* Email Field */}
                 <div className="mb-4">
-                    <label className="text-gray-300 block mb-2">Enter your username*</label>
+                    <span className="text-gray-300 block mb-2">Enter your username*</span>
                     <div className="relative">
                         <input
                             type="text"
@@ -98,7 +98,7 @@ const Login = () => {
 
                 {/* Password Field */}
                 <div className="mb-2">
-                    <label className="text-gray-300 block mb-2">Enter your password</label>
+                    <span className="text-gray-300 block mb-2">Enter your password</span>
                     <div className="relative">
                         <input
                             type={showPassword ? "text" : "password"}

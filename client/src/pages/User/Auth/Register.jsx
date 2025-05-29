@@ -159,7 +159,7 @@ const Register = () => {
                 <form onSubmit={handleSubmit(registerFormData)}>
                     {/* [Previous form fields remain the same] */}
                     <div className="mb-4">
-                        <label className="text-gray-300 block mb-2">Enter your Username*</label>
+                        <span className="text-gray-300 block mb-2">Enter your Username*</span>
                         <div className="relative">
                             <input
                                 type="text"
@@ -196,7 +196,7 @@ const Register = () => {
                     </div>
 
                     <div className="mb-4">
-                        <label className="text-gray-300 block mb-2">Enter your Email*</label>
+                        <span className="text-gray-300 block mb-2">Enter your Email*</span>
                         <div className="relative">
                             <input
                                 type="email"
@@ -233,7 +233,7 @@ const Register = () => {
                     </div>
 
                     <div className="mb-4">
-                        <label className="text-gray-300 block mb-2">Enter your password</label>
+                        <span className="text-gray-300 block mb-2">Enter your password</span>
                         <div className="relative">
                             <input
                                 type={showPassword ? "text" : "password"}
@@ -281,7 +281,7 @@ const Register = () => {
                     </div>
 
                     <div className="mb-6">
-                        <label className="text-gray-300 block mb-2">Confirm password</label>
+                        <span className="text-gray-300 block mb-2">Confirm password</span>
                         <div className="relative">
                             <input
                                 type={showConfirmPassword ? "text" : "password"}
