@@ -181,7 +181,7 @@ class NotificationList(views.APIView):
 
     def delete(self, request):
         Notification.objects.filter(user=request.user).delete()
-        return Response({'message': 'all notifications deleted'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': 'all notifications deleted'}, status=status.HTTP_200_OK)
 
 class NotificationDetail(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -190,7 +190,7 @@ class NotificationDetail(views.APIView):
         try:
             notification = Notification.objects.get(pk=pk, user=request.user)
             notification.delete()
-            return Response({'message': 'notification deleted'}, status=status.HTTP_204_NO_CONTENT)
+            return Response({'message': 'notification deleted'}, status=status.HTTP_200_OK)
         except Notification.DoesNotExist:
             return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
         

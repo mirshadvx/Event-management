@@ -6,7 +6,12 @@ import { logoutReducer, get_ProfileData } from "../../../../store/user/userSlice
 import { useNavigate } from "react-router-dom";
 import NotificationPanel from "@/components/user/Home/notification/NotificationPanel";
 import { connectWebSocket, addListener, removeListener } from "@/services/user/notification/webSocketManager";
-import { fetchNotifications } from "@/services/user/notification/notificationService";
+import {
+    fetchNotifications,
+    deleteNotification,
+    clearAllNotification,
+} from "@/services/user/notification/notificationService";
+import { IdCard } from "lucide-react";
 
 const Header = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -144,14 +149,24 @@ const Header = () => {
         setNotificationOpen(false);
     };
 
-    const handleDeleteNotification = (id) => {
-        setNotifications(notifications.filter((notification) => notification.id !== id));
-        setUnreadCount((prevCount) => prevCount - 1);
+    const handleDeleteNotification = async (id) => {
+        try {
+            await deleteNotification(id);
+            setNotifications(notifications.filter((notification) => notification.id !== id));
+            setUnreadCount((prevCount) => prevCount - 1);
+        } catch (error) {
+            console.error("failed to delete notification:", error);
+        }
     };
 
-    const handleClearAllNotifications = () => {
-        setNotifications([]);
-        setUnreadCount(0);
+    const handleClearAllNotifications = async () => {
+        try {
+            await clearAllNotification();
+            setNotifications([]);
+            setUnreadCount(0);
+        } catch (error) {
+            console.error("Failed to clear all notifications:", error);
+        }
     };
 
     const isDesktop = windowWidth >= 768;

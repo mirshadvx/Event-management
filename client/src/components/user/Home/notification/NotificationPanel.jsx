@@ -169,7 +169,7 @@ const NotificationPanel = ({
                                 <span className="text-white/50 text-xs">{formatTime(notification.created_at)}</span>
                             </div>
                             <button
-                                onClick={(e) => handleDeleteNotification(notification.id, e)}
+                                onClick={() => handleDeleteNotification(notification.id)}
                                 className="text-white/40 hover:text-red-400 transition-colors flex-shrink-0 h-fit p-1"
                             >
                                 <IoMdClose className="w-4 h-4" />
