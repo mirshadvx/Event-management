@@ -41,14 +41,15 @@ const GlobalProfile = () => {
         try {
             setIsFollowLoading(true);
             const newFollowStatus = !isFollowing;
-            const response = await api.post("organizer/toggle-follow/", {
+            const response = await api.post("profile/toggle-follow/", {
                 username,
                 follow: newFollowStatus,
             });
 
             setIsFollowing(newFollowStatus);
             setFollowersCount((prevCount) => (newFollowStatus ? prevCount + 1 : prevCount - 1));
-            toast.success(newFollowStatus ? "Following successfully!" : "Unfollowed successfully!");
+            // toast.success(newFollowStatus ? "Following successfully!" : "Unfollowed successfully!");
+            toast.success(response.data.message);
 
             if (userData) {
                 setUserData({
@@ -92,8 +93,11 @@ const GlobalProfile = () => {
             <Header />
             <div className="pt-16 md:pt-20 flex-1">
                 <Suspense fallback={<div className="text-center py-8">Loading user info...</div>}>
-                    <UserInfo userData={userData} isFollowing={isFollowing}
-                        toggleFollow={toggleFollow} isFollowLoading={isFollowLoading}
+                    <UserInfo
+                        userData={userData}
+                        isFollowing={isFollowing}
+                        toggleFollow={toggleFollow}
+                        isFollowLoading={isFollowLoading}
                     />
                 </Suspense>
             </div>

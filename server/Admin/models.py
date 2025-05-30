@@ -120,7 +120,7 @@ class SubscriptionPlan(models.Model):
         ("basic","Basic"),
         ("premium","Premium"),
     ]
-    name = models.CharField(choices=PLAN_CHOICES)
+    name = models.CharField(choices=PLAN_CHOICES, unique=True)
     price = models.DecimalField(max_digits=6,decimal_places=2, default=0.00)
     event_join_limit = models.PositiveIntegerField(default=0)
     event_creation_limit = models.PositiveIntegerField(default=0)
@@ -135,6 +135,37 @@ class SubscriptionPlan(models.Model):
     
     def __str__(self):
         return f"{self.get_name_display()} Plan - {self.price}"
+    
+    @classmethod
+    def ensure_default_plans(cls):
+        defaults = {
+            "basic": {
+                "price": 0,
+                "event_join_limit": 0,
+                "event_creation_limit": 0,
+                "email_notification": True,
+                "group_chat": False,
+                "personal_chat": False,
+                "advanced_analytics": False,
+                "ticket_scanning": False,
+                "live_streaming": False,
+                "active": False,
+            },
+            "premium": {
+                "price": 0,
+                "event_join_limit": 0,
+                "event_creation_limit": 0,
+                "email_notification": True,
+                "group_chat": True,
+                "personal_chat": True,
+                "advanced_analytics": True,
+                "ticket_scanning": True,
+                "live_streaming": True,
+                "active": False,
+            }
+        }
+        for plan_name, plan_data in defaults.items():
+            cls.objects.get_or_create(name=plan_name, defaults=plan_data)
     
 class UserSubscription(models.Model):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="user_subscription")

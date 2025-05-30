@@ -6,6 +6,7 @@ from .models import *
 from event.models import Event
 from users.models import Booking
 from Admin.models import RevenueDistribution
+from Profile.models import Follow
 
 class EventOrganizerList(serializers.ModelSerializer):
     class Meta:
@@ -45,11 +46,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             return Follow.objects.filter(follower=request.user, followed=obj).exists()
         return False
-        
-class FollowSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Follow
-        fields = ['follower', 'followed', 'created_at']
         
 class ParticipatedEventSerializer(serializers.ModelSerializer):
     class Meta:

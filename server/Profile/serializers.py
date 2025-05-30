@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from users.models import Profile, Booking
-from event.models import Event, TicketPurchase
+from event.models import Event
 from Admin.models import UserBadge
+from .models import Follow
 
 class UserProfileSerializer(serializers.ModelSerializer):
     organized_events_count = serializers.SerializerMethodField()
@@ -32,3 +33,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_achieved_badges(self, obj):
         user_badges = UserBadge.objects.filter(user=obj, date_earned__isnull=False)
         return [{"badge_name": badge.badge.name, "description": badge.badge.description, "icon": badge.badge.icon, "date": badge.date_earned} for badge in user_badges]
+    
+class FollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = ['follower', 'followed', 'created_at']
