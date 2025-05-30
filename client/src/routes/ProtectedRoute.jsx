@@ -2,6 +2,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { Navigate } from "react-router-dom";
 import { get_ProfileData } from "@/store/user/userSlice";
 import { useEffect } from "react";
+import { HashLoader } from "react-spinners";
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useSelector((state) => state.user);
@@ -12,7 +13,9 @@ const ProtectedRoute = ({ children }) => {
     if (loading) {
         return (
             <>
-                <div className="bg-white">Loading...</div>;
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <HashLoader color="#00ff20" />
+                </div>
             </>
         );
     }
