@@ -86,7 +86,7 @@ const MainLayout = () => {
     );
 
     const DesktopLayout = () => (
-        <div className="flex h-[calc(100vh-64px)] pt-15">
+        <div className="flex pt-15">
             <div className="w-80 flex-shrink-0">
                 <ChatSidebar
                     activeChatID={activeChatID}
