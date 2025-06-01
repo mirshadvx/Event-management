@@ -134,3 +134,25 @@ class LiveStream(models.Model):
     
     def __str__(self):
         return f"Stream for {self.event}"
+    
+class Review(models.Model):
+    RATING_CHOICES = [
+        (1, '1 Star'),
+        (2, '2 Stars'),
+        (3, '3 Stars'),
+        (4, '4 Stars'),
+        (5, '5 Stars'),
+        ]
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="reviews")
+    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="event_reviews")
+    rating = models.IntegerField(choices=RATING_CHOICES)
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('event', 'user')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.rating} by {self.user.username} for {self.event.event_title}"
