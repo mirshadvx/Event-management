@@ -4,6 +4,7 @@ let currentChatType = null;
 
 const listeners = {
     message: [],
+    image: [],
     read: [],
     typing: [],
     error: [],
@@ -14,14 +15,18 @@ function notify(type, data) {
 }
 
 export const socketService = {
-    async connect(chatID, token, chatType = 'personal') {
-        if (socket && socket.readyState === WebSocket.OPEN && chatID === currentChatID && chatType === currentChatType) return;
+    async connect(chatID, token, chatType = "personal") {
+        if (socket && socket.readyState === WebSocket.OPEN && chatID === currentChatID && chatType === currentChatType)
+            return;
 
         currentChatID = chatID;
         currentChatType = chatType;
         socket?.close();
 
-        const path = chatType === 'group' ? `ws/group-chat/${chatID}/?token=${token}` : `ws/chat/${chatID}/?token=${token}`;
+        // const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        // const path = `ws/chat/${chatType}/${chatID}/?token=${token}`;
+        // socket = new WebSocket(`${protocol}//${window.location.host}/${path}`);
+        const path = `ws/chat/${chatType}/${chatID}/?token=${token}`;
         socket = new WebSocket(`ws://localhost:8000/${path}`);
 
         socket.onopen = () => {
@@ -53,9 +58,11 @@ export const socketService = {
         currentChatType = null;
     },
 
-    sendMessage(message) {
+    sendMessage(data) {
         if (socket?.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: "message", message }));
+            socket.send(JSON.stringify(data));
+        } else {
+            console.error("Socket is not open");
         }
     },
 
@@ -73,5 +80,5 @@ export const socketService = {
         if (listeners[type]) {
             listeners[type] = listeners[type].filter((cb) => cb !== callback);
         }
-    }
+    },
 };

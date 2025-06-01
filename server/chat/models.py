@@ -25,6 +25,7 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
+    is_image = models.BooleanField(default=False)
     
     def __str__(self):
         return f'Message from {self.sender.username}'
@@ -53,7 +54,8 @@ class GroupMessage(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     read_by = models.ManyToManyField(Profile, related_name='read_group_messages', blank=True)
-
+    is_image = models.BooleanField(default=False)
+    
     def __str__(self):
         return f'Group Message from {self.sender.username} in {self.conversation.name}'
     

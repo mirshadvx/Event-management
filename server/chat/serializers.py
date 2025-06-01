@@ -34,7 +34,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ["id", "conversation", "sender", "content", "timestamp", "read"]
+        fields = ["id", "conversation", "sender", "content", "timestamp", "read", "is_image"]
     
 class CreateMessageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,7 +78,7 @@ class GroupMessageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = GroupMessage
-        fields = ["id", "conversation", "sender", "content", "timestamp", "read_by_count"]
+        fields = ["id", "conversation", "sender", "content", "timestamp", "read_by_count", "is_image"]
         
     def get_read_by_count(self, obj):
         return obj.read_by.count()

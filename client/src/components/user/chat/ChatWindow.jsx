@@ -12,15 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { SyncLoader } from "react-spinners";
 
-const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfoClick, activeTab }) => {
+const ChatWindow = ({ chatID, chatHeader, chatprofilePicture, onMenuClick, onInfoClick, activeTab }) => {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [typingUsers, setTypingUsers] = useState([]);
-
     const messagesEndRef = useRef(null);
     const pendingMessagesRef = useRef(new Map());
-
     const { user, loading: userLoading } = useSelector((state) => state.user);
     const dispatch = useDispatch();
 
@@ -39,34 +37,42 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
     };
 
     const handleMessage = (data) => {
-        const pendingContent = data.message.trim();
-        let isPending = false;
+        console.log("Received WebSocket data:", data);
+        const isImage = data.is_image || !!data.image_url;
+        const content = isImage ? data.image_url : data.message;
+        const messageId = `msg-${data.message_id}`;
 
-        pendingMessagesRef.current.forEach((val, key) => {
-            if (val === pendingContent) {
-                setMessages((prev) =>
-                    prev.map((msg) =>
-                        msg.id === key
-                            ? {
-                                  ...msg,
-                                  id: `msg-${data.message_id}`,
-                                  timestamp: new Date(data.timestamp).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                  }),
-                              }
-                            : msg
-                    )
-                );
-                pendingMessagesRef.current.delete(key);
-                isPending = true;
+        setMessages((prev) => {
+            if (prev.some((msg) => msg.id === messageId)) {
+                return prev;
             }
-        });
 
-        if (!isPending) {
+            const tempId = Array.from(pendingMessagesRef.current.keys()).find((key) =>
+                key.startsWith(isImage ? "img-temp-" : "msg-temp-")
+            );
+
+            if (tempId) {
+                pendingMessagesRef.current.delete(tempId);
+                return prev.map((msg) =>
+                    msg.id === tempId
+                        ? {
+                              ...msg,
+                              id: messageId,
+                              content,
+                              timestamp: new Date(data.timestamp).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                              }),
+                              isImage,
+                              read: isImage ? true : msg.read,
+                          }
+                        : msg
+                );
+            }
+
             const newMessage = {
-                id: `msg-${data.message_id}`,
-                content: data.message,
+                id: messageId,
+                content,
                 senderId: data.sender_id,
                 timestamp: new Date(data.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -75,12 +81,13 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                 isOwn: data.sender_id === user.id,
                 profilePicture: data.sender_id === user.id ? user.profile_picture : null,
                 username: data.sender_username,
-                read: false,
+                read: isImage ? true : false,
+                isImage,
             };
-            setMessages((prev) => [...prev, newMessage]);
-        }
+            return [...prev, newMessage];
+        });
 
-        if (data.sender_id !== user.id) {
+        if (data.sender_id !== user.id && !isImage) {
             socketService.sendMessage({ type: "read", message_id: data.message_id });
         }
     };
@@ -111,7 +118,6 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
         setLoading(true);
         try {
             const data = await chatApi.getMessages(chatID);
-            console.log("from personal", data);
             const formatted = data.results.map((msg) => ({
                 id: `msg-${msg.id}`,
                 content: msg.content,
@@ -124,6 +130,7 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                 profilePicture: msg.sender.profile_picture,
                 username: msg.sender.username,
                 read: msg.read,
+                isImage: msg.is_image,
             }));
             setMessages(formatted);
         } catch (err) {
@@ -150,6 +157,7 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                 profilePicture: msg.sender.profile_picture,
                 username: msg.sender.username,
                 read: msg.read_by_count > 0,
+                isImage: msg.is_image,
             }));
             setMessages(formatted);
         } catch (err) {
@@ -161,42 +169,44 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
     };
 
     useEffect(() => {
+        console.log("ChatWindow mounted with chatID:", chatID, "activeTab:", activeTab);
         if (!chatID || !user) return;
-
-        let isMounted = true;
 
         const init = async () => {
             setError(null);
+            setMessages([]);
             try {
                 const token = await chatApi.getSocketToken();
                 const chatType = activeTab === "Events" ? "group" : "personal";
                 await socketService.connect(chatID, token, chatType);
 
+                // Register listeners
                 socketService.on("message", handleMessage);
+                socketService.on("image", handleMessage);
                 socketService.on("read", handleRead);
                 socketService.on("typing", handleTypingUser);
                 socketService.on("error", handleError);
+
+                if (activeTab === "Events") {
+                    await fetchGroupMessages(chatID);
+                } else {
+                    await fetchPersonalMessages(chatID);
+                }
             } catch (err) {
                 console.error("Socket init failed", err);
                 setError("Socket initialization failed");
             }
         };
 
-        if (chatID) {
-            init();
-            if (activeTab === "Events") {
-                fetchGroupMessages(chatID);
-            } else {
-                fetchPersonalMessages(chatID);
-            }
-        }
+        init();
 
         return () => {
-            socketService.disconnect();
             socketService.off("message", handleMessage);
+            socketService.off("image", handleMessage);
             socketService.off("read", handleRead);
             socketService.off("typing", handleTypingUser);
             socketService.off("error", handleError);
+            socketService.disconnect();
         };
     }, [chatID, user, activeTab]);
 
@@ -206,15 +216,11 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
 
     const handleSendMessage = (content) => {
         if (!content.trim()) return;
-
         const tempId = `msg-temp-${Date.now()}`;
-        const trimmed = content.trim();
-
-        pendingMessagesRef.current.set(tempId, trimmed);
-
+        pendingMessagesRef.current.set(tempId, content);
         const newMessage = {
             id: tempId,
-            content: trimmed,
+            content,
             senderId: user.id,
             timestamp: new Date().toLocaleTimeString([], {
                 hour: "2-digit",
@@ -224,10 +230,32 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
             profilePicture: user.profile_picture,
             username: user.username,
             read: false,
+            isImage: false,
         };
-
         setMessages((prev) => [...prev, newMessage]);
-        socketService.sendMessage(trimmed);
+        socketService.sendMessage({ type: "message", message: content });
+    };
+
+    const handleSendImage = (imageData) => {
+        if (!imageData) return;
+        const tempId = `img-temp-${Date.now()}`;
+        pendingMessagesRef.current.set(tempId, imageData);
+        const newMessage = {
+            id: tempId,
+            content: imageData,
+            senderId: user.id,
+            timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+            isOwn: true,
+            profilePicture: user.profile_picture,
+            username: user.username,
+            read: true,
+            isImage: true,
+        };
+        setMessages((prev) => [...prev, newMessage]);
+        socketService.sendMessage({ type: "image", image: imageData });
     };
 
     const handleTyping = () => {
@@ -246,7 +274,6 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
 
     return (
         <div className="flex-1 flex flex-col bg-gray-900 h-full">
-            {/* Header */}
             <div className="bg-gray-800 py-3 px-4 flex items-center justify-between border-b border-gray-700 flex-shrink-0">
                 <div className="flex items-center space-x-3">
                     <button
@@ -282,7 +309,6 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                     </button>
                 </div>
             </div>
-
             <div className="flex-1 overflow-y-auto messages-container">
                 <ScrollArea className="h-full">
                     <div className="p-4 space-y-4">
@@ -309,7 +335,6 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                                 />
                             ))
                         )}
-
                         {typingUsers.length > 0 && (
                             <div className="w-fit">
                                 <div className="bg-gray-700/40 p-3 rounded-lg rounded-tl-none mt-1">
@@ -317,14 +342,12 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
                                 </div>
                             </div>
                         )}
-
                         <div ref={messagesEndRef} />
                     </div>
                 </ScrollArea>
             </div>
-
             <div className="border-t border-gray-700 p-3 bg-gray-800">
-                <MessageInput onSendMessage={handleSendMessage} onTyping={handleTyping} />
+                <MessageInput onSendMessage={handleSendMessage} onTyping={handleTyping} onSendImage={handleSendImage} />
             </div>
         </div>
     );
@@ -333,6 +356,7 @@ const ChatWindow = ({ chatID, chatHeader,chatprofilePicture, onMenuClick, onInfo
 ChatWindow.propTypes = {
     chatID: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     chatHeader: PropTypes.string,
+    chatprofilePicture: PropTypes.string,
     onMenuClick: PropTypes.func.isRequired,
     onInfoClick: PropTypes.func.isRequired,
     activeTab: PropTypes.string.isRequired,

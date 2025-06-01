@@ -12,6 +12,13 @@ const chatApi = {
         });
         return response.data;
     },
+    
+    sendImage: async (conversationId, imageData) => {
+        const response = await api.post(`chat/conversations/${conversationId}/messages/`, {
+            image: imageData,
+        });
+        return response.data;
+    },
 
     getConversations: async () => {
         const response = await api.get(`chat/conversations/`);

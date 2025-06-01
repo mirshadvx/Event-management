@@ -7,9 +7,22 @@ const MessageItem = ({ message, user, activeTab }) => {
     if (message.isOwn) {
         return (
             <div className="flex flex-col items-end space-y-1">
-                <div className="bg-[#00FF8C] text-gray-900 p-3 rounded-lg rounded-tr-none max-w-[80%]">
-                    <p className="text-sm">{message.content}</p>
-                </div>
+                {message.isImage ? (
+                    <div className="bg-[#00FF8C] text-gray-900 p-[4px] rounded-lg rounded-tr-none max-w-[80%]">
+                        <img
+                            src={message.content}
+                            alt="Sent"
+                            className="max-w-full h-auto rounded"
+                            onError={(e) => {
+                                e.target.src = "https://via.placeholder.com/150?text=Image+Failed";
+                            }}
+                        />
+                    </div>
+                ) : (
+                    <div className="bg-[#00FF8C] text-gray-900 p-3 rounded-lg rounded-tr-none max-w-[80%]">
+                        <p className="text-sm">{message.content}</p>
+                    </div>
+                )}
                 <div className="flex items-center space-x-1 pr-2">
                     <span className="text-xs text-gray-400">{formattedTime}</span>
                     {message.read ? (
@@ -25,7 +38,7 @@ const MessageItem = ({ message, user, activeTab }) => {
     return (
         <div className="flex flex-col space-y-1">
             <div className="flex items-start space-x-2">
-                {activeTab == "Events" && (
+                {activeTab === "Events" && (
                     <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                         {user.avatar ? (
                             <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
@@ -36,12 +49,24 @@ const MessageItem = ({ message, user, activeTab }) => {
                         )}
                     </div>
                 )}
-
                 <div className="flex flex-col">
-                    {activeTab == "Events" && <p className="text-sm font-medium text-white">{user.name}</p>}
-                    <div className="bg-gray-700 p-3 rounded-lg rounded-tl-none mt-1 max-w-[80%]">
-                        <p className="text-sm">{message.content}</p>
-                    </div>
+                    {activeTab === "Events" && <p className="text-sm font-medium text-white">{user.name}</p>}
+                    {message.isImage ? (
+                        <div className="bg-gray-700 p-[4px] rounded-lg rounded-tl-none mt-1 max-w-[80%]">
+                            <img
+                                src={message.content}
+                                alt="Received"
+                                className="max-w-full h-auto rounded"
+                                onError={(e) => {
+                                    e.target.src = "https://via.placeholder.com/150?text=Image+Failed";
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="bg-gray-700 p-3 rounded-lg rounded-tl-none mt-1 max-w-[80%]">
+                            <p className="text-sm">{message.content}</p>
+                        </div>
+                    )}
                 </div>
             </div>
             <span className="text-xs text-gray-400">{formattedTime}</span>
@@ -59,9 +84,10 @@ MessageItem.propTypes = {
         profilePicture: PropTypes.string,
         username: PropTypes.string,
         read: PropTypes.bool,
+        isImage: PropTypes.bool,
     }).isRequired,
     user: PropTypes.shape({
-        id: PropTypes.string.isRequired,
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
         name: PropTypes.string.isRequired,
         avatar: PropTypes.string,
     }).isRequired,

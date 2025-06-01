@@ -10,11 +10,12 @@ from rest_framework.pagination import PageNumberPagination
 import jwt
 from django.conf import settings
 from rest_framework_simplejwt.tokens import AccessToken
+import cloudinary.uploader
 
 class MessagePagination(PageNumberPagination):
-    page_size = 50
+    page_size = 1000
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 1000
 
 class ConversationListCreateView(generics.ListCreateAPIView):
     serializer_class = ConversationSerializer
@@ -46,7 +47,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
         conversation.participants.add(request.user, participant)
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
 class MessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = MessagePagination
@@ -68,7 +69,21 @@ class MessageListCreateView(generics.ListCreateAPIView):
         conversation = get_object_or_404(Conversation, id=conversation_id)
         if self.request.user not in conversation.participants.all():
             raise PermissionDenied("You are not a participant in this conversation")
-        serializer.save(sender=self.request.user, conversation=conversation)
+        
+        image_data = self.request.data.get('image')
+        if image_data:
+            upload_result = cloudinary.uploader.upload(image_data)
+            serializer.save(
+                sender=self.request.user,
+                conversation=conversation,
+                content=upload_result['url'],
+                is_image=True
+            )
+        else:
+            serializer.save(
+                sender=self.request.user,
+                conversation=conversation
+            )
 
 class MessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
     serializer_class = MessageSerializer
@@ -136,8 +151,21 @@ class GroupMessageListCreateView(generics.ListCreateAPIView):
         group = get_object_or_404(GroupConversation, id=group_id)
         if self.request.user not in group.participants.all():
             raise PermissionDenied("You are not a participant in this group conversation")
-        message = serializer.save(sender=self.request.user, conversation=group)
-        # Add sender to read_by automatically
+        
+        image_data = self.request.data.get('image')
+        if image_data:
+            upload_result = cloudinary.uploader.upload(image_data)
+            message = serializer.save(
+                sender=self.request.user,
+                conversation=group,
+                content=upload_result['url'],
+                is_image=True
+            )
+        else:
+            message = serializer.save(
+                sender=self.request.user,
+                conversation=group
+            )
         message.read_by.add(self.request.user)
 
 class GroupMessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
@@ -170,6 +198,27 @@ class MarkGroupMessageAsReadView(views.APIView):
         
         message.read_by.add(request.user)
         return Response({"success": True}, status=status.HTTP_200_OK)
+        
+class ChatInfo(views.APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, chat_id, chat_type):
+        if chat_type == 'personal':
+            try:
+                conversation = Conversation.objects.get(id=chat_id)
+                serializer = PersonalChatSerializer(conversation)
+                return Response(serializer.data)
+            except Conversation.DoesNotExist:
+                return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif chat_type == 'group':
+            try:
+                group_conversation = GroupConversation.objects.get(id=chat_id)
+                serializer = GroupChatSerializer(group_conversation)
+                return Response(serializer.data)
+            except GroupConversation.DoesNotExist:
+                return Response({"error": "Group conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"error": "Invalid chat type"}, status=status.HTTP_400_BAD_REQUEST)
 
 class NotificationList(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -193,24 +242,3 @@ class NotificationDetail(views.APIView):
             return Response({'message': 'notification deleted'}, status=status.HTTP_200_OK)
         except Notification.DoesNotExist:
             return Response({'error': 'Notification not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-class ChatInfo(views.APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request, chat_id, chat_type):
-        if chat_type == 'personal':
-            try:
-                conversation = Conversation.objects.get(id=chat_id)
-                serializer = PersonalChatSerializer(conversation)
-                return Response(serializer.data)
-            except Conversation.DoesNotExist:
-                return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
-        elif chat_type == 'group':
-            try:
-                group_conversation = GroupConversation.objects.get(id=chat_id)
-                serializer = GroupChatSerializer(group_conversation)
-                return Response(serializer.data)
-            except GroupConversation.DoesNotExist:
-                return Response({"error": "Group conversation not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            return Response({"error": "Invalid chat type"}, status=status.HTTP_400_BAD_REQUEST)
