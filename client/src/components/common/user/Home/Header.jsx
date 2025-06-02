@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { logoutReducer, get_ProfileData } from "../../../../store/user/userSlice";
 import { useNavigate } from "react-router-dom";
 import NotificationPanel from "@/components/user/Home/notification/NotificationPanel";
-import { connectWebSocket, addListener, removeListener } from "@/services/user/notification/webSocketManager";
+import { connectWebSocket, removeListener, disconnectWebSocket } from "@/services/user/notification/webSocketManager";
 import {
     fetchNotifications,
     deleteNotification,
@@ -87,7 +87,6 @@ const Header = () => {
             };
 
             connectWebSocket(user.id, handleNotification);
-            addListener(handleNotification);
 
             fetchNotifications().then((data) => {
                 setNotifications(data);
@@ -96,6 +95,7 @@ const Header = () => {
 
             return () => {
                 removeListener(handleNotification);
+                disconnectWebSocket();
             };
         }
     }, [isAuthenticated, user]);
