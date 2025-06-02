@@ -2,10 +2,14 @@ import { useState } from "react";
 import { Save, Camera, X } from "lucide-react";
 import api from "@/services/api";
 import { toast } from "sonner";
+import { useDispatch, useSelector } from "react-redux";
+import { get_ProfileData } from "@/store/user/userSlice";
 
 const ImageEditModal = ({ isOpen, onClose, currentImage, onImageChange }) => {
     const [previewUrl, setPreviewUrl] = useState(currentImage);
     const [selectedFile, setSelectedFile] = useState(null);
+    // const { user } = useSelector((state) => state.user);
+    const dispatch = useDispatch();
 
     // console.log('preview image ',previewUrl, currentImage);
 
@@ -39,6 +43,7 @@ const ImageEditModal = ({ isOpen, onClose, currentImage, onImageChange }) => {
                     duration: 3000,
                     className: "text-white p-4 rounded-md",
                 });
+                dispatch(get_ProfileData())
                 onClose();
             } else {
                 toast.error(`Upload failed: + ${response.data.message}`, {

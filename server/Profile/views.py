@@ -2,12 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from users.models import Profile
-from .serializers import UserProfileSerializer
+from .serializers import UserProfileSerializer, ReviewSerializer
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from .models import *
 from Admin.models import UserSubscription
 from django.utils import timezone
+from event.models import Event, Review
 
 class UserProfile(APIView):
     permission_classes = [IsAuthenticated]
@@ -84,3 +85,61 @@ class FollowView(APIView):
             return Response(
                 {"error": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR )
+            
+class ReviewAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, event_id):
+        try:
+            review = Review.objects.get(event_id=event_id, user=request.user)
+            serializer = ReviewSerializer(review)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Review.DoesNotExist:
+            return Response({"error": "No review found for this event"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request, event_id):
+        try:
+            event = Event.objects.get(id=event_id)
+            if Review.objects.filter(event=event, user=request.user).exists():
+                return Response(
+                    {"error": "You have already reviewed this event"},
+                    status=status.HTTP_400_BAD_REQUEST )
+
+            data = request.data.copy()
+            data['event'] = event_id
+            data['user'] = request.user.id
+
+            serializer = ReviewSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save(user=request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, event_id):
+        try:
+            review = Review.objects.get(event_id=event_id, user=request.user)
+            serializer = ReviewSerializer(review, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Review.DoesNotExist:
+            return Response({"error": "Review not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, event_id):
+        try:
+            review = Review.objects.get(event_id=event_id, user=request.user)
+            review.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)  # Remove error message
+        except Review.DoesNotExist:
+            return Response({"error": "Review not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

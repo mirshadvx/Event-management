@@ -1,9 +1,20 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, Calendar, ChevronDown, X, MapPin } from "lucide-react";
+import { Search, Calendar, ChevronDown, MapPin, Star, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import api from "@/services/api";
+import { toast } from "sonner";
+import { HiChevronDoubleUp } from "react-icons/hi";
+import { HashLoader } from "react-spinners";
+import { v4 as uuidv4 } from "uuid";
+import { generateKitToken, createZegoInstance, joinRoomAsAudience, destroyZegoInstance } from "@/services/ZegoService";
+import ReviewModal from "@/components/user/Dashboard/ReviewModal";
+
 import {
     Dialog,
     DialogTrigger,
@@ -15,15 +26,6 @@ import {
     DialogPortal,
     DialogOverlay,
 } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import api from "@/services/api";
-import { toast } from "sonner";
-import { HiChevronDoubleUp } from "react-icons/hi";
-import { HashLoader } from "react-spinners";
-import { v4 as uuidv4 } from "uuid";
-import { generateKitToken, createZegoInstance, joinRoomAsAudience, destroyZegoInstance } from "@/services/ZegoService";
 
 const Participated_Outlet = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -39,6 +41,7 @@ const Participated_Outlet = () => {
     const observer = useRef();
     const [initialLoad, setInitialLoad] = useState(true);
     const [isWatchLiveModalOpen, setIsWatchLiveModalOpen] = useState(false);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const liveStreamRef = useRef(null);
     const zegoInstanceRef = useRef(null);
@@ -176,10 +179,24 @@ const Participated_Outlet = () => {
         watchLiveStream(event);
     };
 
+    const handleReviewEvent = (event) => {
+        setSelectedEvent(event);
+        setIsReviewModalOpen(true);
+    };
+
     const handleModalClose = () => {
         cleanupStream();
         setIsWatchLiveModalOpen(false);
         setSelectedEvent(null);
+    };
+
+    const handleReviewModalClose = () => {
+        setIsReviewModalOpen(false);
+        setSelectedEvent(null);
+    };
+
+    const handleReviewSubmitted = () => {
+        fetchEvents(1, true);
     };
 
     return (
@@ -396,11 +413,19 @@ const Participated_Outlet = () => {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Venue</p>
-                                                        <p className="text-white flex items-center">
-                                                            <MapPin size={16} className="mr-1" /> {event.venue_name}
-                                                        </p>
+                                                    <div className="flex gap-5">
+                                                        <div>
+                                                            <p className="text-gray-400 text-sm flex items-center">
+                                                                Event Title
+                                                            </p>
+                                                            <p className="text-white">{event.event_title}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-gray-400 text-sm flex items-center">
+                                                                <MapPin size={14} className="mr-1" /> Venue
+                                                            </p>
+                                                            <p className="text-white">{event.venue_name}</p>
+                                                        </div>
                                                     </div>
 
                                                     <div>
@@ -419,55 +444,57 @@ const Participated_Outlet = () => {
                                                         </p>
                                                     </div>
 
-                                                    <div className="grid grid-cols-2 gap-2 mt-2">
-                                                        <div>
-                                                            <p className="text-gray-400 text-sm">Status</p>
-                                                            <p className="text-white">
-                                                                {event.is_published ? "Published" : "Draft"}
-                                                            </p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-gray-400 text-sm">Revenue</p>
-                                                            <p className="text-white">
-                                                                {event.revenue_distributed ? "Distributed" : "Pending"}
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                                                    <div className="flex flex-col gap-2 mt-4">
+                                                        <div className="flex gap-2">
+                                                            <Dialog
+                                                                open={isWatchLiveModalOpen}
+                                                                onOpenChange={handleModalClose}
+                                                            >
+                                                                <DialogTrigger asChild>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="border-gray-600 text-black flex-1"
+                                                                        onClick={() => handleWatchLive(event)}
+                                                                    >
+                                                                        Watch live
+                                                                    </Button>
+                                                                </DialogTrigger>
 
-                                                    <div className="flex justify-between mt-4">
-                                                        <Dialog open={isWatchLiveModalOpen} onOpenChange={handleModalClose}>
-                                                            <DialogTrigger asChild>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="border-gray-600 text-black"
-                                                                    onClick={() => handleWatchLive(event)}
-                                                                >
-                                                                    Watch live
-                                                                </Button>
-                                                            </DialogTrigger>
+                                                                <DialogPortal>
+                                                                    <DialogOverlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+                                                                    <DialogContent className="bg-white text-black z-50">
+                                                                        <DialogHeader>
+                                                                            <DialogTitle>Watch Live Stream</DialogTitle>
+                                                                            <DialogDescription>
+                                                                                Join the live stream for this event.
+                                                                            </DialogDescription>
+                                                                        </DialogHeader>
+                                                                        <div
+                                                                            ref={liveStreamRef}
+                                                                            className="w-full h-[400px]"
+                                                                        />
+                                                                        <DialogFooter>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                onClick={handleModalClose}
+                                                                            >
+                                                                                Close
+                                                                            </Button>
+                                                                        </DialogFooter>
+                                                                    </DialogContent>
+                                                                </DialogPortal>
+                                                            </Dialog>
 
-                                                            <DialogPortal>
-                                                                <DialogOverlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-                                                                <DialogContent className="bg-white text-black z-50">
-                                                                    <DialogHeader>
-                                                                        <DialogTitle>Watch Live Stream</DialogTitle>
-                                                                        <DialogDescription>
-                                                                            Join the live stream for this event.
-                                                                        </DialogDescription>
-                                                                    </DialogHeader>
-                                                                    <div ref={liveStreamRef} className="w-full h-[400px]" />
-                                                                    <DialogFooter>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            onClick={handleModalClose}
-                                                                        >
-                                                                            Close
-                                                                        </Button>
-                                                                    </DialogFooter>
-                                                                </DialogContent>
-                                                            </DialogPortal>
-                                                        </Dialog>
+                                                            <Button
+                                                                size="sm"
+                                                                className="bg-yellow-600 hover:bg-yellow-700 text-white flex-1 flex items-center gap-2"
+                                                                onClick={() => handleReviewEvent(event)}
+                                                            >
+                                                                <Star size={16} />
+                                                                Review Event
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -486,16 +513,25 @@ const Participated_Outlet = () => {
                         <p className="text-gray-400 mt-2">Try adjusting your search</p>
                     </div>
                 ) : null}
+
                 {loading && (
                     <div className="text-white text-center pt-2 md:pt-27 flex justify-center">
                         <HashLoader color="#54c955" size={57} />
                     </div>
                 )}
+
                 {!hasMore && events.length > 0 && (
                     <div className="text-gray-400 text-center py-8 border-t border-gray-800 mt-8">
                         You've reached the end of the list
                     </div>
                 )}
+
+                <ReviewModal
+                    isOpen={isReviewModalOpen}
+                    onClose={handleReviewModalClose}
+                    event={selectedEvent}
+                    onReviewSubmitted={handleReviewSubmitted}
+                />
             </div>
         </div>
     );

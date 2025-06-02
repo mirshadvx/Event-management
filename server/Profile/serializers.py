@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from users.models import Profile, Booking
-from event.models import Event
+from event.models import Event, Review
 from Admin.models import UserBadge
 from .models import Follow
 
@@ -38,3 +38,19 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         fields = ['follower', 'followed', 'created_at']
+        
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['id', 'event', 'user', 'rating', 'comment', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5")
+        return value
+
+    def validate(self, data):
+        if data.get('comment') and not data['comment'].strip():
+            raise serializers.ValidationError({"comment": "Comment cannot be empty if provided"})
+        return data
