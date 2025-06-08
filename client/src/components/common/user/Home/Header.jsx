@@ -12,6 +12,7 @@ import {
     clearAllNotification,
 } from "@/services/user/notification/notificationService";
 import { IdCard } from "lucide-react";
+import evenxo_logo from "@/assets/images/evenxo_logo.png";
 
 const Header = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -180,7 +181,9 @@ const Header = () => {
             >
                 <div className="max-w-[1350px] mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-2 z-20">
-                        <div className="w-8 h-6 bg-[#134638] rounded-sm"></div>
+                        <div className="w-13 h-13 flex items-center justify-center overflow-hidden">
+                            <img src={evenxo_logo} alt="Evenxo Logo" className="w-full h-full object-contain" />
+                        </div>
                         <span className="text-white text-lg lg:text-xl font-semibold">Evenxo</span>
                     </div>
 
