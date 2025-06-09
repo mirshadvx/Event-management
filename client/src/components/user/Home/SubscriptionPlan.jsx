@@ -48,7 +48,7 @@ export default function SubscriptionPlan() {
                 />
             </div>
 
-            <div className="mx-auto mt-16 grid max-w-lg grid-cols-2 items-center gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-2">
+            <div className="mx-auto mt-16 grid max-w-lg items-center lg:gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-2">
                 {plans.map((tier, tierIdx) => {
                     const features = [
                         `Conduct monthly below ${tier.event_creation_limit} events`,
