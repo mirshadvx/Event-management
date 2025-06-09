@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { ChevronLeft, Menu, X, LogOut } from "lucide-react";
 import { AiFillHome } from "react-icons/ai";
 import { FaCodeMerge } from "react-icons/fa6";
 import { IoWallet } from "react-icons/io5";
 import { FaUserAlt } from "react-icons/fa";
 import { FaCreditCard } from "react-icons/fa";
-
+import { useDispatch } from "react-redux";
+import { logout } from "../../../../services/api";
+import { logoutReducer } from "../../../../store/user/userSlice";
+import evenxo_logo from "../../../../assets/images/evenxo_logo.png";
 
 const Layout = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -14,15 +17,16 @@ const Layout = () => {
     const [isMobile, setIsMobile] = useState(false);
     const sidebarRef = useRef(null);
 
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+
     const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
     const toggleMenu = () => {
         setIsMenuActive(!isMenuActive);
     };
 
-    useEffect(()=> {
-
-    })
+    useEffect(() => {});
 
     useEffect(() => {
         const handleResize = () => {
@@ -54,23 +58,39 @@ const Layout = () => {
         }
     }, [isMenuActive, isMobile]);
 
+    const handleLogout = async () => {
+        try {
+            await logout();
+            dispatch(logoutReducer());
+            navigate("/");
+        } catch (err) {
+            console.error("Logout failed", err);
+        }
+    };
+
     const navItems = [
         { icon: <AiFillHome size={22} />, label: "Home", path: "/" },
         { icon: <FaUserAlt size={22} />, label: "Profile", path: "/profile", exact: true },
         { icon: <FaCodeMerge size={22} />, label: "My Bookings", path: "/profile/events" },
-        { icon: <FaCreditCard size={22} />, label: "Subscription", path: "/profile/subscription" },        
+        { icon: <FaCreditCard size={22} />, label: "Subscription", path: "/profile/subscription" },
         { icon: <IoWallet size={22} />, label: "Wallet", path: "/profile/wallet" },
     ];
 
-    const secondaryNavItems = [{ icon: <LogOut size={22} />, label: "Logout", path: "/logout" }];
+    const secondaryNavItems = [
+        {
+            icon: <LogOut size={22} />,
+            label: "Logout",
+            action: handleLogout,
+            isLogout: true,
+        },
+    ];
 
     return (
         <div className="flex min-h-screen bg-[#3D4A5F]">
-            {/* Sidebar */}
             <aside
                 ref={sidebarRef}
                 className={`
-          fixed top-0 left-0 m-4 rounded-2xl bg-[#151A2D] transition-all duration-400
+          fixed top-0 left-0 m-4 rounded-2xl bg-[#151A2D] transition-all duration-400 z-1
           ${isCollapsed ? "w-[85px]" : "w-[270px]"}
           ${isMobile ? "w-[calc(100%-26px)] m-3" : ""}
           ${isMobile && isMenuActive ? "overflow-y-auto" : isMobile ? "overflow-y-hidden" : ""}
@@ -78,19 +98,18 @@ const Layout = () => {
             >
                 <header
                     className={`
-          flex items-center justify-between p-6
-          ${isMobile ? "p-2 sticky top-0 z-20 bg-[#151A2D]" : ""}
+          flex items-center justify-between px-6 pt-0
+          ${isMobile ? " sticky top-0 z-20 bg-[#151A2D]" : ""}
         `}
                 >
                     <NavLink to="/" className="header-logo">
                         <img
-                            src="/logo.png"
+                            src={evenxo_logo}
                             alt="Logo"
-                            className={`object-contain ${isMobile ? "h-10 w-10" : "h-12 w-12"}`}
+                            className={`object-contain ${isMobile ? "h-15 w-15" : "h-15 w-15 pt-3"}`}
                         />
                     </NavLink>
 
-                    {/* Desktop Sidebar Toggle Button */}
                     <button
                         className={`
               h-9 w-9 flex items-center justify-center bg-white text-[#151A2D] rounded-lg cursor-pointer hover:bg-[#dde4fb]
@@ -105,7 +124,6 @@ const Layout = () => {
                         />
                     </button>
 
-                    {/* Mobile Menu Toggle Button */}
                     <button
                         className={`
               h-8 w-8 items-center justify-center bg-white text-[#151A2D] rounded-lg cursor-pointer
@@ -118,7 +136,6 @@ const Layout = () => {
                 </header>
 
                 <nav className="sidebar-nav">
-                    {/* Primary Navigation */}
                     <ul
                         className={`
             list-none flex flex-col gap-1 px-4 transition-transform duration-400
@@ -147,7 +164,6 @@ const Layout = () => {
                                     </span>
                                 </NavLink>
 
-                                {/* Tooltip for collapsed sidebar (desktop only) */}
                                 {!isMobile && (
                                     <div
                                         className={`
@@ -165,7 +181,6 @@ const Layout = () => {
                         ))}
                     </ul>
 
-                    {/* Secondary Navigation (bottom) */}
                     <ul
                         className={`
             list-none flex flex-col gap-1 px-4 w-full transition-all
@@ -174,25 +189,40 @@ const Layout = () => {
                     >
                         {secondaryNavItems.map((item, index) => (
                             <li key={index} className="relative group">
-                                <NavLink
-                                    to={item.path}
-                                    className={({ isActive }) => `
-                    text-white flex gap-3 whitespace-nowrap rounded-lg p-3 items-center no-underline
-                    hover:text-[#151A2D] hover:bg-white
-                    ${isActive ? "bg-white text-[#151A2D]" : ""}
-                  `}
-                                >
-                                    <span className="nav-icon">{item.icon}</span>
-                                    <span
-                                        className={`transition-opacity duration-300 ${
-                                            isCollapsed ? "opacity-0 pointer-events-none" : ""
-                                        }`}
+                                {item.isLogout ? (
+                                    <button
+                                        onClick={item.action}
+                                        className="text-white flex gap-3 whitespace-nowrap rounded-lg p-3 items-center no-underline hover:text-[#151A2D] hover:bg-white w-full text-left"
                                     >
-                                        {item.label}
-                                    </span>
-                                </NavLink>
+                                        <span className="nav-icon">{item.icon}</span>
+                                        <span
+                                            className={`transition-opacity duration-300 ${
+                                                isCollapsed ? "opacity-0 pointer-events-none" : ""
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <NavLink
+                                        to={item.path}
+                                        className={({ isActive }) => `
+                        text-white flex gap-3 whitespace-nowrap rounded-lg p-3 items-center no-underline
+                        hover:text-[#151A2D] hover:bg-white
+                        ${isActive ? "bg-white text-[#151A2D]" : ""}
+                      `}
+                                    >
+                                        <span className="nav-icon">{item.icon}</span>
+                                        <span
+                                            className={`transition-opacity duration-300 ${
+                                                isCollapsed ? "opacity-0 pointer-events-none" : ""
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </span>
+                                    </NavLink>
+                                )}
 
-                                {/* Tooltip for collapsed sidebar (desktop only) */}
                                 {!isMobile && (
                                     <div
                                         className={`
@@ -212,11 +242,10 @@ const Layout = () => {
                 </nav>
             </aside>
 
-            {/* Main Content Area */}
             <main
                 className={`
         flex-1 pt-4 pr-4 pb-4 transition-all duration-400
-        ${isMobile ? "ml-0 mt-[70px]" : isCollapsed ? "ml-[117px]" : "ml-[302px]"}
+        ${isMobile ? "ml-0 mt-[70px] px-4" : isCollapsed ? "ml-[117px]" : "ml-[302px]"}
       `}
             >
                 <Outlet />
