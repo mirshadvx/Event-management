@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, Calendar, ChevronDown, MapPin, Star, X } from "lucide-react";
+import { Search, Calendar, ChevronDown, MapPin, Star, X, Menu } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -38,6 +38,7 @@ const Participated_Outlet = () => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [expandedEventId, setExpandedEventId] = useState(null);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const observer = useRef();
     const [initialLoad, setInitialLoad] = useState(true);
     const [isWatchLiveModalOpen, setIsWatchLiveModalOpen] = useState(false);
@@ -199,26 +200,152 @@ const Participated_Outlet = () => {
         fetchEvents(1, true);
     };
 
+    const toggleMobileFilters = () => {
+        setShowMobileFilters(!showMobileFilters);
+    };
+
     return (
-        <div className="bg-[#444444] p-1 sm:p-3 min-h-screen mx-2 sm:mx-10 rounded-2xl mt-2">
+        <div className="bg-[#444444] p-1 sm:p-3 min-h-screen mx-2 sm:mx-10 rounded-2xl mt-2 relative">
+            {showMobileFilters && (
+                <div className="md:hidden flex flex-col gap-3 p-4 bg-[#2A2A2A] rounded-lg absolute right-3 top-13">
+                    <div className="flex flex-col gap-3">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="bg-[#333333] text-white border-none hover:bg-[#444444] flex items-center gap-2 hover:text-white justify-between w-full"
+                                >
+                                    {category}
+                                    <ChevronDown size={16} />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-[#2A2A2A] text-white border-[#333333] w-full">
+                                <DropdownMenuItem
+                                    onSelect={() => setCategory("All Categories")}
+                                    className="hover:bg-[#333333] focus:bg-[#333333] hover:text-white focus:text-white"
+                                >
+                                    All Categories
+                                </DropdownMenuItem>
+                                {categories.map((cat) => (
+                                    <DropdownMenuItem
+                                        key={cat}
+                                        onSelect={() => setCategory(cat)}
+                                        className="hover:bg-[#333333] focus:bg-[#333333] hover:text-white focus:text-white"
+                                    >
+                                        {cat}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="bg-[#333333] text-white border-none hover:bg-[#444444] flex items-center gap-2 hover:text-white justify-between w-full"
+                                >
+                                    {timeFilter}
+                                    <ChevronDown size={16} />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-[#2A2A2A] text-white border-[#333333] w-full">
+                                {timeFilters.map((time) => (
+                                    <DropdownMenuItem
+                                        key={time}
+                                        onSelect={() => setTimeFilter(time)}
+                                        className="hover:bg-[#333333] focus:bg-[#333333] hover:text-white focus:text-white"
+                                    >
+                                        {time}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {timeFilter === "Custom" && (
+                            <div className="flex flex-col gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="bg-[#333333] text-white border-none hover:bg-[#444444] flex items-center gap-2 w-full justify-start"
+                                        >
+                                            <Calendar size={16} />
+                                            {customStartDate ? format(customStartDate, "PPP") : "Start Date"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#2A2A2A] border-[#333333]">
+                                        <CalendarComponent
+                                            mode="single"
+                                            selected={customStartDate}
+                                            onSelect={setCustomStartDate}
+                                            className="rounded-md border-[#333333] bg-[#2A2A2A] text-white"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="bg-[#333333] text-white border-none hover:bg-[#444444] flex items-center gap-2 w-full justify-start"
+                                        >
+                                            <Calendar size={16} />
+                                            {customEndDate ? format(customEndDate, "PPP") : "End Date"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0 bg-[#2A2A2A] border-[#333333]">
+                                        <CalendarComponent
+                                            mode="single"
+                                            selected={customEndDate}
+                                            onSelect={setCustomEndDate}
+                                            className="rounded-md border-[#333333] bg-[#2A2A2A] text-white"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+
+                                <Button variant="ghost" onClick={handleCustomDateReset} className="text-gray-400  w-full">
+                                    Reset Dates
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
             <div className="max-w-[1400px] mx-auto">
-                <div className="flex sm:flex-row gap-4 justify-between mb-2">
-                    <div className="relative flex-grow max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                        <Input
-                            type="text"
-                            placeholder="Search Events"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-[#2A2A2A] border-none text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 rounded-lg"
-                        />
+                {/* Header Section */}
+                <div className="flex flex-col gap-4 mb-2">
+                    <div className="flex items-center gap-4 justify-between">
+                        <div className="relative flex-grow max-w-md">
+                            <Search
+                                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                size={18}
+                            />
+                            <Input
+                                type="text"
+                                placeholder="Search Events"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 bg-[#2A2A2A] border-none text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <NavLink to="/dashboard/create-event/">
+                                <Button className="bg-[#2b2b2b] text-white">Create Event</Button>
+                            </NavLink>
+
+                            <Button
+                                variant="outline"
+                                className="md:hidden bg-[#2A2A2A] text-white border-none hover:bg-[#333333] flex items-center gap-2 hover:text-white"
+                                onClick={toggleMobileFilters}
+                            >
+                                <Menu size={16} />
+                                Filters
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
-                        <NavLink to="/dashboard/create-event/">
-                            <Button className="bg-[#2b2b2b] text-white">Create Event</Button>
-                        </NavLink>
-
+                    <div className="hidden md:flex flex-wrap gap-3">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button

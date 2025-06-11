@@ -3,10 +3,9 @@ import Header from "../../../common/user/Home/Header";
 
 const Layout = ({ children }) => {
     return (
-        // <div className="min-h-screen bg-[#af3434]">
-        <div className="min-h-screen bg-[#333030] pt-12">
+        <div className="min-h-screen bg-[#333030] pt-15">
             <Header />
-            { children }
+            {children}
         </div>
     );
 };
