@@ -3,9 +3,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Calendar, Clock, MapPin, Users, Ticket, Eye, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Avatar } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/Separator";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Search, RefreshCw, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import adminApi from "@/services/adminApi";
