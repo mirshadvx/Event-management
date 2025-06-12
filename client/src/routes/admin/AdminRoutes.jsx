@@ -10,7 +10,7 @@ import Revenue_Overview from "@/components/layout/admin/finance/Revenue_Overview
 import Transaction_History from "@/components/layout/admin/finance/Transaction_History";
 import Refund_History from "@/components/layout/admin/finance/Refund_History";
 import Ticket_Purchases from "@/components/layout/admin/Ticket_Purchases";
-import Plan from "@/components/layout/admin/subscription/plan";
+import Plan from "@/components/layout/admin/subscription/Plan";
 import SubsOverview from "@/components/layout/admin/subscription/SubsOverview";
 import SubscriptionAnalytics from "@/components/layout/admin/subscription/SubscriptionAnalytics";
 import Events from "@/components/layout/admin/Events";
