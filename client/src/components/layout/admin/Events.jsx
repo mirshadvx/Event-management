@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Clock, MapPin, Users, Ticket, Eye, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
-import { Avatar } from "@/components/ui/Avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/Separator";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
