@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { verifyAuth, get_ProfileData } from "./store/user/userSlice";
 import Home from "./pages/User/home/Home";
 import Test from "./pages/User/Test";
-import AuthRoutes from "./routes/user/authRoutes";
+import AuthRoutes from "./routes/user/AuthRoutes";
 import DashboardRoutes from "./routes/user/DashboardRoutes";
 import { Toaster } from "sonner";
 import AdminRoutes from "./routes/admin/AdminRoutes";

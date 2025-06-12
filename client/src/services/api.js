@@ -1,7 +1,8 @@
 import axios from "axios";
+const isDev = import.meta.env.VITE_DEBUG === "true";
 
 const api = axios.create({
-    baseURL: "http://localhost:8000/api/v1/",
+    baseURL: isDev ? "http://localhost:8000/api/v1/" : import.meta.env.VITE_BACKEND_ADDRESS,
     headers: {
         "Content-Type": "application/json",
     },
