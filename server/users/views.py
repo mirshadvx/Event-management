@@ -194,7 +194,7 @@ def verify_otp(request):
         temp_user = json.loads(temp_user_data)
         
         current_time = int(time.time())
-        if current_time - temp_user['created_at'] > 120:
+        if current_time - temp_user['created_at'] > int(os.getenv("OTP_EXPIRY_SECONDS", 120)):
             redis_client.delete(temp_user_key)
             return Response({'success':False, 'error': 'OTP expired'})
         
@@ -760,7 +760,7 @@ class ForgotPasswordView(APIView):
             return Response({"success": False, "message": "No user with this email exists"}, status=status.HTTP_400_BAD_REQUEST)
         
         token = PasswordResetToken.objects.create(user=user)
-        reset_link = f"http://localhost:5173/reset-password/{token.token}"
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{token.token}"
         
         try:
             send_mail(

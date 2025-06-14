@@ -16,6 +16,8 @@ DEBUG = os.getenv('DEBUG')
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 INSTALLED_APPS = [
     'daphne',
     'channels',
