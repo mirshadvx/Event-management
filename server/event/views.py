@@ -93,7 +93,6 @@ class EventPreviewList(generics.ListAPIView):
         ).order_by('-created_at')
         return queryset
     
-    
 class EventDetailViewExplore(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, event_id):
@@ -103,8 +102,7 @@ class EventDetailViewExplore(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Event.DoesNotExist:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-   
-    
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def like_or_comment(request, event_id):
@@ -112,46 +110,52 @@ def like_or_comment(request, event_id):
         event = Event.objects.get(id=event_id)
     except Event.DoesNotExist:
         return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-    
-    user = request.user
+
     action = request.data.get("action")
-    
     if action == "like":
-        like, liked = Like.objects.get_or_create(user=user, event=event)
-        if liked:
-            send_user_notification(event.organizer.id, f"{request.user.username} liked your {event.event_title}")
-        if not liked:
-            like.delete()
-            return Response({
-                "message": "Event unliked",
-                "like_count": event.like_count()
-            }, status=status.HTTP_200_OK)
+        return handle_like(request, event)
+    elif action == "comment":
+        return handle_comment(request, event)
+    else:
+        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+def handle_like(request, event):
+    user = request.user
+    like, created = Like.objects.get_or_create(user=user, event=event)
+    
+    if created:
+        send_user_notification(event.organizer.id, f"{user.username} liked your {event.event_title}")
         return Response({
             "message": "Event liked",
             "like_count": event.like_count()
-        }, status=status.HTTP_201_CREATED)    
-
-
-    elif action == "comment":
-        text = request.data.get("text")
-        if not text:
-            return Response({"error": "Comment text is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        comment = Comment.objects.create(user=user, event=event, text=text)
-        if comment:
-            send_user_notification(event.organizer.id, f"{request.user.username} commented your {event.event_title}")
-        response_data = {
-            'message': 'Comment added',
-            'id': comment.id,
-            'username': user.username,
-            'profile_picture':user.profile_picture,
-            'text': comment.text,
-            'created_at': comment.created_at.isoformat()
-        }
-        return Response(response_data, status=status.HTTP_201_CREATED)
-
+        }, status=status.HTTP_201_CREATED)
     else:
-        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+        like.delete()
+        return Response({
+            "message": "Event unliked",
+            "like_count": event.like_count()
+        }, status=status.HTTP_200_OK)
+
+def handle_comment(request, event):
+    user = request.user
+    text = request.data.get("text")
+
+    if not text:
+        return Response({"error": "Comment text is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    comment = Comment.objects.create(user=user, event=event, text=text)
+    send_user_notification(event.organizer.id, f"{user.username} commented on your {event.event_title}")
+    
+    response_data = {
+        'message': 'Comment added',
+        'id': comment.id,
+        'username': user.username,
+        'profile_picture': user.profile_picture,
+        'text': comment.text,
+        'created_at': comment.created_at.isoformat()
+    }
+
+    return Response(response_data, status=status.HTTP_201_CREATED)
 
 class LiveStreamCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -190,7 +194,6 @@ class LiveStreamCreateView(APIView):
         except Exception as e:
             logger.error(f"Error creating live stream: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class LiveStreamDetailView(APIView):
     permission_classes = [IsAuthenticated]

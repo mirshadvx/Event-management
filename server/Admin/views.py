@@ -73,8 +73,6 @@ def admin_login(request):
     except Exception as e:
         return Response({"success": False, "error": e})
     
-    
-# Pagination classes
 class StandardPageNumberPagination(PageNumberPagination):
     page_size = 5
     page_size_query_param = 'page_size'
@@ -289,36 +287,17 @@ class UserBulkUpdateStatusView(APIView):
         
         return Response({'message': f'Updated {updated_count} users'})
 
-
-
-# class CoupnList(APIView):
-#     permission_classes = [IsAdminUser]
-    
-#     def get(self, request):
-#         coupons = Coupon.objects.all()
-#         serializer = CouponSerializer(coupons, many=True)
-#         return Response(serializer.data)
-    
-#     def post(self, request):
-#         serializer = CouponSerializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 from django.shortcuts import get_object_or_404
 class CouponList(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        # Get query parameters
         search = request.query_params.get('search', None)
         status_filter = request.query_params.get('status', None)
         discount_type_filter = request.query_params.get('discount_type', None)
 
-        # Base queryset
         queryset = Coupon.objects.all()
 
-        # Apply search filter (code or title)
         if search:
             queryset = queryset.filter(
                 code__icontains=search
@@ -326,16 +305,13 @@ class CouponList(APIView):
                 title__icontains=search
             )
 
-        # Apply status filter
         if status_filter and status_filter != 'all':
             is_active = status_filter.lower() == 'active'
             queryset = queryset.filter(is_active=is_active)
 
-        # Apply discount type filter
         if discount_type_filter and discount_type_filter != 'all':
             queryset = queryset.filter(discount_type=discount_type_filter.lower())
 
-        # Paginate the queryset
         paginator = StandardPageNumberPagination()
         page = paginator.paginate_queryset(queryset, request)
         serializer = CouponSerializer(page, many=True)
@@ -389,8 +365,6 @@ class CouponBulkUpdateStatus(APIView):
         
         return Response({'message': f'Updated {updated_count} coupons'})
  
- 
-
 class CustomPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
@@ -488,7 +462,6 @@ class UserBadgeListView(APIView):
         serializer = UserBadgeSerializer(page, many=True)
         
         return paginator.get_paginated_response(serializer.data)
-
 
 class RevenueDistributionPagiantion(PageNumberPagination):
     page_size = 10

@@ -2,7 +2,6 @@ from rest_framework.views import APIView
 from .paginations import *
 from rest_framework.permissions import IsAuthenticated
 from event.models import *
-import django_filters
 from .filters import *
 from .serializers import *
 from rest_framework.response import Response
