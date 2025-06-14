@@ -3,6 +3,8 @@ import { IoMdClose } from "react-icons/io";
 import { MdNotificationsOff } from "react-icons/md";
 import { FiTrash2, FiBell, FiUserPlus, FiCheck, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
+import api from "@/services/api";
+import { toast } from "sonner";
 
 const NotificationPanel = ({
     isOpen,
@@ -11,33 +13,29 @@ const NotificationPanel = ({
     setNotifications,
     handleDeleteNotification,
     handleClearAllNotifications,
-    handleAcceptFollowRequest,
-    handleRejectFollowRequest,
-    handleClearAllFollowRequests,
 }) => {
     const panelRef = useRef(null);
     const scrollContainerRef = useRef(null);
     const [scrollPosition, setScrollPosition] = useState(0);
     const [showScrollShadow, setShowScrollShadow] = useState(false);
     const [activeTab, setActiveTab] = useState("notifications");
+    const [followRequests, setFollowRequests] = useState([]);
 
-    const followRequests = [
-        {
-            id: "req_001",
-            username: "sarah_wilson",
-            created_at: "2025-05-28T10:30:00Z",
-        },
-        {
-            id: "req_002",
-            username: "mike_jones",
-            created_at: "2025-05-28T09:15:00Z",
-        },
-        {
-            id: "req_010",
-            username: "noah_taylor",
-            created_at: "2025-05-24T12:15:00Z",
-        },
-    ];
+    const fetchFollowRequests = async () => {
+        try {
+            const response = await api.get("profile/follow-requests/");
+            setFollowRequests(response.data);
+        } catch (error) {
+            console.error("Error fetching follow requests:", error);
+            toast.error(error.response?.data?.error || "Failed to load follow requests");
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen && activeTab === "requests") {
+            fetchFollowRequests();
+        }
+    }, [isOpen, activeTab]);
 
     const formatTime = (timestamp) => {
         const date = new Date(timestamp);
@@ -103,17 +101,38 @@ const NotificationPanel = ({
         }
     };
 
-    const handleAcceptRequest = (requestId, e) => {
+    const handleAcceptFollowRequest = async (requestId, e) => {
         e.stopPropagation();
-        if (handleAcceptFollowRequest) {
-            handleAcceptFollowRequest(requestId);
+        try {
+            const response = await api.post(`profile/follow-requests/${requestId}/`, { action: "accept" });
+            setFollowRequests((prev) => prev.filter((req) => req.id !== requestId));
+            toast.success(response.data.message);
+        } catch (error) {
+            console.error("Error accepting follow request:", error);
+            toast.error(error.response?.data?.error || "Failed to accept follow request");
         }
     };
 
-    const handleRejectRequest = (requestId, e) => {
+    const handleRejectFollowRequest = async (requestId, e) => {
         e.stopPropagation();
-        if (handleRejectFollowRequest) {
-            handleRejectFollowRequest(requestId);
+        try {
+            const response = await api.post(`profile/follow-requests/${requestId}/`, { action: "reject" });
+            setFollowRequests((prev) => prev.filter((req) => req.id !== requestId));
+            toast.success(response.data.message);
+        } catch (error) {
+            console.error("Error rejecting follow request:", error);
+            toast.error(error.response?.data?.error || "Failed to reject follow request");
+        }
+    };
+
+    const handleClearAllFollowRequests = async () => {
+        try {
+            const response = await api.delete("profile/follow-requests/");
+            setFollowRequests([]);
+            toast.success(response.data.message);
+        } catch (error) {
+            console.error("Error clearing all follow requests:", error);
+            toast.error(error.response?.data?.error || "Failed to clear follow requests");
         }
     };
 
@@ -180,15 +199,17 @@ const NotificationPanel = ({
                                 </div>
                                 <div className="flex gap-2 flex-shrink-0">
                                     <button
-                                        onClick={(e) => handleAcceptRequest(request.id, e)}
+                                        onClick={(e) => handleAcceptFollowRequest(request.id, e)}
                                         className="bg-[#00FF82] hover:bg-[#00CC6A] text-black px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
                                     >
+                                        <FiCheck className="w-4 h-4" />
                                         Accept
                                     </button>
                                     <button
-                                        onClick={(e) => handleRejectRequest(request.id, e)}
+                                        onClick={(e) => handleRejectFollowRequest(request.id, e)}
                                         className="bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white/70 hover:text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
                                     >
+                                        <FiX className="w-4 h-4" />
                                         Reject
                                     </button>
                                 </div>
@@ -353,19 +374,19 @@ const NotificationPanel = ({
 
 const style = document.createElement("style");
 style.textContent = `
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-    }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
 `;
 document.head.appendChild(style);
 

@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { IoMdChatbubbles, IoIosNotifications, IoMdMenu, IoMdClose } from "react-icons/io";
-import { logout } from "../../../../services/api";
+import { logout } from "@/services/api";
 import { useDispatch, useSelector } from "react-redux";
-import { logoutReducer, get_ProfileData } from "../../../../store/user/userSlice";
+import { logoutReducer, get_ProfileData } from "@/store/user/userSlice";
 import { useNavigate } from "react-router-dom";
 import NotificationPanel from "@/components/user/Home/notification/NotificationPanel";
-import { connectWebSocket, removeListener, disconnectWebSocket } from "@/services/user/notification/webSocketManager";
 import {
     fetchNotifications,
     deleteNotification,
     clearAllNotification,
 } from "@/services/user/notification/notificationService";
-import { IdCard } from "lucide-react";
+import { connectWebSocket, removeListener, disconnectWebSocket } from "@/services/user/notification/webSocketManager";
 import evenxo_logo from "@/assets/images/evenxo_logo.png";
 
 const Header = () => {
@@ -161,7 +160,7 @@ const Header = () => {
             setNotifications(notifications.filter((notification) => notification.id !== id));
             setUnreadCount((prevCount) => prevCount - 1);
         } catch (error) {
-            console.error("failed to delete notification:", error);
+            console.error("Failed to delete notification:", error);
         }
     };
 
@@ -181,8 +180,8 @@ const Header = () => {
         <>
             <header
                 className={`w-full px-4 lg:px-6 py-2 z-50 fixed left-0 right-0 transition-all duration-300 ease-in-out
-                    ${visible ? "top-0" : "-top-20"}
-                    ${headerBg ? "bg-[#1e1e1e]/10 backdrop-blur-md" : ""}`}
+          ${visible ? "top-0" : "-top-20"}
+          ${headerBg ? "bg-[#1e1e1e]/10 backdrop-blur-md" : ""}`}
             >
                 <div className="max-w-[1350px] mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-2 z-20">

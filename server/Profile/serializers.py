@@ -54,3 +54,10 @@ class ReviewSerializer(serializers.ModelSerializer):
         if data.get('comment') and not data['comment'].strip():
             raise serializers.ValidationError({"comment": "Comment cannot be empty if provided"})
         return data
+    
+class FollowRequestSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='follower.username')
+    
+    class Meta:
+        model = Follow
+        fields = ['id', 'username', 'created_at']
