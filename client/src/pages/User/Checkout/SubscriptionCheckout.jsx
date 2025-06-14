@@ -28,6 +28,8 @@ const SubscriptionCheckout = () => {
     useEffect(() => {
         if (!userLoading && user && user.plan == "basic" && !user.plan_expired) {
             return;
+        } else if (!user.plan) {
+            return;
         } else if (!userLoading && user && !user.plan_expired) {
             navigate("/", {
                 state: {

@@ -19,7 +19,7 @@ import LandingPage from "@/components/layout/admin/LandingPage";
 const AdminRoutes = () => {
     return (
         <Route
-            path="/admin"
+            path="/admin/"
             element={
                 <Admin_ProtectedRoute>
                     <Dashboard />
