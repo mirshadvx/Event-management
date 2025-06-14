@@ -1,4 +1,5 @@
 import chatApi from "../chat/chatApi";
+
 let socket = null;
 let listeners = [];
 let reconnectAttempts = 0;
@@ -9,6 +10,11 @@ export const connectWebSocket = async (userId, onMessage) => {
         console.log("WebSocket connection already established or connecting");
         addListener(onMessage);
         return;
+    }
+
+    if (socket) {
+        socket.close();
+        socket = null;
     }
 
     try {
@@ -30,18 +36,18 @@ export const connectWebSocket = async (userId, onMessage) => {
             socket = null;
             if (reconnectAttempts < maxReconnectAttempts) {
                 reconnectAttempts++;
-                console.log(`Reconnecting... Attempt ${reconnectAttempts}`);
-                setTimeout(() => connectWebSocket(userId, onMessage), 3000);
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
+                console.log(`Reconnecting... Attempt ${reconnectAttempts} after ${delay}ms`);
+                setTimeout(() => connectWebSocket(userId, onMessage), delay);
             }
         };
 
         socket.onerror = (error) => {
             console.error("WebSocket error:", error);
+            socket.close();
         };
 
-        if (!listeners.includes(onMessage)) {
-            listeners.push(onMessage);
-        }
+        addListener(onMessage);
     } catch (error) {
         console.error("Error connecting WebSocket:", error);
     }
@@ -57,7 +63,7 @@ export const disconnectWebSocket = () => {
 };
 
 export const addListener = (callback) => {
-    if (!listeners.includes(callback)) {
+    if (typeof callback === "function" && !listeners.includes(callback)) {
         listeners.push(callback);
     }
 };

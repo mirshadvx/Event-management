@@ -115,7 +115,7 @@ def distribute_event_revenue():
 
     print("Revenue distribution completed at:", timezone.now())
     
-
+@shared_task
 def send_user_notification(user_id, message):
     try:
         user = Profile.objects.get(id=user_id)

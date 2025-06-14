@@ -83,7 +83,12 @@ const Header = () => {
     useEffect(() => {
         if (isAuthenticated && user) {
             const handleNotification = (data) => {
-                setNotifications((prevNotifications) => [data, ...prevNotifications]);
+                setNotifications((prevNotifications) => {
+                    if (prevNotifications.some((notif) => notif.id === data.id)) {
+                        return prevNotifications; // Skip duplicate
+                    }
+                    return [data, ...prevNotifications];
+                });
                 setUnreadCount((prevCount) => prevCount + 1);
             };
 

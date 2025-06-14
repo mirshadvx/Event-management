@@ -33,41 +33,6 @@ const NotificationPanel = ({
             created_at: "2025-05-28T09:15:00Z",
         },
         {
-            id: "req_003",
-            username: "emma_davis",
-            created_at: "2025-05-28T08:45:00Z",
-        },
-        {
-            id: "req_004",
-            username: "alex_thompson",
-            created_at: "2025-05-27T22:30:00Z",
-        },
-        {
-            id: "req_005",
-            username: "jessica_brown",
-            created_at: "2025-05-27T18:20:00Z",
-        },
-        {
-            id: "req_006",
-            username: "david_miller",
-            created_at: "2025-05-27T15:10:00Z",
-        },
-        {
-            id: "req_007",
-            username: "sophia_garcia",
-            created_at: "2025-05-26T20:45:00Z",
-        },
-        {
-            id: "req_008",
-            username: "ryan_martinez",
-            created_at: "2025-05-26T14:30:00Z",
-        },
-        {
-            id: "req_009",
-            username: "olivia_lee",
-            created_at: "2025-05-25T16:20:00Z",
-        },
-        {
             id: "req_010",
             username: "noah_taylor",
             created_at: "2025-05-24T12:15:00Z",
