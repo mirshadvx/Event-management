@@ -44,16 +44,13 @@ from django.db import transaction
 from django.conf import settings
 from .tasks import send_user_notification
 import os
-
+import re
+from .utils.coupon_utils import validate_coupon, calculate_coupon_discount, validate_and_apply_coupon
+from django.core.exceptions import ValidationError
+from .utils.payment_utils import handle_wallet_payment, handle_stripe_payment
+stripe.api_key = settings.STRIPE_SECRET_KEY
 logger = logging.getLogger(__name__)
 
-# from .tasks import test_celery, send_otp_email
-
-# redis_client = redis.Redis(
-#     host=config('REDIS_HOST', 'localhost'),
-#     port=config('REDIS_PORT', 6379, cast=int),
-#     db=config('REDIS_DB', 0, cast=int)
-# )
 redis_client = redis.Redis(host=os.getenv("REDIS_HOST", "redis"),
                            port=os.getenv("REDIS_PORT"), db=0)
 
@@ -61,7 +58,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     
     def post(self, request, *args, **kwargs):
         try: 
-            # test_celery("test_celery_done")
             response = super().post(request, *args, **kwargs)
             print(response)
             tokens = response.data
@@ -134,35 +130,6 @@ def logout(request):
 def is_authenticated(request):
     return Response({'authenticated':True})
 
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def register(request):
-#     serializer = UserRegistrationSerializer(data=request.data)
-#     if serializer.is_valid():
-#         otp = str(random.randint(100000, 999999))
-        
-#         # Store temp user data in Redis
-#         temp_user_data = {
-#             'username': serializer.validated_data['username'],
-#             'email': serializer.validated_data['email'],
-#             'password': serializer.validated_data['password'],
-#             'otp': otp,
-#             'created_at': int(time.time())
-#         }
-#         redis_client.setex(
-#             name=f"temp_user:{serializer.validated_data['email']}",
-#             time=140,
-#             value=json.dumps(temp_user_data)
-#         )
-        
-#         # Send OTP email using Celery
-#         send_otp_email.delay(serializer.validated_data['email'], otp)
-
-#         return Response({'success': True, 'message': 'OTP sent to your email'})
-
-#     return Response({'success': False, 'errors': serializer.errors})
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
@@ -199,8 +166,6 @@ def register(request):
         )
         return Response({'success':True, 'message': 'OTP sent to your email'})
         
-        # serializer.save()
-        # return Response(serializer.data)
     return Response({'success': False, 'errors': serializer.errors})
 
 @api_view(['GET'])
@@ -250,10 +215,6 @@ def verify_otp(request):
         return Response({'success':True, 'message':'email varified!'})
     return Response({'success': False, 'error':serializer.errors})
 
-
-
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -264,7 +225,6 @@ def google_login(request):
         return Response({"success": False, "error": "No token provided"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-      
         decoded_token = jwt.decode(token, options={"verify_signature": False, "verify_exp": False, "verify_iat": False})
         print("Decoded token:", decoded_token)
         test = firebase_auth.verify_id_token(token)
@@ -274,14 +234,6 @@ def google_login(request):
         name = decoded_token.get("name", email.split("@")[0]) 
         profile_picture = decoded_token.get("picture")
 
-        # Create or get user
-        # user, created = User.objects.get_or_create(
-        #     email=email,
-        #     defaults={
-        #         "username": name,
-        #         "profile_picture": profile_picture,
-        #     }
-        # )
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
@@ -289,12 +241,6 @@ def google_login(request):
                 "profile_picture": profile_picture,
             }
         )
-        # if not created and not user.is_google_user:
-        #         user.google_id = google_id
-        #         user.is_google_user = True
-        #         user.save()
-
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
@@ -318,9 +264,6 @@ def google_login(request):
 
 
 class get_user_profile(APIView):
-    """
-    Retrieve and update user profile details.
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -342,7 +285,6 @@ class get_user_profile(APIView):
                 return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
             else:
                 return Response({"success": False, "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-                
         except Exception as e:
             print(e)
             return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -360,18 +302,14 @@ class OrganizerRequestHandle(APIView):
                     {"success": True, "message": "Organizer request reinitialized successfully."},
                     status=status.HTTP_200_OK
                 )
-
             OrganizerRequest.objects.create(user=user)
             return Response(
                 {"success": True, "message": "Organizer request submitted successfully."},
-                status=status.HTTP_201_CREATED
-            )
-
+                status=status.HTTP_201_CREATED )
         except Exception as e:
             return Response(
                 {"success": False, "message": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+                status=status.HTTP_400_BAD_REQUEST )
             
 class OrganizerRequestStatus(APIView):
     permission_classes = [IsAuthenticated]
@@ -397,25 +335,38 @@ def UpdateProfileInfo(request):
     try:
         user = request.user
         profile = Profile.objects.get(id=user.id)
-        
+
         username = request.data.get('username', profile.username)    
         bio = request.data.get('bio', profile.bio)
         title = request.data.get('title', profile.title)
         phone = request.data.get('phone', profile.phone)
         location = request.data.get('location', profile.location)
         
+        if not username.strip():
+            return Response({"success": False, "message": "Username cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        if phone:
+            if not re.fullmatch(r"\d{10}", phone):
+                return Response({"success": False, "message": "Phone number must be exactly 10 digits."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(title) > 100:
+            return Response({"success": False, "message": "Title can't exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(location) > 100:
+            return Response({"success": False, "message": "Location can't exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if bio and len(bio) > 1000:
+            return Response({"success": False, "message": "Bio can't exceed 1000 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile.username = username
         profile.bio = bio
         profile.title = title
         profile.phone = phone
         profile.location = location
-        profile.username = username
-        
         profile.save()
-        return Response({"success": True, "message": "Profile updated successfully"},status=status.HTTP_200_OK)
-    
+
+        return Response({"success": True, "message": "Profile updated successfully"}, status=status.HTTP_200_OK)
+
+    except Profile.DoesNotExist:
+        return Response({"success": False, "message": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"success": False, "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
         
 
 @api_view(['POST'])
@@ -449,191 +400,107 @@ class CheckOrganizerStatus(APIView):
 
     def get(self, request):
         try:
-
             user_profile = request.user
-            
             response_data = {
                 "success": True,
-                "is_organizer": user_profile.organizerVerified,
-
-            }
+                "is_organizer": user_profile.organizerVerified,}
             
             return Response(response_data, status=status.HTTP_200_OK)
-            
         except Exception as e:
-            return Response(
-                {
+            return Response({
                     "success": False,
-                    "is_organizer": user_profile.organizerVerified,
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
+                    "is_organizer": user_profile.organizerVerified,}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class ApplyCouponAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print("Entered apply coupon view",request.data)
         code = request.data.get('coupon_code')
         event_id = request.data.get('event_id')
         user = request.user
-
-        coupon = get_object_or_404(Coupon, code=code, is_active=True)
-        event = get_object_or_404(Event, id=event_id, is_published=True)
-
-        # Check coupon validity
-        now = timezone.now().date()
-        if now < coupon.start_date or now > coupon.end_date:
-            return Response({"error": "Coupon is not valid at this time."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if coupon.used_count >= coupon.usage_limit:
-            return Response({"error": "Coupon usage limit reached."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if coupon.used_by.filter(id=user.id).exists():
-            return Response({"error": "You have already used this coupon."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        subtotal = sum(
-            float(ticket.price) * (request.data.get(ticket.ticket_type, 0))
-            for ticket in event.tickets.all()
-        )
-        print("Calculated subtotal:", subtotal)
-        if subtotal < float(coupon.min_order_amount):
-            return Response({"error": f"Order amount must be at least ₹{coupon.min_order_amount} to use this coupon."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Calculate discount
-        if coupon.discount_type == 'percentage':
-            discount = (subtotal * float(coupon.discount_value)) / 100
-        else:
-            discount = float(coupon.discount_value)
-
-        return Response({
-            "code": coupon.code,
-            "discount": discount,
-            "subtotal": subtotal,
-            "total": subtotal - discount
-        })
-
-
-
-stripe.api_key = settings.STRIPE_SECRET_KEY
-        
+        try:
+            coupon, event = validate_coupon(code, user, event_id)
+            subtotal, discount = calculate_coupon_discount(coupon, event, request.data)
+            return Response({
+                "code": coupon.code,
+                "discount": discount,
+                "subtotal": subtotal,
+                "total": subtotal - discount
+            }, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST) 
 
 class CheckoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print("Request data::", request.data)
-        event_id = request.data.get('event_id')
-        payment_method = request.data.get('payment_method')
-        coupon_code = request.data.get('coupon_code')
-        selected_tickets = request.data.get('selected_tickets', {})
-        stripe_payment_method_id = request.data.get('stripe_payment_method_id')
-
-        if not event_id or not payment_method or not selected_tickets:
-            return Response({"error": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
-
-        event = get_object_or_404(Event, id=event_id, is_published=True)
-        user = request.user
-        # now = timezone.now().date()
-        # if event.start_date < now:
-        #     return Response({"error": "."}, status=status.HTTP_400_BAD_REQUEST)
-
-        subtotal = sum(
-            float(ticket.price) * selected_tickets.get(ticket.ticket_type, 0)
-            for ticket in event.tickets.all()
-        )
-        if subtotal == 0:
-            return Response({"error": "No valid tickets selected."}, status=status.HTTP_400_BAD_REQUEST)
-
-        discount = 0
-        coupon = None
-        if coupon_code:
-            coupon = get_object_or_404(Coupon, code=coupon_code, is_active=True)
-            now = timezone.now().date()
-            if now < coupon.start_date or now > coupon.end_date:
-                return Response({"error": "Coupon expired or not yet active."}, status=status.HTTP_400_BAD_REQUEST)
-            if coupon.used_by.filter(id=user.id).exists():
-                return Response({"error": "You have already used this coupon."}, status=status.HTTP_400_BAD_REQUEST)
-            if coupon.used_count >= coupon.usage_limit:
-                return Response({"error": "Coupon usage limit reached."}, status=status.HTTP_400_BAD_REQUEST)
-            if subtotal < float(coupon.min_order_amount):
-                return Response({"error": f"Minimum order amount is ₹{coupon.min_order_amount}."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            discount = float(coupon.discount_value) if coupon.discount_type == 'fixed' else (subtotal * float(coupon.discount_value)) / 100
-
-        total = subtotal - discount
-        if total < 0:
-            total = 0
-        total_in_cents = int(total * 100)
-
-        track_discount = subtotal - total
-        
-        ticket_purchases = []
         try:
+            event_id = request.data.get('event_id')
+            payment_method = request.data.get('payment_method')
+            coupon_code = request.data.get('coupon_code')
+            selected_tickets = request.data.get('selected_tickets', {})
+            stripe_payment_method_id = request.data.get('stripe_payment_method_id')
+
+            if not event_id or not payment_method or not selected_tickets:
+                return Response({"error": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
+
+            event = get_object_or_404(Event, id=event_id, is_published=True)
+            user = request.user
+
+            subtotal = sum(
+                float(ticket.price) * selected_tickets.get(ticket.ticket_type, 0)
+                for ticket in event.tickets.all() )
+            if subtotal == 0:
+                return Response({"error": "No valid tickets selected."}, status=status.HTTP_400_BAD_REQUEST)
+
+            coupon = None
+            discount = Decimal(0)
+            if coupon_code:
+                coupon, subtotal, discount = validate_and_apply_coupon(coupon_code, user, event, selected_tickets)
+
+            total = subtotal - discount
+            if total < 0:
+                total = 0
+            total_in_cents = int(total * 100)
+            track_discount = subtotal - total
+
             booking = Booking.objects.create(
                 user=user,
                 event=event,
                 payment_method=payment_method,
-                subtotal=Decimal(subtotal),
-                discount=Decimal(discount),
-                total=Decimal(total),
+                subtotal=subtotal,
+                discount=discount,
+                total=total,
                 track_discount=track_discount,
                 coupon=coupon
             )
 
             if payment_method == 'wallet':
-                wallet = get_object_or_404(Wallet, user=user)
-                if wallet.balance < Decimal(total):
-                    booking.delete()
-                    return Response({"error": "Insufficient wallet balance."}, status=status.HTTP_400_BAD_REQUEST)
-                
-                wallet.balance -= Decimal(total)
-                wallet.save()
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    booking=booking,
-                    transaction_type='PAYMENT',
-                    amount=Decimal(total),
-                    description=f"Payment for {event.event_title} tickets (Booking {booking.booking_id})",
-                )
+                handle_wallet_payment(user, total, booking, event.event_title)
             elif payment_method == 'stripe':
-                if not stripe_payment_method_id:
-                    booking.delete() 
-                    return Response({"error": "Stripe payment method ID required."}, status=status.HTTP_400_BAD_REQUEST)
-
-                payment_intent = stripe.PaymentIntent.create(
-                    amount=total_in_cents,
-                    currency='inr',
-                    payment_method=stripe_payment_method_id,
-                    confirmation_method='manual',
-                    confirm=True,
-                    description=f"Payment for {event.event_title} tickets (Booking {booking.booking_id})",
-                    metadata={'user_id': user.id, 'event_id': event_id, 'booking_id': str(booking.booking_id)},
-                    return_url='http://localhost:3000/checkout/success'
-                )
+                payment_intent = handle_stripe_payment(
+                    stripe_payment_method_id, total_in_cents, booking, event.event_title, user, event_id )
 
                 if payment_intent.status == 'requires_action':
                     return Response({
                         "requires_action": True,
                         "payment_intent_client_secret": payment_intent.client_secret,
-                        "booking_id": str(booking.booking_id)
-                    }, status=status.HTTP_200_OK)
+                        "booking_id": str(booking.booking_id) }, status=status.HTTP_200_OK)
                 elif payment_intent.status != 'succeeded':
                     booking.delete()
                     return Response({"error": "Payment failed."}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                booking.delete() 
+                booking.delete()
                 return Response({"error": "Unsupported payment method."}, status=status.HTTP_400_BAD_REQUEST)
 
-          
+            ticket_purchases = []
             for ticket_type, quantity in selected_tickets.items():
                 if quantity > 0:
                     ticket = event.tickets.get(ticket_type=ticket_type)
                     if ticket.quantity - ticket.sold_quantity < quantity:
-                        booking.delete() 
+                        booking.delete()
                         return Response({"error": f"Not enough {ticket_type} tickets available."}, status=status.HTTP_400_BAD_REQUEST)
-                    
+
                     ticket.sold_quantity += quantity
                     ticket.save()
 
@@ -646,29 +513,27 @@ class CheckoutAPIView(APIView):
                         used_tickets=0,
                         total_price=Decimal(ticket.price) * quantity,
                         unique_qr_code=qr_code,
-                        booking_id=str(booking.booking_id)
-                    )
+                        booking_id=str(booking.booking_id) )
                     booking.ticket_purchases.add(purchase)
                     ticket_purchases.append({
                         "ticket_type": ticket_type,
                         "quantity": quantity,
-                        "qr_code": qr_code
-                    })
+                        "qr_code": qr_code })
 
             if coupon:
                 coupon.used_count += 1
                 coupon.used_by.add(user)
                 coupon.save()
-                
-            try:
-                event = Event.objects.get(id=event_id)
-                if hasattr(event, 'group_chat') and event.group_chat:
-                    event.group_chat.participants.add(request.user)
-                send_user_notification(user_id=user.id, message=f"You entered {event.event_title} group chat")
-            except Exception as e:
-                logger.error(f"Error in user adding on group chat time {str(e)}")
 
-            send_user_notification(user_id=user.id, message=f"Booking successful {event.event_title}")
+            try:
+                if hasattr(event, 'group_chat') and event.group_chat:
+                    event.group_chat.participants.add(user)
+                    send_user_notification(user_id=user.id, message=f"You entered {event.event_title} group chat")
+            except Exception as e:
+                logger.error(f"Error adding user to group chat: {str(e)}")
+
+            send_user_notification(user_id=user.id, message=f"Booking successful for {event.event_title}")
+
             return Response({
                 "message": "Payment successful!",
                 "booking_id": str(booking.booking_id),
@@ -680,10 +545,12 @@ class CheckoutAPIView(APIView):
             if 'booking' in locals():
                 booking.delete()
             return Response({"error": str(e.user_message)}, status=status.HTTP_400_BAD_REQUEST)
-        except stripe.error.StripeError as e:
+
+        except stripe.error.StripeError:
             if 'booking' in locals():
                 booking.delete()
             return Response({"error": "Something went wrong with the payment."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         except Exception as e:
             if 'booking' in locals():
                 booking.delete()
@@ -708,7 +575,6 @@ def joined_events(request):
             event__start_time__gt=current_time.time(),
             ticket_purchases__isnull=False
         ).select_related('event').prefetch_related('ticket_purchases__ticket')
-
        
         all_bookings = (future_bookings | today_bookings).distinct().order_by('-created_at')
 
@@ -777,7 +643,6 @@ def cancel_ticket(request):
                             status=status.HTTP_400_BAD_REQUEST)
                 
             ticket = ticket_purchase.ticket
-            # dec sold quantity
             ticket.sold_quantity = max(0, ticket.sold_quantity - cancel_quantity)
             ticket.save()
             
@@ -840,7 +705,6 @@ def cancel_ticket(request):
             "total_refund": float(final_refund_amount),
             "canceled_tickets": canceled_tickets
         }, status=status.HTTP_200_OK)
-        
     except Exception as e:
         logger.error(f"Error in cancel_ticket: {str(e)}")
         return Response({"error": "Failed to cancel ticket"}, status=status.HTTP_400_BAD_REQUEST)
@@ -888,8 +752,7 @@ class ForgotPasswordView(APIView):
         email = request.data.get("email","").strip()
         
         if not email:
-            return Response({"success": False, "message": "Email is required"}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": False, "message": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
             
         try:
             user = User.objects.get(email=email)
@@ -909,7 +772,6 @@ class ForgotPasswordView(APIView):
         except Exception as e:
             return Response(
                 {"success": False, "message": "Failed to send email"},status=status.HTTP_500_INTERNAL_SERVER_ERROR )
-
         return Response(
             {"success": True, "message": "Reset email sent"}, status=status.HTTP_200_OK)
         
@@ -941,7 +803,6 @@ class ResetPasswordView(APIView):
         reset_token.delete()
         return Response({"success": True, "message": "Password reset successfully"}, status=status.HTTP_200_OK )
 
-
 class SubscriptionCheckout(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -970,8 +831,8 @@ class SubscriptionCheckout(APIView):
             plan = SubscriptionPlan.objects.get(id=plan_id)
 
             existing = UserSubscription.objects.filter(
-                user=user, 
-                is_active=True, 
+                user=user,
+                is_active=True,
                 end_date__gt=timezone.now()
             ).first()
 
@@ -981,62 +842,22 @@ class SubscriptionCheckout(APIView):
                     "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-          
-            if payment_method == "stripe" and data.get("create_intent"):
-                intent = stripe.PaymentIntent.create(
-                    amount=int(plan.price * 100),
-                    currency="inr",
-                    metadata={"user_id": str(user.id), "plan_id": str(plan.id)},
-                    description=f"Subscription to {plan.name}"
-                )
-                return Response({
-                    "success": True,
-                    "client_secret": intent.client_secret,
-                    "intent_id": intent.id
-                }, status=status.HTTP_200_OK)
-
-         
             if payment_method == "stripe":
-                intent_id = data.get("payment_intent_id")
-                if not intent_id:
-                    return Response({
-                        "success": False,
-                        "message": "Missing payment intent ID"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                result = self.handle_stripe_payment(request, plan, user)
+                if result is not None:
+                    return result
 
-                intent = stripe.PaymentIntent.retrieve(intent_id)
-                if intent.status != "succeeded":
-                    return Response({
-                        "success": False,
-                        "message": "Payment not completed",
-                        "intent_status": intent.status
-                    }, status=status.HTTP_400_BAD_REQUEST)
-
-          
             elif payment_method == "wallet":
-                wallet = Wallet.objects.get(user=user)
-                if wallet.balance < plan.price:
-                    return Response({
-                        "success": False,
-                        "message": "Insufficient wallet balance"
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                result = self.handle_wallet_payment(plan, user)
+                if result is not None:
+                    return result
 
-                wallet.balance -= plan.price
-                wallet.save()
-
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    transaction_type="PAYMENT",
-                    amount=plan.price,
-                    description=f"Subscription for {plan.name}"
-                )
             else:
                 return Response({
                     "success": False,
                     "message": "Invalid payment method"
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        
             end_date = timezone.now() + timedelta(days=30)
             subscription, _ = UserSubscription.objects.update_or_create(
                 user=user,
@@ -1076,36 +897,93 @@ class SubscriptionCheckout(APIView):
                 "success": False,
                 "message": "An unexpected error occurred"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def handle_stripe_payment(self, request, plan, user):
+        data = request.data
+        try:
+            if data.get("create_intent"):
+                intent = stripe.PaymentIntent.create(
+                    amount=int(plan.price * 100),
+                    currency="inr",
+                    metadata={"user_id": str(user.id), "plan_id": str(plan.id)},
+                    description=f"Subscription to {plan.name}"
+                )
+                return Response({
+                    "success": True,
+                    "client_secret": intent.client_secret,
+                    "intent_id": intent.id
+                }, status=status.HTTP_200_OK)
+            else:
+                intent_id = data.get("payment_intent_id")
+                if not intent_id:
+                    return Response({
+                        "success": False,
+                        "message": "Missing payment intent ID"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                intent = stripe.PaymentIntent.retrieve(intent_id)
+                if intent.status != "succeeded":
+                    return Response({
+                        "success": False,
+                        "message": "Payment not completed",
+                        "intent_status": intent.status
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error during intent creation or retrieval: {str(e)}")
+            return Response({
+                "success": False,
+                "message": f"Stripe error: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def handle_wallet_payment(self, plan, user):
+        try:
+            wallet = Wallet.objects.get(user=user)
+            if wallet.balance < plan.price:
+                return Response({
+                    "success": False,
+                    "message": "Insufficient wallet balance"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            wallet.balance -= plan.price
+            wallet.save()
+
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type="PAYMENT",
+                amount=plan.price,
+                description=f"Subscription for {plan.name}" )
+        except Wallet.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Wallet not found"
+            }, status=status.HTTP_404_NOT_FOUND)
             
 class UpgradePlan(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-
         try:
             current_subscription = UserSubscription.objects.get(user=user)
 
             if current_subscription.plan.name.lower() != "basic":
                 return Response({
                     "success": False,
-                    "message": "Upgrade not available from your current plan"
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    "message": "Upgrade not available from your current plan" }, status=status.HTTP_400_BAD_REQUEST)
 
             try:
                 premium_plan = SubscriptionPlan.objects.get(name="premium", active=True)
             except SubscriptionPlan.DoesNotExist:
                 return Response({
                     "success": False,
-                    "message": "Premium plan is currently unavailable"
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    "message": "Premium plan is currently unavailable" }, status=status.HTTP_400_BAD_REQUEST)
 
             remaining_days = current_subscription.days_remaining()
             if remaining_days == 0:
                 return Response({
                     "success": False,
-                    "message": "Your current plan has expired"
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    "message": "Your current plan has expired" }, status=status.HTTP_400_BAD_REQUEST)
 
             last_transaction = SubscriptionTransaction.objects.filter(
                 subscription=current_subscription,
