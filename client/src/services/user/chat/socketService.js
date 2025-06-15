@@ -23,11 +23,14 @@ export const socketService = {
         currentChatType = chatType;
         socket?.close();
 
-        // const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        // const path = `ws/chat/${chatType}/${chatID}/?token=${token}`;
-        // socket = new WebSocket(`${protocol}//${window.location.host}/${path}`);
         const path = `ws/chat/${chatType}/${chatID}/?token=${token}`;
-        socket = new WebSocket(`ws://localhost:8000/${path}`);
+
+        const debug = import.meta.env.VITE_DEBUG === 'true';
+        const baseWsUrl = debug
+            ? import.meta.env.VITE_WS_DEV_URL
+            : import.meta.env.VITE_WS_PROD_URL;
+
+        socket = new WebSocket(`${baseWsUrl}/${path}`);
 
         socket.onopen = () => {
             console.log("Socket connected");

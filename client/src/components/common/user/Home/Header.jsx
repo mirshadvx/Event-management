@@ -303,6 +303,19 @@ const Header = () => {
                         </>
                     )}
 
+                    {!isAuthenticated && !isDesktop && (
+                        <>
+                           
+                            <div className="flex items-center gap-4">
+                                <div className="relative" onClick={() => navigate("/login")}>
+                                    <div className="flex items-center gap-2 bg-[#00FF82] px-4 py-1.5 rounded-lg cursor-pointer">
+                                        <span className="text-black font-medium">Login</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     {isAuthenticated && !isDesktop && (
                         <div className="flex items-center gap-4">
                             <div className="notification-icon relative">

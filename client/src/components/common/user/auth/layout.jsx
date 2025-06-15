@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import evenxo_logo from "@/assets/images/evenxo_logo.png";
 
 const Layout = ({ children }) => {
     const navigate = useNavigate();
@@ -10,8 +11,9 @@ const Layout = ({ children }) => {
         <div className="min-h-screen w-full bg-gradient-to-br from-indigo-900 to-gray-950 flex items-center justify-center p-4">
             <div className="absolute top-0 w-full flex justify-between items-center p-4">
                 <div className="flex items-center">
-                    <div className="bg-white h-8 w-10 rounded-sm mr-2"></div>
-                    <span className="text-white text-xl">Evenxo</span>
+                    <div className="w-15 h-15 flex items-center justify-center overflow-hidden">
+                        <img src={evenxo_logo} alt="Evenxo Logo" className="w-full h-full object-contain" />
+                    </div>
                 </div>
                 {is_login ? (
                     <button
