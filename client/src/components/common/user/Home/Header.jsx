@@ -12,6 +12,7 @@ import {
 } from "@/services/user/notification/notificationService";
 import { connectWebSocket, removeListener, disconnectWebSocket } from "@/services/user/notification/webSocketManager";
 import evenxo_logo from "@/assets/images/evenxo_logo.png";
+import { IoPersonCircle } from "react-icons/io5";
 
 const Header = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -239,14 +240,18 @@ const Header = () => {
 
                                 <div className="relative" ref={dropdownRef}>
                                     <div
-                                        className="flex items-center gap-2 bg-[#00FF82] px-3 py-1.5 rounded-lg cursor-pointer"
+                                        className="flex items-center gap-2 bg-[#00FF82] px-3 py-1 rounded-lg cursor-pointer"
                                         onClick={toggleDropdown}
                                     >
-                                        <img
-                                            src={user?.profile_picture || "/default-profile.png"}
-                                            alt="Profile"
-                                            className="w-6 h-6 rounded-full"
-                                        />
+                                        {user?.profile_picture ? (
+                                            <img
+                                                src={user.profile_picture}
+                                                alt="Profile"
+                                                className="w-8 h-8 rounded-full"
+                                            />
+                                        ) : (
+                                            <IoPersonCircle className="w-8 h-8 text-black" />
+                                        )}
                                         <span className="text-black font-medium text-sm">{user?.username || "User"}</span>
                                     </div>
 
@@ -305,7 +310,6 @@ const Header = () => {
 
                     {!isAuthenticated && !isDesktop && (
                         <>
-                           
                             <div className="flex items-center gap-4">
                                 <div className="relative" onClick={() => navigate("/login")}>
                                     <div className="flex items-center gap-2 bg-[#00FF82] px-4 py-1.5 rounded-lg cursor-pointer">
