@@ -6,20 +6,19 @@ from users.models import Wallet, WalletTransaction
 
 def handle_wallet_payment(user, total, booking, event_title):
     wallet = get_object_or_404(Wallet, user=user)
-    if wallet.balance < Decimal(total):
+    if wallet.balance < total:
         raise ValidationError("Insufficient wallet balance.")
 
-    wallet.balance -= Decimal(total)
+    wallet.balance -= total
     wallet.save()
 
     WalletTransaction.objects.create(
         wallet=wallet,
         booking=booking,
         transaction_type='PAYMENT',
-        amount=Decimal(total),
+        amount=total,
         description=f"Payment for {event_title} tickets (Booking {booking.booking_id})",
     )
-
 
 def handle_stripe_payment(stripe_payment_method_id, total_in_cents, booking, event_title, user, event_id):
     if not stripe_payment_method_id:

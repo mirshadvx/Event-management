@@ -49,17 +49,16 @@ def validate_and_apply_coupon(code, user, event, selected_tickets):
         raise ValidationError("Coupon usage limit reached.")
 
     subtotal = sum(
-        float(ticket.price) * selected_tickets.get(ticket.ticket_type, 0)
+        Decimal(ticket.price) * Decimal(selected_tickets.get(ticket.ticket_type, 0))
         for ticket in event.tickets.all()
     )
 
-    if subtotal < float(coupon.min_order_amount):
+    if subtotal < Decimal(coupon.min_order_amount):
         raise ValidationError(f"Minimum order amount is ₹{coupon.min_order_amount}.")
 
-    discount = (
-        float(coupon.discount_value)
-        if coupon.discount_type == 'fixed'
-        else (subtotal * float(coupon.discount_value)) / 100
-    )
+    if coupon.discount_type == 'fixed':
+        discount = Decimal(coupon.discount_value)
+    else:
+        discount = (subtotal * Decimal(coupon.discount_value)) / Decimal('100')
 
-    return coupon, Decimal(subtotal), Decimal(discount)
+    return coupon, subtotal, discount

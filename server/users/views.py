@@ -448,19 +448,21 @@ class CheckoutAPIView(APIView):
             user = request.user
 
             subtotal = sum(
-                float(ticket.price) * selected_tickets.get(ticket.ticket_type, 0)
+                Decimal(ticket.price) * Decimal(selected_tickets.get(ticket.ticket_type, 0))
                 for ticket in event.tickets.all() )
+
             if subtotal == 0:
                 return Response({"error": "No valid tickets selected."}, status=status.HTTP_400_BAD_REQUEST)
 
             coupon = None
-            discount = Decimal(0)
+            discount = Decimal('0')
             if coupon_code:
                 coupon, subtotal, discount = validate_and_apply_coupon(coupon_code, user, event, selected_tickets)
 
             total = subtotal - discount
             if total < 0:
-                total = 0
+                total = Decimal('0')
+
             total_in_cents = int(total * 100)
             track_discount = subtotal - total
 
@@ -479,13 +481,15 @@ class CheckoutAPIView(APIView):
                 handle_wallet_payment(user, total, booking, event.event_title)
             elif payment_method == 'stripe':
                 payment_intent = handle_stripe_payment(
-                    stripe_payment_method_id, total_in_cents, booking, event.event_title, user, event_id )
+                    stripe_payment_method_id, total_in_cents, booking, event.event_title, user, event_id
+                )
 
                 if payment_intent.status == 'requires_action':
                     return Response({
                         "requires_action": True,
                         "payment_intent_client_secret": payment_intent.client_secret,
-                        "booking_id": str(booking.booking_id) }, status=status.HTTP_200_OK)
+                        "booking_id": str(booking.booking_id)
+                    }, status=status.HTTP_200_OK)
                 elif payment_intent.status != 'succeeded':
                     booking.delete()
                     return Response({"error": "Payment failed."}, status=status.HTTP_400_BAD_REQUEST)
@@ -511,14 +515,16 @@ class CheckoutAPIView(APIView):
                         ticket=ticket,
                         quantity=quantity,
                         used_tickets=0,
-                        total_price=Decimal(ticket.price) * quantity,
+                        total_price=Decimal(ticket.price) * Decimal(quantity),
                         unique_qr_code=qr_code,
-                        booking_id=str(booking.booking_id) )
+                        booking_id=str(booking.booking_id)
+                    )
                     booking.ticket_purchases.add(purchase)
                     ticket_purchases.append({
                         "ticket_type": ticket_type,
                         "quantity": quantity,
-                        "qr_code": qr_code })
+                        "qr_code": qr_code
+                    })
 
             if coupon:
                 coupon.used_count += 1
@@ -537,7 +543,7 @@ class CheckoutAPIView(APIView):
             return Response({
                 "message": "Payment successful!",
                 "booking_id": str(booking.booking_id),
-                "total": total,
+                "total": str(total),
                 "ticket_purchases": ticket_purchases
             }, status=status.HTTP_201_CREATED)
 
