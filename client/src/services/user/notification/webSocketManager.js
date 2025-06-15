@@ -1,5 +1,8 @@
 import chatApi from "../chat/chatApi";
 
+const baseWSUrl =
+    import.meta.env.VITE_DEBUG === "true" ? import.meta.env.VITE_WS_DEV_URL : import.meta.env.VITE_WS_PROD_URL;
+
 let socket = null;
 let listeners = [];
 let reconnectAttempts = 0;
@@ -19,7 +22,8 @@ export const connectWebSocket = async (userId, onMessage) => {
 
     try {
         const token = await chatApi.getSocketToken();
-        socket = new WebSocket(`ws://localhost:8000/ws/notifications/${userId}/?token=${token}`);
+        const socketUrl = `${baseWSUrl}/ws/notifications/${userId}/?token=${token}`;
+        socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
             console.log("WebSocket connected");
@@ -27,8 +31,12 @@ export const connectWebSocket = async (userId, onMessage) => {
         };
 
         socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            listeners.forEach((callback) => callback(data));
+            try {
+                const data = JSON.parse(event.data);
+                listeners.forEach((callback) => callback(data));
+            } catch (err) {
+                console.error("Error parsing WebSocket message:", err);
+            }
         };
 
         socket.onclose = () => {
@@ -39,6 +47,8 @@ export const connectWebSocket = async (userId, onMessage) => {
                 const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
                 console.log(`Reconnecting... Attempt ${reconnectAttempts} after ${delay}ms`);
                 setTimeout(() => connectWebSocket(userId, onMessage), delay);
+            } else {
+                console.warn("Max reconnection attempts reached. No further reconnection.");
             }
         };
 
@@ -57,9 +67,9 @@ export const disconnectWebSocket = () => {
     if (socket) {
         socket.close();
         socket = null;
-        reconnectAttempts = 0;
-        listeners = [];
     }
+    reconnectAttempts = 0;
+    listeners = [];
 };
 
 export const addListener = (callback) => {
