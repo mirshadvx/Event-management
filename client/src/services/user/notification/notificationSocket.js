@@ -6,7 +6,7 @@ const maxReconnectAttempts = 5;
 let isConnecting = false;
 
 export const connectWebSocket = async (userId, onMessage) => {
-    if (socket && socket.readyState === WebSocket.OPEN || isConnecting) {
+    if ((socket && socket.readyState === WebSocket.OPEN) || isConnecting) {
         console.log("WebSocket connection already established or in progress");
         return;
     }
@@ -16,17 +16,24 @@ export const connectWebSocket = async (userId, onMessage) => {
     try {
         const token = await chatApi.getSocketToken();
 
-        socket = new WebSocket(`ws://localhost:8000/ws/notifications/${userId}/?token=${token}`);
+        const path = `ws/notifications/${userId}/?token=${token}`;
+        const debug = import.meta.env.VITE_DEBUG === "true";
+        const baseWsUrl = debug ? import.meta.env.VITE_WS_DEV_URL : import.meta.env.VITE_WS_PROD_URL;
+
+        const wsUrl = `${baseWsUrl}/${path}`;
+        console.log("Attempting WebSocket connection to:", wsUrl);
+
+        socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
             console.log("WebSocket connection established");
-            reconnectAttempts = 0; 
+            reconnectAttempts = 0;
             isConnecting = false;
         };
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log("********",data)
+            console.log("********", data);
             onMessage(data);
         };
 
@@ -34,7 +41,6 @@ export const connectWebSocket = async (userId, onMessage) => {
             console.log("WebSocket connection closed");
             isConnecting = false;
 
-           
             if (reconnectAttempts < maxReconnectAttempts) {
                 reconnectAttempts++;
                 console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
