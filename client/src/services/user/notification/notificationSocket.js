@@ -1,5 +1,9 @@
 import chatApi from "../chat/chatApi";
 
+const baseWSUrl = import.meta.env.VITE_DEBUG === "true"
+    ? import.meta.env.VITE_WS_DEV_URL
+    : import.meta.env.VITE_WS_PROD_URL;
+
 let socket = null;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
@@ -16,14 +20,7 @@ export const connectWebSocket = async (userId, onMessage) => {
     try {
         const token = await chatApi.getSocketToken();
 
-        const path = `ws/notifications/${userId}/?token=${token}`;
-        const debug = import.meta.env.VITE_DEBUG === "true";
-        const baseWsUrl = debug ? import.meta.env.VITE_WS_DEV_URL : import.meta.env.VITE_WS_PROD_URL;
-
-        const wsUrl = `${baseWsUrl}/${path}`;
-        console.log("Attempting WebSocket connection to:", wsUrl);
-
-        socket = new WebSocket(wsUrl);
+        socket = new WebSocket(`${baseWSUrl}/ws/notifications/${userId}/?token=${token}`);
 
         socket.onopen = () => {
             console.log("WebSocket connection established");
