@@ -10,10 +10,9 @@ from django.db import transaction
 from decimal import Decimal
 from Admin.models import RevenueDistribution
 from users.models import WalletTransaction
-from .filters import EventFilterDistribution
-from .models import Profile
+from users.models import Profile
+from users.filters import EventFilterDistribution
 from chat.models import Notification
-from celery import shared_task
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 

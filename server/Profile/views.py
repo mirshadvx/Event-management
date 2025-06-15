@@ -134,8 +134,7 @@ class FollowRequestDetail(APIView):
             convo.save()
         message = f"{followed_profile.username} accepted your follow request."
         send_user_notification.delay(follower_profile.id, message)
-
-        return Response({'message': message}, status=status.HTTP_200_OK)
+        return Response({'message': "request accepted successfully"}, status=status.HTTP_200_OK)
 
     def reject_follow_request(self, follow_request):
         follow_request.status = 'rejected'
@@ -144,7 +143,7 @@ class FollowRequestDetail(APIView):
         followed_profile = follow_request.followed
         message = f"{followed_profile.username} rejected your follow request."
         send_user_notification.delay(follower_profile.id, message)
-        return Response({'message': message}, status=status.HTTP_200_OK)
+        return Response({'message': "request reject successfully"}, status=status.HTTP_200_OK)
             
 class ReviewAPIView(APIView):
     permission_classes = [IsAuthenticated]

@@ -528,11 +528,11 @@ class CheckoutAPIView(APIView):
             try:
                 if hasattr(event, 'group_chat') and event.group_chat:
                     event.group_chat.participants.add(user)
-                    send_user_notification(user_id=user.id, message=f"You entered {event.event_title} group chat")
+                    send_user_notification.delay(user_id=user.id, message=f"You entered {event.event_title} group chat")
             except Exception as e:
                 logger.error(f"Error adding user to group chat: {str(e)}")
 
-            send_user_notification(user_id=user.id, message=f"Booking successful for {event.event_title}")
+            send_user_notification.delay(user_id=user.id, message=f"Booking successful for {event.event_title}")
 
             return Response({
                 "message": "Payment successful!",
