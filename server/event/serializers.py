@@ -64,7 +64,6 @@ class EventSerializer(serializers.ModelSerializer):
 
             return instance
         except Exception as e:
-            print(f"Error in serializer save method: {e}")
             raise
 
 class EventPreviewSerializer(serializers.ModelSerializer):

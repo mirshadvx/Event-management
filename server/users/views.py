@@ -59,11 +59,9 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         try: 
             response = super().post(request, *args, **kwargs)
-            print(response)
             tokens = response.data
             access_token = tokens['access']
             refresh_token = tokens['refresh']
-            print(tokens)
             res =  Response()
             res.data = {'success':True}
             res.set_cookie(
@@ -95,7 +93,6 @@ class CustomRefreshTokenView(TokenRefreshView):
             refresh_token = request.COOKIES.get('refresh_token')
             request.data['refresh'] = refresh_token
             response = super().post(request, *args, **kwargs)
-            print(response)
             tokens = response.data
             access_token = tokens['access']
             res = Response()
@@ -226,9 +223,7 @@ def google_login(request):
 
     try:
         decoded_token = jwt.decode(token, options={"verify_signature": False, "verify_exp": False, "verify_iat": False})
-        print("Decoded token:", decoded_token)
         test = firebase_auth.verify_id_token(token)
-        print("tessss",test)
 
         email = decoded_token.get("email")
         name = decoded_token.get("name", email.split("@")[0]) 
@@ -259,7 +254,6 @@ def google_login(request):
         
         return response
     except Exception as e:
-        print("Error:", str(e))
         return Response({"success": False, "error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -272,7 +266,6 @@ class get_user_profile(APIView):
             serializer = UserProfileSerializer(user)
             return Response({"success": True, "data": serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
-            print(e)
             return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
     def patch(self, request):
@@ -286,7 +279,6 @@ class get_user_profile(APIView):
             else:
                 return Response({"success": False, "error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(e)
             return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class OrganizerRequestHandle(APIView):
@@ -378,8 +370,6 @@ def UpdateProfilePicture(request):
             upload_result = cloudinary.uploader.upload(request.FILES['profile_picture'])
             user.profile_picture = upload_result['url']
             user.save()
-            print(upload_result['url'])
-            print(upload_result)
         
         return Response({
             "success": True, 
@@ -388,7 +378,6 @@ def UpdateProfilePicture(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        print(f"Error: {str(e)}")  
         return Response({
             "success": False, 
             "message": f"Profile upload failed: {str(e)}"
@@ -588,7 +577,6 @@ def joined_events(request):
         return Response(serializer.data)
 
     except Exception as e:
-        print(f"Error occurred: {str(e)}")
         return Response(
             {"error": f"An error occurred while processing your request: {str(e)}"},
             status=status.HTTP_400_BAD_REQUEST
@@ -631,7 +619,6 @@ def cancel_ticket(request):
         refund_amount = Decimal('0.00')
         total_cancel_ticket_count = 0
         canceled_tickets = []
-        print(refund_amount)
         for ticket_data in tickets_to_cancel:
             ticket_id = ticket_data.get('ticket_id')
             cancel_quantity = ticket_data.get('quantity',0)
@@ -785,7 +772,6 @@ class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        print(request.data)
         token = request.data.get("token","").strip()
         password = request.data.get("password", "").strip()
         
@@ -1028,7 +1014,6 @@ class UpgradePlan(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
-            print(f"[Upgrade Error]: {e}")
             return Response({
                 "success": False,
                 "message": "An unexpected error occurred while processing your upgrade."
@@ -1069,16 +1054,15 @@ class UpgradePlan(APIView):
             upgrade_cost = max(upgrade_cost, 0)
             
             if upgrade_cost == 0:
-                with transaction.atomic():
-                    current_subscription.plan = premium_plan
-                    current_subscription.save()
-                    SubscriptionTransaction.objects.create(
-                        subscription=current_subscription,
-                        amount=0,
-                        transaction_type="upgrade",
-                        payment_method="none",
-                        transaction_id=f"zero_cost_upgrade_{uuid.uuid4()}"
-                    )
+                current_subscription.plan = premium_plan
+                current_subscription.save()
+                SubscriptionTransaction.objects.create(
+                    subscription=current_subscription,
+                    amount=0,
+                    transaction_type="upgrade",
+                    payment_method="none",
+                    transaction_id=f"zero_cost_upgrade_{uuid.uuid4()}"
+                )
                 return Response({
                     "success": True,
                     "message": "Subscription upgraded successfully at no additional cost",
@@ -1121,7 +1105,6 @@ class UpgradePlan(APIView):
                 "message": "Premium plan is currently unavailable"
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"[Upgrade Error]: {e}")
             return Response({
                 "success": False,
                 "message": "An unexpected error occurred while processing your upgrade."
@@ -1137,28 +1120,27 @@ class UpgradePlan(APIView):
                     "message": "Insufficient wallet balance"
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            with transaction.atomic():
-                wallet.balance -= Decimal(str(amount))
-                wallet.save()
-                
-                wallet_transaction = WalletTransaction.objects.create(
-                    wallet=wallet,
-                    transaction_type="PAYMENT",
-                    amount=amount,
-                    description=f"Subscription upgrade from Basic to Premium"
-                )
-                
-                old_end_date = current_subscription.end_date
-                current_subscription.plan = premium_plan
-                current_subscription.save()
-                
-                subscription_transaction = SubscriptionTransaction.objects.create(
-                    subscription=current_subscription,
-                    amount=amount,
-                    transaction_type="upgrade",
-                    payment_method="wallet",
-                    transaction_id=str(wallet_transaction.transaction_id)
-                )
+            wallet.balance -= Decimal(str(amount))
+            wallet.save()
+            
+            wallet_transaction = WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type="PAYMENT",
+                amount=amount,
+                description=f"Subscription upgrade from Basic to Premium"
+            )
+            
+            old_end_date = current_subscription.end_date
+            current_subscription.plan = premium_plan
+            current_subscription.save()
+            
+            subscription_transaction = SubscriptionTransaction.objects.create(
+                subscription=current_subscription,
+                amount=amount,
+                transaction_type="upgrade",
+                payment_method="wallet",
+                transaction_id=str(wallet_transaction.transaction_id)
+            )
                 
             return Response({
                 "success": True,
@@ -1167,7 +1149,6 @@ class UpgradePlan(APIView):
             }, status=status.HTTP_200_OK)
                 
         except Exception as e:
-            print(f"[Wallet Payment Error]: {e}")
             return Response({
                 "success": False,
                 "message": "An error occurred while processing wallet payment"
@@ -1214,20 +1195,19 @@ class UpgradePlan(APIView):
                     "message": "Payment has not been completed"
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            with transaction.atomic():
-                old_end_date = current_subscription.end_date
-                current_subscription.plan = premium_plan
-                current_subscription.payment_method = "stripe"
-                current_subscription.payment_id = payment_intent_id
-                current_subscription.save()
-                
-                subscription_transaction = SubscriptionTransaction.objects.create(
-                    subscription=current_subscription,
-                    amount=amount,
-                    transaction_type="upgrade",
-                    payment_method="stripe",
-                    transaction_id=payment_intent_id
-                )
+            old_end_date = current_subscription.end_date
+            current_subscription.plan = premium_plan
+            current_subscription.payment_method = "stripe"
+            current_subscription.payment_id = payment_intent_id
+            current_subscription.save()
+            
+            subscription_transaction = SubscriptionTransaction.objects.create(
+                subscription=current_subscription,
+                amount=amount,
+                transaction_type="upgrade",
+                payment_method="stripe",
+                transaction_id=payment_intent_id
+            )
                 
             return Response({
                 "success": True,
@@ -1236,13 +1216,11 @@ class UpgradePlan(APIView):
             }, status=status.HTTP_200_OK)
                 
         except stripe.error.StripeError as e:
-            print(f"[Stripe Error]: {e}")
             return Response({
                 "success": False,
                 "message": str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"[Stripe Processing Error]: {e}")
             return Response({
                 "success": False,
                 "message": "An error occurred while processing payment"
@@ -1287,7 +1265,6 @@ class RenewSubscription(APIView):
                             status=status.HTTP_200_OK)
             
         except Exception as e:
-            print(e)
             return Response({"success": False, "error": f"{e}"}, status=status.HTTP_404_NOT_FOUND)
 
     
@@ -1381,8 +1358,9 @@ class RenewSubscription(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
         except Exception as e:
-            print(e)
-            
+            return Response({
+                    "success": False, 
+                    "message": "payment failed" }, status=status.HTTP_400_BAD_REQUEST) 
 
     def process_subscription(self,user, plan, payment_method, payment_id):
         start_date = timezone.now()

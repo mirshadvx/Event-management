@@ -32,7 +32,6 @@ class OrganizedList(APIView):
 
             return paginator.get_paginated_response(serialized_data.data)
         except Exception as e:
-            print(e)
             return Response({"error": "datas not found"}, status=status.HTTP_400_BAD_REQUEST)
         
 class UserProfileDetails(APIView):
@@ -47,7 +46,6 @@ class UserProfileDetails(APIView):
             serializer = UserProfileSerializer(user, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
-            print(e)
             return Response({"error":"Failed to load the data"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
 class ParticipatedList(APIView):
@@ -71,7 +69,7 @@ class ParticipatedList(APIView):
             return paginator.get_paginated_response(serializer.data)
 
         except Exception as e:
-            print("Error:", e)
+            ("Error:", e)
             return Response({"error": "Data not found"}, status=status.HTTP_400_BAD_REQUEST)
 
 class EventOngoingData(APIView):

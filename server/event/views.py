@@ -26,7 +26,6 @@ class EventCreateView(APIView):
         return self.handle_event(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
-        print(request.data)
         return self.handle_event(request, *args, **kwargs)
     
     def handle_event(self, request, *args, **kwargs):
@@ -69,7 +68,6 @@ class EventCreateView(APIView):
         except Event.DoesNotExist:
             return Response({"error": "Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(e)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class EventPreviewPagination(PageNumberPagination):

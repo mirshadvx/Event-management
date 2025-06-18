@@ -26,7 +26,6 @@ def send_otp_email(email, otp):
     }
     html_message = render_to_string('email/otp_send.html', context)
     plain_message = strip_tags(html_message)
-    print(email, otp)
     send_mail(
         subject='Verify Your Email',
         message=plain_message,
@@ -41,13 +40,11 @@ def send_otp_email(email, otp):
 @shared_task
 def test_celery(test):
     # Simulate sending an email
-    print(f"testing celery {test}")
     return f"testing{test}"
 
     
 @shared_task
 def distribute_event_revenue():
-    print("Task running at:", timezone.now())
     logging.debug("distibute event revenuse is triggered", timezone.now())
     
     filter_data = {
@@ -61,59 +58,56 @@ def distribute_event_revenue():
     
     for event in events:
         try:
-            with transaction.atomic():
-                bookings = event.bookings.all()
-                total_revenue = sum(booking.subtotal for booking in bookings)
-                total_participants = event.total_tickets_sold()
+            bookings = event.bookings.all()
+            total_revenue = sum(booking.subtotal for booking in bookings)
+            total_participants = event.total_tickets_sold()
+            
+            if total_participants < 100:
+                admin_percentage = Decimal('5.00')
+            elif total_participants < 200:
+                admin_percentage = Decimal('7.00')
+            elif total_participants < 500:
+                admin_percentage = Decimal('10.00')
+            else:
+                admin_percentage = Decimal('15.00')
                 
-                if total_participants < 100:
-                    admin_percentage = Decimal('5.00')
-                elif total_participants < 200:
-                    admin_percentage = Decimal('7.00')
-                elif total_participants < 500:
-                    admin_percentage = Decimal('10.00')
-                else:
-                    admin_percentage = Decimal('15.00')
-                    
-                admin_amount = (total_revenue * admin_percentage) / Decimal('100.00')
-                organizer_amount = total_revenue - admin_amount
-                
-                Revenue = RevenueDistribution.objects.create(
-                    event = event,
-                    admin_percentage = admin_percentage,
-                    total_revenue = total_revenue,
-                    total_participants = total_participants,
-                    admin_amount = admin_amount,
-                    organizer_amount = organizer_amount,
-                    distributed_at=timezone.now(),
-                    is_distributed = True,
-                )
-                
-                organizer_wallet = event.organizer.wallet
-                organizer_wallet.balance += organizer_amount
-                organizer_wallet.save()
-                
-                event.revenue_distributed = True
-                event.save()
-                
-                WalletTransaction.objects.create(
-                    wallet = organizer_wallet,
-                    transaction_type="PAYMENT",
-                    amount = organizer_amount,
-                    description = f"Revenue distribution for {event.event_title}"
-                )
-                
-                logger.info(
-                    f"Revenue distributed for {event.event_title}: "
-                    f"Admin: ₹{admin_amount}, Organizer: ₹{organizer_amount}"
-                )
+            admin_amount = (total_revenue * admin_percentage) / Decimal('100.00')
+            organizer_amount = total_revenue - admin_amount
+            
+            Revenue = RevenueDistribution.objects.create(
+                event = event,
+                admin_percentage = admin_percentage,
+                total_revenue = total_revenue,
+                total_participants = total_participants,
+                admin_amount = admin_amount,
+                organizer_amount = organizer_amount,
+                distributed_at=timezone.now(),
+                is_distributed = True,
+            )
+            
+            organizer_wallet = event.organizer.wallet
+            organizer_wallet.balance += organizer_amount
+            organizer_wallet.save()
+            
+            event.revenue_distributed = True
+            event.save()
+            
+            WalletTransaction.objects.create(
+                wallet = organizer_wallet,
+                transaction_type="PAYMENT",
+                amount = organizer_amount,
+                description = f"Revenue distribution for {event.event_title}"
+            )
+            
+            logger.info(
+                f"Revenue distributed for {event.event_title}: "
+                f"Admin: ₹{admin_amount}, Organizer: ₹{organizer_amount}"
+            )
             
         except Exception as e:
             logger.error(f"Error distributing revenue for {event.event_title}: {str(e)}")
             continue
 
-    print("Revenue distribution completed at:", timezone.now())
-    
 @shared_task
 def send_user_notification(user_id, message):
     try:

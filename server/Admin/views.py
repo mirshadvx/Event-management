@@ -56,7 +56,6 @@ def admin_login(request):
             return Response({'success': False, "error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
         
         user = authenticate(request, username = username, password = password)
-        print(user)
         if not user.is_staff:
             return Response({"success": False, "error": "You are not authorized to access the admin"}, status=status.HTTP_403_FORBIDDEN)
         
@@ -110,8 +109,6 @@ class OrganizerRequestList(APIView):
         page = paginator.paginate_queryset(queryset, request)
         serializer = OrganizerRequestSerializer(page, many=True)
         
-        print(serializer.data)
-        
         return paginator.get_paginated_response(serializer.data)
 
 class OrganizerRequestUpdateStatus(APIView):
@@ -123,7 +120,6 @@ class OrganizerRequestUpdateStatus(APIView):
             new_status = request.data.get('status')
             admin_notes = request.data.get('admin_notes', '')
             current_status = organizer_request.status
-            print('admin status ', new_status)
 
             valid_statuses = dict(OrganizerRequest._meta.get_field('status').choices)
             if new_status not in valid_statuses:
@@ -135,30 +131,29 @@ class OrganizerRequestUpdateStatus(APIView):
             if current_status == 'approved':
                 return Response({'error': 'User is already approved. Status cannot be changed.'}, status=status.HTTP_400_BAD_REQUEST)
                 
-            with transaction.atomic():
-                organizer_request.status = new_status
-                organizer_request.handled_at = timezone.now()
-                organizer_request.admin_notes = admin_notes
-                organizer_request.save()
+            organizer_request.status = new_status
+            organizer_request.handled_at = timezone.now()
+            organizer_request.admin_notes = admin_notes
+            organizer_request.save()
 
-                user_profile = organizer_request.user
-                
-                if new_status == 'approved': 
-                    user_profile.organizerVerified = True
-                elif new_status == 'rejected':
-                    user_profile.organizerVerified = False
-                user_profile.save()
-                
-                channel_layer = get_channel_layer()
-                async_to_sync(channel_layer.group_send)(
-                    f"organizer_{user_profile.id}",
-                    {
-                        "type": "status_update",
-                        "status": new_status,
-                        "admin_notes": admin_notes,
-                        "organizerVerified": user_profile.organizerVerified,
-                        }
-                )
+            user_profile = organizer_request.user
+            
+            if new_status == 'approved': 
+                user_profile.organizerVerified = True
+            elif new_status == 'rejected':
+                user_profile.organizerVerified = False
+            user_profile.save()
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"organizer_{user_profile.id}",
+                {
+                    "type": "status_update",
+                    "status": new_status,
+                    "admin_notes": admin_notes,
+                    "organizerVerified": user_profile.organizerVerified,
+                    }
+            )
                    
             serializer = OrganizerRequestSerializer(organizer_request)
             return Response(serializer.data)
@@ -174,7 +169,6 @@ class OrganizerRequestBulkUpdate(APIView):
     def post(self, request):
         ids = request.data.get('ids', [])
         new_status = request.data.get('status')
-        print("new status ", new_status)
 
         if not ids or not isinstance(ids, list):
             return Response(
@@ -250,7 +244,6 @@ class UserListView(APIView):
         paginator = StandardPageNumberPagination()
         page = paginator.paginate_queryset(queryset, request)
         serializer = ProfileSerializerAdmin(page, many=True)
-        print(serializer.data)
         
         return paginator.get_paginated_response(serializer.data)
 
@@ -409,7 +402,6 @@ class BadgeListCreateView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({"success":True},status=status.HTTP_201_CREATED)
-        print("Serializer errors:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BadgeDetailView(APIView):
