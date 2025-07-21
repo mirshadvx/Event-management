@@ -32,7 +32,6 @@ function App() {
     useEffect(() => {
         if (isAuthenticated && !user && !loading) {
             dispatch(get_ProfileData());
-            console.log(user);
         }
     }, [isAuthenticated, user, loading, dispatch]);
 

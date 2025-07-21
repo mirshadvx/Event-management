@@ -119,15 +119,13 @@ const CreateEvent_Outlet = () => {
     const formValues = watch();
 
     const totalTicketQuantity = formValues.tickets.reduce((sum, ticket) => sum + (parseInt(ticket.ticketQuantity) || 0), 0);
-    const capacityCount = parseInt(formValues.capacity) || 0;
+
     useEffect(() => {
         if (eventId) {
             const fetchEventData = async () => {
                 try {
                     const response = await api.get(`event/get-event/${eventId}/`);
                     const eventData = response.data;
-
-                    console.log("Fetched event data:", eventData);
 
                     setValue("event_title", eventData.event_title);
                     setValue("event_type", eventData.event_type);
@@ -145,9 +143,6 @@ const CreateEvent_Outlet = () => {
                     setValue("age_restriction", Boolean(eventData.age_restriction), { shouldValidate: true });
                     setValue("cancel_ticket", Boolean(eventData.cancel_ticket), { shouldValidate: true });
                     setValue("special_instructions", eventData.special_instructions || "");
-
-                    console.log("age_restriction:", eventData.age_restriction, "Type:", typeof eventData.age_restriction);
-                    console.log("cancel_ticket:", eventData.cancel_ticket, "Type:", typeof eventData.cancel_ticket);
 
                     if (eventData.tickets && eventData.tickets.length > 0) {
                         remove();
@@ -183,7 +178,23 @@ const CreateEvent_Outlet = () => {
         }
     }, [eventId, setValue, append, remove]);
 
+    const validateTicketCapacity = (data) => {
+        const totalTickets = data.tickets.reduce((sum, ticket) => sum + (parseInt(ticket.ticketQuantity) || 0), 0);
+        const capacity = parseInt(data.capacity) || 0;
+
+        if (totalTickets !== capacity && capacity !== 0) {
+            return `Total ticket quantity (${totalTickets}) must equal capacity (${capacity})`;
+        }
+        return null;
+    };
+
     const onSubmit = async (data, action) => {
+        const capacityError = validateTicketCapacity(data);
+        if (capacityError) {
+            toast.error(capacityError);
+            return;
+        }
+
         setLoading(true);
         const formData = new FormData();
 
@@ -639,11 +650,6 @@ const CreateEvent_Outlet = () => {
                                 {...register("capacity", {
                                     required: "Capacity is required",
                                     min: { value: 1, message: "Capacity must be at least 1" },
-                                    validate: {
-                                        matchesTickets: (value) =>
-                                            totalTicketQuantity === parseInt(value) ||
-                                            "Capacity must match total ticket quantity",
-                                    },
                                 })}
                                 placeholder="Enter maximum capacity"
                                 className="w-full bg-[#1E1E1E] text-white border-2 border-[#3C3C3C] rounded-lg p-2 focus:outline-none focus:border-green-500"
@@ -704,12 +710,6 @@ const CreateEvent_Outlet = () => {
                                     {...register(`tickets.${index}.ticketQuantity`, {
                                         required: "Ticket quantity is required",
                                         min: { value: 1, message: "Quantity must be at least 1" },
-                                        validate: {
-                                            matchesCapacity: () =>
-                                                !capacityCount ||
-                                                totalTicketQuantity === capacityCount ||
-                                                `Total ticket quantity (${totalTicketQuantity}) must equal capacity (${capacityCount})`,
-                                        },
                                     })}
                                     placeholder="Enter ticket quantity"
                                     className="w-full bg-[#1E1E1E] text-white border-2 border-[#3C3C3C] rounded-lg p-2 focus:outline-none focus:border-green-500"
@@ -748,7 +748,7 @@ const CreateEvent_Outlet = () => {
                     <div className="mb-4">
                         <p className="text-white">
                             Total Tickets: {totalTicketQuantity}
-                            {capacityCount > 0 && ` / ${capacityCount} capacity`}
+                            {parseInt(formValues.capacity) > 0 && ` / ${formValues.capacity} capacity`}
                         </p>
                     </div>
                     {fields.length < availableTicketTypes.length && (

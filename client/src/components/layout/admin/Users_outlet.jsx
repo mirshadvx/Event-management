@@ -1,21 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-    Search,
-    MoreHorizontal,
-    CheckCircle,
-    XCircle,
-    RefreshCw,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
+import { Search, MoreHorizontal, CheckCircle, XCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import adminApi from "@/services/adminApi";
 
 const UsersOutlet = () => {
@@ -59,19 +46,11 @@ const UsersOutlet = () => {
     }, [fetchUsers]);
 
     const toggleUserSelection = (userId) => {
-        setSelectedUsers((prev) =>
-            prev.includes(userId)
-                ? prev.filter((id) => id !== userId)
-                : [...prev, userId]
-        );
+        setSelectedUsers((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
     };
 
     const toggleAllUsers = () => {
-        setSelectedUsers((prev) =>
-            prev.length === users.length && users.length > 0
-                ? []
-                : users.map((user) => user.id)
-        );
+        setSelectedUsers((prev) => (prev.length === users.length && users.length > 0 ? [] : users.map((user) => user.id)));
     };
 
     const toggleUserStatus = async (userId) => {
@@ -82,9 +61,7 @@ const UsersOutlet = () => {
             const response = await adminApi.patch(`users/${userId}/update_status/`, {
                 is_active: newStatus,
             });
-            setUsers((prev) =>
-                prev.map((u) => (u.id === userId ? response.data : u))
-            );
+            setUsers((prev) => prev.map((u) => (u.id === userId ? response.data : u)));
         } catch (err) {
             setError(err.response?.data?.error || "Failed to update user status");
         }
@@ -181,21 +158,11 @@ const UsersOutlet = () => {
                     <span className="text-sm font-medium text-purple-800 dark:text-purple-300">
                         {selectedUsers.length} user{selectedUsers.length > 1 ? "s" : ""} selected
                     </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => bulkToggleStatus(true)}
-                        disabled={loading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => bulkToggleStatus(true)} disabled={loading}>
                         <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
                         Activate
                     </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => bulkToggleStatus(false)}
-                        disabled={loading}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => bulkToggleStatus(false)} disabled={loading}>
                         <XCircle className="h-4 w-4 mr-2 text-red-500" />
                         Block
                     </Button>
@@ -240,10 +207,7 @@ const UsersOutlet = () => {
                             </tr>
                         ) : (
                             users.map((user) => (
-                                <tr
-                                    key={user.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                >
+                                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="p-4">
                                         <input
                                             type="checkbox"
@@ -255,16 +219,13 @@ const UsersOutlet = () => {
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             <img
-                                                src={user.profile_picture || "/default-avatar.png"}
+                                                src={user.profile_picture}
                                                 alt={user.username}
                                                 className="w-8 h-8 rounded-full object-cover"
-                                                onError={(e) => (e.target.src = "/default-avatar.png")}
                                             />
                                             <div>
                                                 <div className="font-medium">{user.username}</div>
-                                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {user.email}
-                                                </div>
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -328,8 +289,8 @@ const UsersOutlet = () => {
             {/* Pagination */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1}–
-                    {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} users
+                    Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
+                    {totalItems} users
                 </div>
                 <div className="flex items-center gap-2">
                     <Button
@@ -443,13 +404,13 @@ export default UsersOutlet;
 //     }, [fetchUsers]);
 
 //     const toggleUserSelection = (userId) => {
-//         setSelectedUsers((prev) => 
+//         setSelectedUsers((prev) =>
 //             prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
 //         );
 //     };
 
 //     const toggleAllUsers = () => {
-//         setSelectedUsers((prev) => 
+//         setSelectedUsers((prev) =>
 //             prev.length === users.length && users.length > 0 ? [] : users.map((user) => user.id)
 //         );
 //     };
@@ -461,7 +422,7 @@ export default UsersOutlet;
 //             const response = await adminApi.patch(`users/${userId}/update_status/`, {
 //                 is_active: newStatus,
 //             });
-//             setUsers((prev) => 
+//             setUsers((prev) =>
 //                 prev.map((u) => (u.id === userId ? response.data : u))
 //             );
 //         } catch (error) {
@@ -499,7 +460,7 @@ export default UsersOutlet;
 //     };
 
 //     const getStatusStyles = (isActive) => {
-//         return isActive 
+//         return isActive
 //             ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
 //             : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
 //     };
@@ -622,9 +583,9 @@ export default UsersOutlet;
 //                                     </td>
 //                                     <td className="p-4">
 //                                         <div className="flex items-center gap-3">
-//                                             <img 
-//                                                 src={user.profile_picture || "/default-avatar.png"} 
-//                                                 alt={user.username} 
+//                                             <img
+//                                                 src={user.profile_picture || "/default-avatar.png"}
+//                                                 alt={user.username}
 //                                                 className="w-8 h-8 rounded-full"
 //                                                 onError={(e) => e.target.src = "/default-avatar.png"}
 //                                             />
@@ -745,8 +706,6 @@ export default UsersOutlet;
 // };
 
 // export default UsersOutlet;
-
-
 
 // import React, { useState, useMemo } from "react";
 // import {

@@ -3,14 +3,9 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import adminApi from "@/services/adminApi";
 import { toast } from "sonner";
 
@@ -37,10 +32,7 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
     });
 
     const [modalError, setModalError] = useState(null);
-
     const discount_type = watch("discount_type");
-    const start_date = watch("start_date");
-    const end_date = watch("end_date");
 
     const fetchCoupon = useCallback(async () => {
         try {
@@ -93,7 +85,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
 
     const onSubmitForm = async (data) => {
         setModalError(null);
-
         if (new Date(data.start_date) >= new Date(data.end_date)) {
             setModalError("End date must be after start date");
             toast.error("End date must be after start date", {
@@ -102,15 +93,11 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
             });
             return;
         }
-
         const submitData = {
             ...data,
             discount_value: parseFloat(data.discount_value),
             min_order_amount: parseFloat(data.min_order_amount),
-            start_date: data.start_date,
-            end_date: data.end_date,
         };
-
         if (status === "new") {
             const result = await onSubmit(submitData);
             if (result.success) {
@@ -130,32 +117,32 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                     <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
                         {status === "new" ? "Create New Coupon" : "Edit Coupon"}
                     </DialogTitle>
+                    <DialogDescription>
+                        {status === "new"
+                            ? "Fill in the details to create a new coupon."
+                            : "Update the details of the existing coupon."}
+                    </DialogDescription>
                 </DialogHeader>
-
                 <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6 p-2">
                     {modalError && (
                         <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-800 dark:text-red-300 text-sm">
                             {modalError}
                         </div>
                     )}
-
                     <div className="grid grid-cols-2 gap-6 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label htmlFor="code">Coupon Code*</Label>
+                            <Label>Coupon Code*</Label>
                             <Input
                                 id="code"
                                 {...register("code", {
                                     required: "Coupon code is required",
                                 })}
                                 placeholder="SUMMER2025"
-                                // className={cn("uppercase", errors.code && "border-red-500")}
-                                value={watch("code")}
                             />
                             {errors.code && <p className="text-red-500 text-xs">{errors.code.message}</p>}
                         </div>
-
                         <div className="space-y-2">
-                            <Label htmlFor="title">Title*</Label>
+                            <Label>Title*</Label>
                             <Input
                                 id="title"
                                 {...register("title", {
@@ -167,7 +154,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                             />
                             {errors.title && <p className="text-red-500 text-xs">{errors.title.message}</p>}
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="discount_type">Discount Type*</Label>
                             <Select onValueChange={(value) => setValue("discount_type", value)} value={discount_type}>
@@ -180,7 +166,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                                 </SelectContent>
                             </Select>
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="discount_value">Discount Value*</Label>
                             <Input
@@ -203,7 +188,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                                 <p className="text-red-500 text-xs">{errors.discount_value.message}</p>
                             )}
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="min_order_amount">Min Order Amount*</Label>
                             <Input
@@ -222,7 +206,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                                 <p className="text-red-500 text-xs">{errors.min_order_amount.message}</p>
                             )}
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="usage_limit">Usage Limit*</Label>
                             <Input
@@ -238,75 +221,30 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                             />
                             {errors.usage_limit && <p className="text-red-500 text-xs">{errors.usage_limit.message}</p>}
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="start_date">Start Date*</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !start_date && "text-muted-foreground",
-                                            errors.start_date && "border-red-500"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {start_date ? format(new Date(start_date), "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={start_date ? new Date(start_date) : undefined}
-                                        onSelect={(date) => setValue("start_date", date ? format(date, "yyyy-MM-dd") : "")}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            <input
-                                type="hidden"
+                            <Input
+                                id="start_date"
+                                type="date"
                                 {...register("start_date", {
                                     required: "Start date is required",
                                 })}
+                                className={errors.start_date && "border-red-500"}
                             />
                             {errors.start_date && <p className="text-red-500 text-xs">{errors.start_date.message}</p>}
                         </div>
-
                         <div className="space-y-2">
                             <Label htmlFor="end_date">End Date*</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !end_date && "text-muted-foreground",
-                                            errors.end_date && "border-red-500"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {end_date ? format(new Date(end_date), "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={end_date ? new Date(end_date) : undefined}
-                                        onSelect={(date) => setValue("end_date", date ? format(date, "yyyy-MM-dd") : "")}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            <input
-                                type="hidden"
+                            <Input
+                                id="end_date"
+                                type="date"
                                 {...register("end_date", {
                                     required: "End date is required",
                                 })}
+                                className={errors.end_date && "border-red-500"}
                             />
                             {errors.end_date && <p className="text-red-500 text-xs">{errors.end_date.message}</p>}
                         </div>
-
                         <div className="flex items-center space-x-2">
                             <Checkbox
                                 id="is_active"
@@ -316,7 +254,6 @@ const CouponModal = ({ isOpen, onClose, onSubmit, status, id, fetchCoupons }) =>
                             <Label htmlFor="is_active">Active</Label>
                         </div>
                     </div>
-
                     <DialogFooter className="sm:justify-end gap-2 flex flex-row">
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel

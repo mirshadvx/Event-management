@@ -48,7 +48,6 @@ function EventDataModal({ id, onClose }) {
                 setImages(eventImages);
                 setLiked(response.data?.liked);
             } catch (error) {
-                console.error("Error fetching event:", error);
             } finally {
                 setLoading(false);
             }
@@ -124,9 +123,7 @@ function EventDataModal({ id, onClose }) {
                     return updatedEvent;
                 });
             }
-        } catch (error) {
-            console.log(error);
-        }
+        } catch (error) {}
     };
 
     const Submit_Comment = async (text) => {
@@ -152,9 +149,7 @@ function EventDataModal({ id, onClose }) {
                     comment_count: prevEvent.comment_count + 1,
                 }));
             }
-        } catch (error) {
-            console.error("Error submitting comment:", error);
-        }
+        } catch (error) {}
     };
 
     return (
