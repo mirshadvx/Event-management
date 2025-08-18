@@ -151,3 +151,32 @@ class EventCompleteDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = "__all__"
+
+class BookedEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = [ "event_title", "event_type", "venue_name", "address",
+                  "city", "start_date", "end_date", "start_time",
+            "end_time", "event_banner",]
+
+class BookedTicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ticket
+        fields = ["ticket_type", "price", "description"]
+
+class TicketPurchaseSerializer(serializers.ModelSerializer):
+    ticket = BookedTicketSerializer()
+    
+    class Meta:
+        model = TicketPurchase
+        fields = ["unique_id", "booking_id", "ticket", "quantity",
+                  "used_tickets", "total_price", "purchased_at", "unique_qr_code"]
+
+class BookingSerializer(serializers.ModelSerializer):
+    event = BookedEventSerializer()
+    ticket_purchases = TicketPurchaseSerializer(many=True)
+
+    class Meta:
+        model = Booking
+        fields = ["booking_id","event", "payment_method",
+            "subtotal", "discount", "total", "track_discount", "created_at", "ticket_purchases",]

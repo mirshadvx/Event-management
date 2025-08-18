@@ -27,3 +27,4 @@ server/celerybeat-schedule.bak
 server/celerybeat-schedule.dat
 server/celerybeat-schedule.dir
 server/staticfiles/
+server/celerybeat-schedule

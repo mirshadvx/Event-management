@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Event, Like, Comment, LiveStream
-from .serializers import EventSerializer, LiveStreamSerializer, EventCompleteDataSerializer
+from .serializers import EventSerializer, LiveStreamSerializer, EventCompleteDataSerializer, BookingSerializer
 from django.db.models import Count
 from .serializers import EventPreviewSerializer, EventSerializerExplore
 from rest_framework.pagination import PageNumberPagination
@@ -16,6 +16,7 @@ from .filters import EventFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import permission_classes
 from users.tasks import send_user_notification
+from users.models import Booking
 import logging
 logger = logging.getLogger(__name__)
 
@@ -247,3 +248,12 @@ class GetEvent(APIView):
             return Response(seriazlier.data)
         except Event.DoesNotExist:
             return Response({"error": "Event does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+class BookedTicketDetails(APIView):
+    def get(self, request, booking_id):
+        try:
+            booking = get_object_or_404(Booking, booking_id=booking_id)
+            serializer = BookingSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"message": "failed to fetch the ticket details", "error" : str(e)}, status=status.HTTP_400_BAD_REQUEST)
