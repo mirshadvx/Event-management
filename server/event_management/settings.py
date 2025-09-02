@@ -24,6 +24,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+REDIS_TEMP_USER_KEEP_TIME = int(os.getenv("REDIS_TEMP_USER_KEEP_TIME", 140))
+
 INSTALLED_APPS = [
     'daphne',
     'channels',

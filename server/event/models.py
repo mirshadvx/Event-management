@@ -18,14 +18,14 @@ class Event(models.Model):
 
     # Basic Information
     organizer = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='events')
-    event_title = models.CharField(max_length=255)
-    event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES)
+    event_title = models.CharField(max_length=255, db_index=True)
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES, db_index=True)
     description = models.TextField()
     
     # Venue Details
-    venue_name = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=100)
+    venue_name = models.CharField(max_length=255, db_index=True)
+    address = models.CharField(max_length=255, db_index=True)
+    city = models.CharField(max_length=100, db_index=True)
     
     # Date and Time
     start_date = models.DateField()
@@ -144,8 +144,8 @@ class Review(models.Model):
         (5, '5 Stars'),
         ]
 
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="reviews")
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="event_reviews")
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="reviews", db_index=True)
+    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="event_reviews", db_index=True)
     rating = models.IntegerField(choices=RATING_CHOICES)
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

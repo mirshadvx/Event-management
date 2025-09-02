@@ -45,7 +45,8 @@ const Profile_outlet = () => {
     const [adminNotes, setAdminNotes] = useState("");
     const [organizerVerified, setOrganizerVerified] = useState(false);
     const wsRef = useRef();
-    const baseWebSocketURL = import.meta.env.VITE_WEBSOCKET_URL;
+
+    const baseWebSocketURL = import.meta.env.VITE_DEBUG === "true" ? import.meta.env.VITE_WEBSOCKET_URL : import.meta.env.VITE_WS_PROD_URL;
 
     const fetchProfileStats = async () => {
         try {

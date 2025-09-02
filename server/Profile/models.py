@@ -12,7 +12,7 @@ class Follow(models.Model):
     followed = models.ForeignKey(Profile, related_name="followers", on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=STATUS, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
-    
+     
     class Meta:
         unique_together = ["follower","followed"]
         

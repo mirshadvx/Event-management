@@ -18,7 +18,6 @@ from .models import (Profile, UserSettings, SocialMediaLink, Wallet, WalletTrans
                      PasswordResetToken, TicketRefund)
 from Admin.models import OrganizerRequest, Coupon, SubscriptionPlan, UserSubscription, SubscriptionTransaction
 from event.models import Event, TicketPurchase, Ticket
-# import firebase_admin.auth as firebase_auth
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -143,7 +142,7 @@ def register(request):
         }
         redis_client.setex(
             name=f"temp_user:{serializer.validated_data['email']}",
-            time=140,
+            time=settings.REDIS_TEMP_USER_KEEP_TIME,
             value=json.dumps(temp_user_data)
         )
         

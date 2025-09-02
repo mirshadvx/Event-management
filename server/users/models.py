@@ -1,11 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
-# from .models import Booking
-# from event.models import Event
 
 class Profile(AbstractUser):
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, db_index=True)
     bio = models.TextField(blank=True)
     profile_picture = models.URLField(max_length=500, blank=True, null=True)
     title = models.CharField(max_length=100, blank=True)
