@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { get_ProfileData } from "@/store/user/userSlice";
-import { Edit2, Save, AlertCircle, Camera, MapPin, Mail, Phone, X, Award, Calendar, Users, TrendingUp } from "lucide-react";
+import { Edit2, Camera, MapPin, Mail, Phone, X, Award, Calendar, Users, TrendingUp } from "lucide-react";
 import { MdVerifiedUser } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import EditProfileModal from "@/components/common/user/Profile/profile/EditProfileModal";
@@ -8,6 +8,7 @@ import ImageEditModal from "@/components/common/user/Profile/profile/ImageEditMo
 import { toast } from "sonner";
 import api from "@/services/api";
 import { CheckOrganizerStatus } from "@/services/api";
+import { useWebSocket } from "@/hooks/profile/useWebSocket";
 
 const Profile_outlet = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -15,7 +16,6 @@ const Profile_outlet = () => {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const dispatch = useDispatch();
     const { user, loading } = useSelector((state) => state.user);
-
     const [userData, setUserData] = useState({
         name: "",
         title: "",
@@ -31,7 +31,6 @@ const Profile_outlet = () => {
             twoFactorAuth: true,
         },
     });
-
     const [profileStats, setProfileStats] = useState({
         organized_events_count: 0,
         participated_events_count: 0,
@@ -39,14 +38,13 @@ const Profile_outlet = () => {
         achieved_badges: [],
     });
     const [statsLoading, setStatsLoading] = useState(true);
-
     const [userOrgaVeri, setuserOrgaVeri] = useState(false);
     const [organizerStatus, setOrganizerStatus] = useState(null);
     const [adminNotes, setAdminNotes] = useState("");
     const [organizerVerified, setOrganizerVerified] = useState(false);
-    const wsRef = useRef();
 
-    const baseWebSocketURL = import.meta.env.VITE_DEBUG === "true" ? import.meta.env.VITE_WEBSOCKET_URL : import.meta.env.VITE_WS_PROD_URL;
+    const baseWebSocketURL =
+        import.meta.env.VITE_DEBUG === "true" ? import.meta.env.VITE_WEBSOCKET_URL : import.meta.env.VITE_WS_PROD_URL;
 
     const fetchProfileStats = async () => {
         try {
@@ -67,9 +65,7 @@ const Profile_outlet = () => {
     useEffect(() => {
         if (!user && !loading) {
             dispatch(get_ProfileData());
-            console.log(user);
         }
-
         if (user) {
             setUserData({
                 name: user.username || "",
@@ -106,48 +102,29 @@ const Profile_outlet = () => {
         }
     };
 
-    useEffect(() => {
-        if (user && organizerVerified === false) {
-            wsRef.current = new WebSocket(`${baseWebSocketURL}/ws/organizer/${user.id}/`);
-
-            wsRef.current.onopen = () => {
-                console.log("web socket connected");
-            };
-            wsRef.current.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                if (data.type === "status_update") {
-                    setOrganizerStatus(data.status);
-                    setAdminNotes(data.admin_notes);
-                    setOrganizerVerified(data.organizerVerified);
-                    if (data.status === "approved") {
-                        toast.success("Your organizer request has been approved!", {
-                            duration: 3000,
-                            className: "text-white p-4 rounded-md",
-                        });
-                    } else if (data.status === "rejected") {
-                        toast.error(`Your organizer request was rejected. ${data.admin_notes || ""}`, {
-                            duration: 5000,
-                            className: "text-white p-4 rounded-md",
-                        });
-                    }
+    useWebSocket(
+        baseWebSocketURL,
+        user?.id,
+        (data) => {
+            if (data.type === "status_update") {
+                setOrganizerStatus(data.status);
+                setAdminNotes(data.admin_notes);
+                setOrganizerVerified(data.organizerVerified);
+                if (data.status === "approved") {
+                    toast.success("Your organizer request has been approved!", {
+                        duration: 3000,
+                        className: "text-white p-4 rounded-md",
+                    });
+                } else if (data.status === "rejected") {
+                    toast.error(`Your organizer request was rejected. ${data.admin_notes || ""}`, {
+                        duration: 5000,
+                        className: "text-white p-4 rounded-md",
+                    });
                 }
-            };
-
-            wsRef.current.onclose = () => {
-                console.log("WebSocket disconnected");
-            };
-
-            wsRef.current.onerror = (error) => {
-                console.error("WebSocket error:", error);
-            };
-        }
-
-        return () => {
-            if (wsRef.current) {
-                wsRef.current.close();
             }
-        };
-    }, [user, organizerVerified]);
+        },
+        user && organizerVerified === false
+    );
 
     const transformSocialLinks = (links) => {
         const result = {};
@@ -177,7 +154,6 @@ const Profile_outlet = () => {
     };
 
     const handleImageChange = (newImage) => {
-        console.log(newImage, "new image");
         setUserData((prev) => ({
             ...prev,
             profilePicture: newImage,
@@ -246,11 +222,9 @@ const Profile_outlet = () => {
             });
             return;
         }
-
         try {
             const response = await api.post("users/request-organizer/");
             const message = response.data.message || "Organizer request sent successfully!";
-
             if (response.data.success) {
                 toast.success(message, {
                     duration: 3000,
