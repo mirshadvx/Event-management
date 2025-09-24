@@ -10,36 +10,39 @@ from event.models import Ticket, TicketPurchase, Event, Comment
 redis_client = redis.Redis(
     host=config("REDIS_HOST", "localhost"),
     port=config("REDIS_PORT", 6379, cast=int),
-    db=config("REDIS_DB", 0, cast=int)
+    db=config("REDIS_DB", 0, cast=int),
 )
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = "__all__"
 
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    
+
     class Meta:
         model = Profile
         fields = ["username", "email", "password"]
-    
+
     def validate(self, data):
         # if redis_client.exists(f"temp_user:{data["email"]}") or Profile.objects.filter(email=data["email"]).exists():
         #     raise serializers.ValidationError({"email":"Email is already in use"})
         return data
-        
+
+
 class OTPVarificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
-    
-   
+
 
 class SocialMediaLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = SocialMediaLink
         fields = ["platform", "url"]
+
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -73,33 +76,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["email", "created_at"]
 
-    def update(self, instance, validated_data): 
+    def update(self, instance, validated_data):
         request = self.context.get("request")
         if "organizerVerified" in validated_data and not request.user.is_staff:
             validated_data.pop("organizerVerified")
-           
 
         social_media_links_data = validated_data.pop("social_media_links", None)
         settings_data = validated_data.pop("settings", None)
 
-      
         instance = super().update(instance, validated_data)
 
-       
         if social_media_links_data is not None:
             for link_data in social_media_links_data:
                 SocialMediaLink.objects.update_or_create(
                     user=instance,
                     platform=link_data.get("platform"),
-                    defaults=link_data
+                    defaults=link_data,
                 )
 
-       
         if settings_data is not None:
-            UserSettings.objects.update_or_create(
-                user=instance,
-                defaults=settings_data
-            )
+            UserSettings.objects.update_or_create(user=instance, defaults=settings_data)
 
         return instance
 
@@ -114,42 +110,56 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if subscription is not None:
             return subscription.is_expired()
         return None
-            
+
+
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
         fields = ["balance"]
-        
+
+
 class TicketPurchaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TicketPurchase
         fields = "__all__"
+
 
 class CouponSerializer(serializers.ModelSerializer):
     class Meta:
         model = Coupon
         fields = ["code", "title", "discount_type", "discount_value"]
 
+
 class CommentSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
-    profile_picture = serializers.CharField(source="user.profile_picture", read_only=True)
+    profile_picture = serializers.CharField(
+        source="user.profile_picture", read_only=True
+    )
 
     class Meta:
         model = Comment
         fields = ["id", "username", "profile_picture", "text", "created_at"]
-        
+
+
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
-        fields = ["id", "ticket_type", "price", "quantity", "description", "sold_quantity"]
-        
+        fields = [
+            "id",
+            "ticket_type",
+            "price",
+            "quantity",
+            "description",
+            "sold_quantity",
+        ]
+
+
 class ProfileTicketPurchaseSerializer(serializers.ModelSerializer):
     ticket_type = serializers.CharField(source="ticket.ticket_type", read_only=True)
 
     class Meta:
         model = TicketPurchase
         fields = ["id", "quantity", "ticket_type", "total_price"]
-        
 
 
 class ProfileBooking_idSerializer(serializers.ModelSerializer):
@@ -157,22 +167,41 @@ class ProfileBooking_idSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ["booking_id"]
 
+
 class ProfileEventSerializer(serializers.ModelSerializer):
-    organizer_username = serializers.CharField(source="organizer.username", read_only=True)
-    organizer_profile_picture = serializers.CharField(source="organizer.profile_picture", read_only=True)
+    organizer_username = serializers.CharField(
+        source="organizer.username", read_only=True
+    )
+    organizer_profile_picture = serializers.CharField(
+        source="organizer.profile_picture", read_only=True
+    )
     like_count = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = [
-            "id", "event_title", "event_type", "description",
-            "venue_name", "address", "city",
-            "start_date", "end_date", "start_time", "end_time",
-            "visibility", "capacity", "age_restriction", "cancel_ticket",
-            "special_instructions", "event_banner",
-            "organizer_username", "organizer_profile_picture",
-            "like_count", "liked"
+            "id",
+            "event_title",
+            "event_type",
+            "description",
+            "venue_name",
+            "address",
+            "city",
+            "start_date",
+            "end_date",
+            "start_time",
+            "end_time",
+            "visibility",
+            "capacity",
+            "age_restriction",
+            "cancel_ticket",
+            "special_instructions",
+            "event_banner",
+            "organizer_username",
+            "organizer_profile_picture",
+            "like_count",
+            "liked",
         ]
 
     def get_like_count(self, obj):
@@ -184,58 +213,101 @@ class ProfileEventSerializer(serializers.ModelSerializer):
             return obj.likes.filter(user=request.user).exists()
         return False
 
+
 class ProfileEventJoinedSerializer(serializers.ModelSerializer):
     event = ProfileEventSerializer(read_only=True)
-    tickets = ProfileTicketPurchaseSerializer(source="ticket_purchases", many=True, read_only=True)
+    tickets = ProfileTicketPurchaseSerializer(
+        source="ticket_purchases", many=True, read_only=True
+    )
     booking_id = serializers.UUIDField()
 
     class Meta:
         model = Booking
         fields = [
-            "booking_id", "event", "payment_method", "subtotal", 
-            "discount", "total", "created_at", "tickets"
+            "booking_id",
+            "event",
+            "payment_method",
+            "subtotal",
+            "discount",
+            "total",
+            "created_at",
+            "tickets",
         ]
-    
+
+
 class WalletTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WalletTransaction
         fields = "__all__"
-        
+
+
 class WalletSerializer(serializers.ModelSerializer):
     transactions = WalletTransactionSerializer(many=True, read_only=True)
+
     class Meta:
         model = Wallet
-        fields = ["user", "balance", "updated_at","transactions"]
-        
+        fields = ["user", "balance", "updated_at", "transactions"]
+
+
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionPlan
         fields = [
-            "id", "name", "price", "event_join_limit", "event_creation_limit",
-            "email_notification", "group_chat", "personal_chat", "advanced_analytics",
-            "ticket_scanning", "live_streaming", "active",
-        ]  
-          
+            "id",
+            "name",
+            "price",
+            "event_join_limit",
+            "event_creation_limit",
+            "email_notification",
+            "group_chat",
+            "personal_chat",
+            "advanced_analytics",
+            "ticket_scanning",
+            "live_streaming",
+            "active",
+        ]
+
+
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionPlan
-        fields = ["name","price","event_join_limit","event_creation_limit",
-            "email_notification","group_chat","personal_chat","advanced_analytics","ticket_scanning","live_streaming",
+        fields = [
+            "name",
+            "price",
+            "event_join_limit",
+            "event_creation_limit",
+            "email_notification",
+            "group_chat",
+            "personal_chat",
+            "advanced_analytics",
+            "ticket_scanning",
+            "live_streaming",
         ]
+
 
 class UserPlanDetailsSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source="user.username")
     plan = UserSubscriptionSerializer()
     days_remaining = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = UserSubscription
-        fields = [ "user", "start_date", "end_date", "is_active","payment_method",
-            "events_joined_current_month", "events_organized_current_month", "days_remaining","is_expired","plan",]
+        fields = [
+            "user",
+            "start_date",
+            "end_date",
+            "is_active",
+            "payment_method",
+            "events_joined_current_month",
+            "events_organized_current_month",
+            "days_remaining",
+            "is_expired",
+            "plan",
+        ]
 
     def get_days_remaining(self, obj):
         return obj.days_remaining()
-    
+
     def get_is_expired(self, obj):
         return obj.is_expired()

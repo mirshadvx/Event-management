@@ -1,6 +1,7 @@
 import os
 import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'event_management.settings')
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "event_management.settings")
 django.setup()
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
@@ -15,9 +16,9 @@ django_asgi_app = get_asgi_application()
 
 combined_websocket_patterns = admin_websocket_urlpatterns + chat_websocket_urlpatterns
 
-application = ProtocolTypeRouter({
-    "http": django_asgi_app,
-    "websocket": TokenAuthMiddleware(
-            URLRouter(combined_websocket_patterns)
-    )
-})
+application = ProtocolTypeRouter(
+    {
+        "http": django_asgi_app,
+        "websocket": TokenAuthMiddleware(URLRouter(combined_websocket_patterns)),
+    }
+)

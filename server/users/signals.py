@@ -9,7 +9,7 @@ from services.badge_service import check_and_assign_badges
 def ticket_purchase(sender, instance, created, **kwargs):
     if created:
         check_and_assign_badges(instance.user)
-        
+
 
 @receiver(post_save, sender=Event)
 def check_after_event_creation(sender, instance, created, **kwargs):

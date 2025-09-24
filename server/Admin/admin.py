@@ -1,7 +1,14 @@
 from django.contrib import admin
-from .models import (OrganizerRequest, Coupon, Badge, UserBadge, SubscriptionPlan,
-                     UserSubscription, RevenueDistribution, SubscriptionTransaction,
-                     )
+from .models import (
+    OrganizerRequest,
+    Coupon,
+    Badge,
+    UserBadge,
+    SubscriptionPlan,
+    UserSubscription,
+    RevenueDistribution,
+    SubscriptionTransaction,
+)
 
 admin.site.register(OrganizerRequest)
 admin.site.register(Coupon)

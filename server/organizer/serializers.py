@@ -8,56 +8,92 @@ from users.models import Booking
 from Admin.models import RevenueDistribution
 from Profile.models import Follow
 
+
 class EventOrganizerList(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ["id","event_title","event_banner", "event_type", "venue_name",
-                  "start_date", "end_date", "start_time", "end_time",
-                  "is_draft", "is_published", "revenue_distributed"
-                  ]
-        
+        fields = [
+            "id",
+            "event_title",
+            "event_banner",
+            "event_type",
+            "venue_name",
+            "start_date",
+            "end_date",
+            "start_time",
+            "end_time",
+            "is_draft",
+            "is_published",
+            "revenue_distributed",
+        ]
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     organized_events_count = serializers.SerializerMethodField()
     participated_events_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     followers_count = serializers.SerializerMethodField()
     following = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Profile
-        fields = ["profile_picture", "title", "bio", "organizerVerified",
-                  "organized_events_count", "participated_events_count",
-                  "following_count", "followers_count", "following", "username"]
-        
+        fields = [
+            "profile_picture",
+            "title",
+            "bio",
+            "organizerVerified",
+            "organized_events_count",
+            "participated_events_count",
+            "following_count",
+            "followers_count",
+            "following",
+            "username",
+        ]
+
     def get_organized_events_count(self, obj):
         return Event.objects.filter(organizer=obj, revenue_distributed=True).count()
-    
+
     def get_participated_events_count(self, obj):
-        return Booking.objects.filter(user=obj, ticket_purchases__isnull=False).distinct().count()
-        
+        return (
+            Booking.objects.filter(user=obj, ticket_purchases__isnull=False)
+            .distinct()
+            .count()
+        )
+
     def get_following_count(self, obj):
         return obj.following.count()
-    
+
     def get_followers_count(self, obj):
         return obj.followers.count()
-    
+
     def get_following(self, obj):
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
             return Follow.objects.filter(follower=request.user, followed=obj).exists()
         return False
-        
+
+
 class ParticipatedEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ["id", "event_title","event_banner", "event_type", "venue_name",
-                  "start_date", "end_date", "start_time", "end_time",
-                  ]
-        
+        fields = [
+            "id",
+            "event_title",
+            "event_banner",
+            "event_type",
+            "venue_name",
+            "start_date",
+            "end_date",
+            "start_time",
+            "end_time",
+        ]
+
+
 class TicketDetailSerializer(serializers.Serializer):
     date = serializers.DateField()
     purchases = serializers.IntegerField()
     cancellations = serializers.IntegerField()
+
 
 class TicketTypeSerializer(serializers.Serializer):
     details = TicketDetailSerializer(many=True)
@@ -65,10 +101,12 @@ class TicketTypeSerializer(serializers.Serializer):
     totalCancellations = serializers.IntegerField()
     revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
 
+
 class TicketStatsSerializer(serializers.Serializer):
     regular = TicketTypeSerializer()
     vip = TicketTypeSerializer()
     gold = TicketTypeSerializer()
+
 
 class SummarySerializer(serializers.Serializer):
     totalRevenue = serializers.DecimalField(max_digits=15, decimal_places=2)
@@ -77,13 +115,15 @@ class SummarySerializer(serializers.Serializer):
     totalPurchases = serializers.IntegerField()
     totalCancellations = serializers.IntegerField()
 
+
 class EventStatsSerializer(serializers.Serializer):
     eventId = serializers.CharField()
     ticketStats = TicketStatsSerializer()
     summary = SummarySerializer()
 
+
 class EventRevenueSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = RevenueDistribution
         fields = "__all__"
