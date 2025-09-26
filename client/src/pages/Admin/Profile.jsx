@@ -1,13 +1,13 @@
-import React from 'react'
-import Layout from '@/components/layout/user/Profile/Layout'
-import { Outlet } from 'react-router-dom'
+import React from "react";
+import Layout from "@/components/layout/user/Profile/Layout";
+import { Outlet } from "react-router-dom";
 
 const Profile = () => {
   return (
     <Layout>
-        <Outlet />
+      <Outlet />
     </Layout>
-  )
-}
+  );
+};
 
-export default Profile
+export default Profile;

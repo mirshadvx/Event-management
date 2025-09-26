@@ -6,37 +6,36 @@ import ProtectedRoute from "../ProtectedRoute";
 import CreateEvent_Outlet from "@/components/layout/user/Dashboard/CreateEvent_Outlet";
 import OrganizerProtectedRoute from "./OrganizerProtectedRoute";
 
-
-
 const DashboardRoutes = () => {
-    return (
-        <Route
-            path="/dashboard"
-            element={
-                <ProtectedRoute>
-                    <Dashboard />
-                </ProtectedRoute>
-            }>
-            <Route path="participated" element={<Participated_Outlet />} />
-            <Route index element={<Participated_Outlet />} />
-            <Route
-                path="organized"
-                element={
-                    <OrganizerProtectedRoute>
-                        <Organized_Outlet />
-                    </OrganizerProtectedRoute>
-                }
-            />
-            <Route
-                path="create-event"
-                element={
-                    <OrganizerProtectedRoute>
-                        <CreateEvent_Outlet />
-                    </OrganizerProtectedRoute>
-                }
-            />
-        </Route>
-    );
+  return (
+    <Route
+      path="/dashboard"
+      element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }
+    >
+      <Route path="participated" element={<Participated_Outlet />} />
+      <Route index element={<Participated_Outlet />} />
+      <Route
+        path="organized"
+        element={
+          <OrganizerProtectedRoute>
+            <Organized_Outlet />
+          </OrganizerProtectedRoute>
+        }
+      />
+      <Route
+        path="create-event"
+        element={
+          <OrganizerProtectedRoute>
+            <CreateEvent_Outlet />
+          </OrganizerProtectedRoute>
+        }
+      />
+    </Route>
+  );
 };
 
 export default DashboardRoutes;
@@ -58,7 +57,6 @@ export default DashboardRoutes;
 //             </Route>
 //     );
 // };
-
 
 // DashboardRoutes.jsx
 // import { Routes, Route } from "react-router-dom";

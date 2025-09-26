@@ -18,21 +18,27 @@ export default function Test() {
       reader.onloadend = () => {
         setSelectedIndex(index);
         setCroppingImage(reader.result);
-        setIsModalOpen(true); // Open modal when image is selected
+        setIsModalOpen(true);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const onCropComplete = useCallback(async (_, croppedAreaPixels) => {
-    if (croppingImage) {
-      const croppedImage = await getCroppedImg(croppingImage, croppedAreaPixels);
-      const newCroppedImages = [...croppedImages];
-      newCroppedImages[selectedIndex] = croppedImage;
-      setCroppedImages(newCroppedImages);
-      setIsModalOpen(false); // Close modal after saving
-    }
-  }, [croppingImage, selectedIndex]);
+  const onCropComplete = useCallback(
+    async (_, croppedAreaPixels) => {
+      if (croppingImage) {
+        const croppedImage = await getCroppedImg(
+          croppingImage,
+          croppedAreaPixels
+        );
+        const newCroppedImages = [...croppedImages];
+        newCroppedImages[selectedIndex] = croppedImage;
+        setCroppedImages(newCroppedImages);
+        setIsModalOpen(false); // Close modal after saving
+      }
+    },
+    [croppingImage, selectedIndex]
+  );
 
   return (
     <div className="flex flex-col items-center gap-4 p-4 border rounded-lg shadow-md w-96 mx-auto">
@@ -90,9 +96,6 @@ export default function Test() {
     </div>
   );
 }
-
-
-
 
 // import React, { useState } from "react";
 // import {

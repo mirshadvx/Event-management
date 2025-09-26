@@ -3,32 +3,31 @@ import userReducer from "./user/userSlice";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { setApiDispatch } from "@/services/api";
-import ticketReducer from "./user/ticketSlicer"
+import ticketReducer from "./user/ticketSlicer";
 
 // console.log("userReducer:", userReducer); // Debug log
 
 const persistConfig = {
-    key: "user",
-    storage,
-    whitelist: ["role","isAuthenticated"],
-    // whitelist: ["user","role","isAuthenticated"],
+  key: "user",
+  storage,
+  whitelist: ["role", "isAuthenticated"],
+  // whitelist: ["user","role","isAuthenticated"],
 };
 
 export const store = configureStore({
-    reducer: {
-        user: persistReducer(persistConfig, userReducer),
-        tickets: ticketReducer,
-    },
-    middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-            serializableCheck: {
-                ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
-            },
-        }),
+  reducer: {
+    user: persistReducer(persistConfig, userReducer),
+    tickets: ticketReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
+      },
+    }),
 });
 
 export const persistor = persistStore(store);
-
 
 setApiDispatch(store.dispatch);
 
@@ -58,7 +57,6 @@ setApiDispatch(store.dispatch);
 // });
 
 // export const persistor = persistStore(store);
-
 
 // import { configureStore, combineReducers } from "@reduxjs/toolkit";
 // // import userReducer from "../store/user/userSlice";
@@ -94,7 +92,6 @@ setApiDispatch(store.dispatch);
 // // Create a persistor object to manage persistence
 // export const persistor = persistStore(store);
 
-
 // import { configureStore, combineReducers } from "@reduxjs/toolkit";
 // import userReducer from "../store/user/userSlicer";
 // import { persistStore, persistReducer } from "redux-persist";
@@ -128,11 +125,8 @@ setApiDispatch(store.dispatch);
 // // Create a persistor object to manage persistence
 // export const persistor = persistStore(store);
 
-
-
 // import { configureStore } from "@reduxjs/toolkit";
 // import userReducer from "../store/user/userSlicer";
-
 
 // const store = configureStore({
 //     reducer: {
@@ -141,10 +135,10 @@ setApiDispatch(store.dispatch);
 // })
 
 // export default store;
-// 
-// 
-// 
-// 
+//
+//
+//
+//
 // // import { configureStore } from "@reduxjs/toolkit";
 // import userReducer from "../store/user/userSlicer";
 // import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from "redux-persist";

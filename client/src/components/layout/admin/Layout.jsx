@@ -18,16 +18,16 @@ import { useDispatch } from "react-redux";
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isDarkTheme, setIsDarkTheme] = useState(() =>
-    window.matchMedia("(prefers-color-scheme: dark)").matches
+  const [isDarkTheme, setIsDarkTheme] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches
   );
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkTheme);
   }, [isDarkTheme]);
 
-  const toggleTheme = () => setIsDarkTheme(prev => !prev);
+  const toggleTheme = () => setIsDarkTheme((prev) => !prev);
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -37,20 +37,27 @@ const Layout = ({ children }) => {
           sidebarCollapsed ? "w-20" : "w-64"
         } transition-all duration-300 bg-white dark:bg-gray-800 border-r dark:border-gray-700`}
       >
-        <Sidebar 
-          collapsed={sidebarCollapsed} 
-          setCollapsed={setSidebarCollapsed} 
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          setCollapsed={setSidebarCollapsed}
         />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild className="md:hidden">
-          <Button variant="ghost" size="icon" className="fixed left-4 top-4 z-50">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="fixed left-4 top-4 z-50"
+          >
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 bg-white dark:bg-gray-800">
+        <SheetContent
+          side="left"
+          className="p-0 w-64 bg-white dark:bg-gray-800"
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -106,7 +113,9 @@ const Layout = ({ children }) => {
                   <DropdownMenuItem>Profile</DropdownMenuItem>
                   <DropdownMenuItem>Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => dispatch(logoutReducer())}>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => dispatch(logoutReducer())}>
+                    Logout
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

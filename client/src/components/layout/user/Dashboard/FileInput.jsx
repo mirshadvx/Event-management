@@ -16,8 +16,18 @@ const FileInput = ({ onImageSelected, label }) => {
 
   return (
     <div className="text-center">
-      <input type="file" accept="image/*" ref={inputRef} onChange={handleOnChange} className="hidden" />
-      <button type="button" onClick={onChooseImg} className="flex flex-col items-center justify-center">
+      <input
+        type="file"
+        accept="image/*"
+        ref={inputRef}
+        onChange={handleOnChange}
+        className="hidden"
+      />
+      <button
+        type="button"
+        onClick={onChooseImg}
+        className="flex flex-col items-center justify-center"
+      >
         <Upload className="mx-auto text-green-500" />
         <p className="text-gray-400 mt-2">{label}</p>
       </button>
