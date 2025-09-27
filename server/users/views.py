@@ -578,87 +578,56 @@ class CheckoutAPIView(APIView):
             event = get_object_or_404(Event, id=event_id, is_published=True)
             user = request.user
 
-            subtotal = sum(
-                Decimal(ticket.price)
-                * Decimal(selected_tickets.get(ticket.ticket_type, 0))
-                for ticket in event.tickets.all()
-            )
+            with transaction.atomic():
+                subtotal = Decimal("0")
+                ticket_purchases = []
 
-            if subtotal == 0:
-                return Response(
-                    {"error": "No valid tickets selected."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                for ticket_type, quantity in selected_tickets.items():
+                    if quantity <= 0:
+                        continue
 
-            coupon = None
-            discount = Decimal("0")
-            if coupon_code:
-                coupon, subtotal, discount = validate_and_apply_coupon(
-                    coupon_code, user, event, selected_tickets
-                )
-
-            total = subtotal - discount
-            if total < 0:
-                total = Decimal("0")
-
-            total_in_cents = int(total * 100)
-            track_discount = subtotal - total
-
-            booking = Booking.objects.create(
-                user=user,
-                event=event,
-                payment_method=payment_method,
-                subtotal=subtotal,
-                discount=discount,
-                total=total,
-                track_discount=track_discount,
-                coupon=coupon,
-            )
-
-            if payment_method == "wallet":
-                handle_wallet_payment(user, total, booking, event.event_title)
-            elif payment_method == "stripe":
-                payment_intent = handle_stripe_payment(
-                    stripe_payment_method_id,
-                    total_in_cents,
-                    booking,
-                    event.event_title,
-                    user,
-                    event_id,
-                )
-
-                if payment_intent.status == "requires_action":
-                    return Response(
-                        {
-                            "requires_action": True,
-                            "payment_intent_client_secret": payment_intent.client_secret,
-                            "booking_id": str(booking.booking_id),
-                        },
-                        status=status.HTTP_200_OK,
+                    ticket = event.tickets.select_for_update().get(
+                        ticket_type=ticket_type
                     )
-                elif payment_intent.status != "succeeded":
-                    booking.delete()
-                    return Response(
-                        {"error": "Payment failed."}, status=status.HTTP_400_BAD_REQUEST
-                    )
-            else:
-                booking.delete()
-                return Response(
-                    {"error": "Unsupported payment method."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
-            ticket_purchases = []
-            for ticket_type, quantity in selected_tickets.items():
-                if quantity > 0:
-                    ticket = event.tickets.get(ticket_type=ticket_type)
                     if ticket.quantity - ticket.sold_quantity < quantity:
-                        booking.delete()
                         return Response(
                             {"error": f"Not enough {ticket_type} tickets available."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
+                    subtotal += Decimal(ticket.price) * Decimal(quantity)
+
+                coupon = None
+                discount = Decimal("0")
+                if coupon_code:
+                    coupon, subtotal, discount = validate_and_apply_coupon(
+                        coupon_code, user, event, selected_tickets
+                    )
+
+                total = subtotal - discount
+                if total < 0:
+                    total = Decimal("0")
+
+                total_in_cents = int(total * 100)
+                track_discount = subtotal - total
+
+                booking = Booking.objects.create(
+                    user=user,
+                    event=event,
+                    payment_method=payment_method,
+                    subtotal=subtotal,
+                    discount=discount,
+                    total=total,
+                    track_discount=track_discount,
+                    coupon=coupon,
+                )
+
+                for ticket_type, quantity in selected_tickets.items():
+                    if quantity <= 0:
+                        continue
+
+                    ticket = event.tickets.get(ticket_type=ticket_type)
                     ticket.sold_quantity += quantity
                     ticket.save()
 
@@ -682,34 +651,62 @@ class CheckoutAPIView(APIView):
                         }
                     )
 
-            if coupon:
-                coupon.used_count += 1
-                coupon.used_by.add(user)
-                coupon.save()
+                if coupon:
+                    coupon.used_count += 1
+                    coupon.used_by.add(user)
+                    coupon.save()
 
-            try:
-                if hasattr(event, "group_chat") and event.group_chat:
-                    event.group_chat.participants.add(user)
-                    send_user_notification.delay(
-                        user_id=user.id,
-                        message=f"You entered {event.event_title} group chat",
+                if payment_method == "wallet":
+                    handle_wallet_payment(user, total, booking, event.event_title)
+                elif payment_method == "stripe":
+                    payment_intent = handle_stripe_payment(
+                        stripe_payment_method_id,
+                        total_in_cents,
+                        booking,
+                        event.event_title,
+                        user,
+                        event_id,
                     )
-            except Exception as e:
-                logger.error(f"Error adding user to group chat: {str(e)}")
+                    if payment_intent.status == "requires_action":
+                        return Response(
+                            {
+                                "requires_action": True,
+                                "payment_intent_client_secret": payment_intent.client_secret,
+                                "booking_id": str(booking.booking_id),
+                            },
+                            status=status.HTTP_200_OK,
+                        )
+                    elif payment_intent.status != "succeeded":
+                        booking.delete()
+                        return Response(
+                            {"error": "Payment failed."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-            send_user_notification.delay(
-                user_id=user.id, message=f"Booking successful for {event.event_title}"
-            )
+                try:
+                    if hasattr(event, "group_chat") and event.group_chat:
+                        event.group_chat.participants.add(user)
+                        send_user_notification.delay(
+                            user_id=user.id,
+                            message=f"You entered {event.event_title} group chat",
+                        )
+                except Exception as e:
+                    logger.error(f"Error adding user to group chat: {str(e)}")
 
-            return Response(
-                {
-                    "message": "Payment successful!",
-                    "booking_id": str(booking.booking_id),
-                    "total": str(total),
-                    "ticket_purchases": ticket_purchases,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+                send_user_notification.delay(
+                    user_id=user.id,
+                    message=f"Booking successful for {event.event_title}",
+                )
+
+                return Response(
+                    {
+                        "message": "Payment successful!",
+                        "booking_id": str(booking.booking_id),
+                        "total": str(total),
+                        "ticket_purchases": ticket_purchases,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
 
         except stripe.error.CardError as e:
             if "booking" in locals():
@@ -717,7 +714,6 @@ class CheckoutAPIView(APIView):
             return Response(
                 {"error": str(e.user_message)}, status=status.HTTP_400_BAD_REQUEST
             )
-
         except stripe.error.StripeError:
             if "booking" in locals():
                 booking.delete()
@@ -725,7 +721,6 @@ class CheckoutAPIView(APIView):
                 {"error": "Something went wrong with the payment."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
         except Exception as e:
             if "booking" in locals():
                 booking.delete()
