@@ -1,34 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, Upload, CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import dayjs from "dayjs";
-import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import FileInput from "./FileInput";
 import ImageCropper from "./ImageCropper";
 import api from "@/services/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const today = new Date();
 today.setHours(0, 0, 0, 0);
@@ -38,7 +25,6 @@ const CreateEvent_Outlet = () => {
     event_banner: { src: "", cropped: "", isCropping: false },
     promotional_image: { src: "", cropped: "", isCropping: false },
   });
-
   const location = useLocation();
   const navigate = useNavigate();
   const eventId = new URLSearchParams(location.search).get("eventId");
@@ -55,7 +41,6 @@ const CreateEvent_Outlet = () => {
     canvasEle.width = imgCroppedArea.width;
     canvasEle.height = imgCroppedArea.height;
     const context = canvasEle.getContext("2d");
-
     let imageObj = new Image();
     imageObj.src = imageState[field].src;
     imageObj.onload = function () {
@@ -108,8 +93,8 @@ const CreateEvent_Outlet = () => {
       venue_name: "",
       address: "",
       city: "",
-      start_date: null,
-      end_date: null,
+      start_date: "",
+      end_date: "",
       start_time: "",
       end_time: "",
       visibility: "Public",
@@ -138,7 +123,6 @@ const CreateEvent_Outlet = () => {
   const [loading, setLoading] = useState(false);
   const availableTicketTypes = ["Regular", "Gold", "VIP"];
   const formValues = watch();
-
   const totalTicketQuantity = formValues.tickets.reduce(
     (sum, ticket) => sum + (parseInt(ticket.ticketQuantity) || 0),
     0
@@ -150,20 +134,18 @@ const CreateEvent_Outlet = () => {
         try {
           const response = await api.get(`event/get-event/${eventId}/`);
           const eventData = response.data;
-
           setValue("event_title", eventData.event_title);
           setValue("event_type", eventData.event_type);
           setValue("description", eventData.description);
           setValue("venue_name", eventData.venue_name);
           setValue("address", eventData.address);
           setValue("city", eventData.city);
-          setValue("start_date", new Date(eventData.start_date));
-          setValue("end_date", new Date(eventData.end_date));
+          setValue("start_date", eventData.start_date);
+          setValue("end_date", eventData.end_date);
           setValue("start_time", eventData.start_time);
           setValue("end_time", eventData.end_time);
           setValue("visibility", eventData.visibility);
           setValue("capacity", eventData.capacity);
-
           setValue("age_restriction", Boolean(eventData.age_restriction), {
             shouldValidate: true,
           });
@@ -174,7 +156,6 @@ const CreateEvent_Outlet = () => {
             "special_instructions",
             eventData.special_instructions || ""
           );
-
           if (eventData.tickets && eventData.tickets.length > 0) {
             remove();
             eventData.tickets.forEach((ticket) => {
@@ -186,7 +167,6 @@ const CreateEvent_Outlet = () => {
               });
             });
           }
-
           if (eventData.event_banner) {
             setImageState((prev) => ({
               ...prev,
@@ -213,7 +193,6 @@ const CreateEvent_Outlet = () => {
           );
         }
       };
-
       fetchEventData();
     }
   }, [eventId, setValue, append, remove]);
@@ -224,7 +203,6 @@ const CreateEvent_Outlet = () => {
       0
     );
     const capacity = parseInt(data.capacity) || 0;
-
     if (totalTickets !== capacity && capacity !== 0) {
       return `Total ticket quantity (${totalTickets}) must equal capacity (${capacity})`;
     }
@@ -237,39 +215,28 @@ const CreateEvent_Outlet = () => {
       toast.error(capacityError);
       return;
     }
-
     setLoading(true);
     const formData = new FormData();
-
     formData.append("event_title", data.event_title);
     formData.append("event_type", data.event_type);
     formData.append("description", data.description);
     formData.append("venue_name", data.venue_name);
     formData.append("address", data.address);
     formData.append("city", data.city);
-
-    if (data.start_date)
-      formData.append(
-        "start_date",
-        data.start_date.toISOString().split("T")[0]
-      );
-    if (data.end_date)
-      formData.append("end_date", data.end_date.toISOString().split("T")[0]);
+    if (data.start_date) formData.append("start_date", data.start_date);
+    if (data.end_date) formData.append("end_date", data.end_date);
     formData.append("start_time", data.start_time);
     if (data.end_time) formData.append("end_time", data.end_time);
-
     formData.append("visibility", data.visibility);
     formData.append("capacity", data.capacity || 0);
     formData.append("age_restriction", data.age_restriction ? "true" : "false");
     formData.append("cancel_ticket", data.cancel_ticket ? "true" : "false");
     if (data.special_instructions)
       formData.append("special_instructions", data.special_instructions);
-
     if (data.event_banner instanceof File)
       formData.append("event_banner", data.event_banner);
     if (data.promotional_image instanceof File)
       formData.append("promotional_image", data.promotional_image);
-
     const processedTickets = data.tickets.map((ticket) => ({
       ticketType: ticket.ticketType,
       ticketPrice: ticket.ticketPrice,
@@ -277,19 +244,15 @@ const CreateEvent_Outlet = () => {
       ticketDescription: ticket.ticketDescription || "",
     }));
     formData.append("tickets", JSON.stringify(processedTickets));
-
     formData.append("is_draft", action === "draft" ? "true" : "false");
     formData.append("is_published", action === "publish" ? "true" : "false");
-
     if (eventId) {
       formData.append("event_id", eventId);
     }
-
     try {
       console.log("Submitting event data...");
       for (let [key, value] of formData.entries())
         console.log(`${key}:`, value);
-
       const response = await api[eventId ? "put" : "post"](
         "event/create-event/",
         formData,
@@ -298,7 +261,6 @@ const CreateEvent_Outlet = () => {
         }
       );
       console.log("Published successfully:", response.data);
-
       toast.success(
         `Event ${
           action === "draft"
@@ -582,7 +544,6 @@ const CreateEvent_Outlet = () => {
                 </p>
               )}
             </div>
-
             <div>
               <label
                 htmlFor="end_date"
@@ -621,7 +582,6 @@ const CreateEvent_Outlet = () => {
                 </p>
               )}
             </div>
-
             <div>
               <label
                 htmlFor="start_time"
@@ -644,7 +604,6 @@ const CreateEvent_Outlet = () => {
                 </p>
               )}
             </div>
-
             <div>
               <label
                 htmlFor="end_time"
@@ -840,7 +799,6 @@ const CreateEvent_Outlet = () => {
               )}
             </div>
           ))}
-
           <div className="mb-4">
             <p className="text-white">
               Total Tickets: {totalTicketQuantity}
