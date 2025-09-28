@@ -93,6 +93,8 @@ class ParticipatedList(APIView):
 
 
 class EventOngoingData(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, event_id):
         try:
             event = Event.objects.get(id=event_id)
