@@ -1,21 +1,13 @@
-# import firebase_admin
-# from firebase_admin import credentials, auth
-
-# # cred = credentials.Certificate("evenxo-g-auth-firebase-adminsdk.json")
-# cred = credentials.Certificate("C:/Users/mirsh/OneDrive/Documents/Event - mangement/server/users/evenxo-g-auth-firebase-adminsdk.json")
-# firebase_admin.initialize_app(cred)
-
-
-# backend/users/firebase.py
+import os, json, tempfile
 import firebase_admin
-from firebase_admin import credentials, auth
-import os
+from firebase_admin import credentials
 
-# Get the directory of this file (users/)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+firebase_json = os.environ["FIREBASE_CREDENTIALS"]
+data = json.loads(firebase_json)
 
-# Construct path to the JSON file
-cred_path = os.path.join(BASE_DIR, "evenxo-g-auth-firebase-adminsdk.json")
-cred = credentials.Certificate(cred_path)
+with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as f:
+    f.write(json.dumps(data).encode())
+    temp_path = f.name
 
+cred = credentials.Certificate(temp_path)
 firebase_admin.initialize_app(cred)
