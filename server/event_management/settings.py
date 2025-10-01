@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from decouple import config
 from celery.schedules import crontab
+import dj_database_url
 
 load_dotenv()
 
@@ -16,7 +17,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = True
 
 # ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
+# ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://api.evenxo.xyz",
@@ -106,15 +107,23 @@ CHANNEL_LAYERS = {
 }
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": "5432",
-    }
+    'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
 }
+
+CELERY_BROKER_URL = os.environ.get('REDIS_URL')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
+ALLOWED_HOSTS = ['*']
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.getenv("POSTGRES_DB"),
+#         "USER": os.getenv("POSTGRES_USER"),
+#         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+#         "HOST": os.getenv("DB_HOST"),
+#         "PORT": "5432",
+#     }
+# }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -207,8 +216,8 @@ cloudinary.config(
 
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+# CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
+# CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
