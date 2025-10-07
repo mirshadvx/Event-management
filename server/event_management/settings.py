@@ -12,12 +12,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# DEBUG = os.getenv('DEBUG')
-DEBUG = True
+DEBUG = os.getenv("DEBUT", "TRUE") == "TRUE"
 
-# ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
 
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 CSRF_TRUSTED_ORIGINS = [
     "https://api.evenxo.xyz",
 ]
