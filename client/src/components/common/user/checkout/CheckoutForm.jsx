@@ -57,8 +57,8 @@ const CheckoutForm = ({ plan, onSuccess }) => {
             });
 
             if (confirmationResponse.data.success) {
-                onSuccess();
                 dispatch(get_ProfileData());
+                onSuccess();
             } else {
                 setError(confirmationResponse.data.message);
             }

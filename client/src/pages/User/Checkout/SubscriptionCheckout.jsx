@@ -33,7 +33,7 @@ const SubscriptionCheckout = () => {
         } else if (!userLoading && user && !user.plan_expired) {
             navigate("/", {
                 state: {
-                    message: "You already have a Subscription plan",
+                    message: "You already have an active subscription plan",
                 },
             });
         }
@@ -56,22 +56,31 @@ const SubscriptionCheckout = () => {
                         setSelectedPlan(response.data.plans[0].id);
                     }
                 } else {
-                    setError(response.data.message);
+                    setError(response.data.message || "Failed to load subscription plans");
                 }
             } catch (err) {
-                setError("Failed to load subscription plans");
                 console.error("Error fetching plans:", err);
+                setError(err.response?.data?.message || "Failed to load subscription plans. Please try again.");
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchPlans();
-    }, []);
+        
+        if (user) {
+            fetchPlans();
+        }
+    }, [user]);
 
     const handleWalletPayment = async () => {
         try {
             setIsProcessing(true);
             setError(null);
+            
+            if (!selectedPlan) {
+                setError("Please select a subscription plan");
+                return;
+            }
+            
             const response = await api.post("/users/subscription-checkout/", {
                 plan_id: selectedPlan,
                 payment_method: "wallet",
@@ -81,10 +90,11 @@ const SubscriptionCheckout = () => {
                 dispatch(get_ProfileData());
                 setSuccess(true);
             } else {
-                setError(response.data.message);
+                setError(response.data.message || "Payment failed. Please try again.");
             }
         } catch (err) {
-            setError(err.response?.data?.message || "An error occurred during payment");
+            console.error("Wallet payment error:", err);
+            setError(err.response?.data?.message || "An error occurred during payment. Please try again.");
         } finally {
             setIsProcessing(false);
         }
@@ -92,6 +102,8 @@ const SubscriptionCheckout = () => {
 
     const handlePaymentSuccess = () => {
         setSuccess(true);
+        // Update Redux store with latest profile data including subscription
+        dispatch(get_ProfileData());
     };
 
     const selectedPlanData = plans.find((p) => p.id === selectedPlan);

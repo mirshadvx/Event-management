@@ -95,6 +95,7 @@ const RenewSubscription = () => {
 
     const handlePaymentSuccess = () => {
         setSuccess(true);
+        dispatch(get_ProfileData());
     };
 
     if (success) {

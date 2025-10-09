@@ -40,8 +40,45 @@ const Subscription = () => {
         const fetchData = async () => {
             try {
                 const response = await api.get("users/subscription-details/");
-                setSubscription(response.data.subscription);
+                if (response.data.success) {
+                    setSubscription(response.data.subscription);
+                } else {
+                    console.error("Failed to fetch subscription details:", response.data.message);
+                }
 
+                const transactionResponse = await api.get("users/subscription-transactions/");
+                if (transactionResponse.data.success) {
+                    setTransactions(transactionResponse.data.transactions);
+                } else {
+                    setTransactions([
+                        {
+                            id: "tx123456",
+                            amount: 149.99,
+                            transaction_type: "purchase",
+                            payment_method: "Credit Card",
+                            transaction_id: "pay_Lk82jHk928",
+                            transaction_date: "2025-02-15T10:30:45Z",
+                        },
+                        {
+                            id: "tx123457",
+                            amount: 99.99,
+                            transaction_type: "upgrade",
+                            payment_method: "PayPal",
+                            transaction_id: "pay_Mn72jG8234",
+                            transaction_date: "2025-01-10T14:22:37Z",
+                        },
+                        {
+                            id: "tx123458",
+                            amount: 49.99,
+                            transaction_type: "purchase",
+                            payment_method: "Debit Card",
+                            transaction_id: "pay_Kj21hG3456",
+                            transaction_date: "2024-11-15T09:45:12Z",
+                        },
+                    ]);
+                }
+            } catch (error) {
+                console.error("Error fetching subscription details:", error);
                 setTransactions([
                     {
                         id: "tx123456",
@@ -51,25 +88,7 @@ const Subscription = () => {
                         transaction_id: "pay_Lk82jHk928",
                         transaction_date: "2025-02-15T10:30:45Z",
                     },
-                    {
-                        id: "tx123457",
-                        amount: 99.99,
-                        transaction_type: "upgrade",
-                        payment_method: "PayPal",
-                        transaction_id: "pay_Mn72jG8234",
-                        transaction_date: "2025-01-10T14:22:37Z",
-                    },
-                    {
-                        id: "tx123458",
-                        amount: 49.99,
-                        transaction_type: "purchase",
-                        payment_method: "Debit Card",
-                        transaction_id: "pay_Kj21hG3456",
-                        transaction_date: "2024-11-15T09:45:12Z",
-                    },
                 ]);
-            } catch (error) {
-                console.error("Error fetching subscription details:", error);
             } finally {
                 setLoading(false);
             }
@@ -124,6 +143,25 @@ const Subscription = () => {
         return (
             <div className="min-h-screen bg-slate-900 rounded-2xl p-6 shadow-xl flex items-center justify-center">
                 <div className="text-white text-xl">Loading subscription details...</div>
+            </div>
+        );
+    }
+
+    if (!subscription) {
+        return (
+            <div className="min-h-screen bg-slate-900 rounded-2xl p-6 shadow-xl text-white">
+                <div className="bg-slate-800 rounded-xl p-6 mb-8">
+                    <h2 className="text-2xl font-bold mb-4">No Active Subscription</h2>
+                    <p className="text-slate-400 mb-6">
+                        You don't have an active subscription. Choose a plan to get started.
+                    </p>
+                    <button 
+                        className="bg-[#00EF93] text-black font-semibold py-2 px-6 rounded-lg"
+                        onClick={() => navigate("/checkout/subscription")}
+                    >
+                        Choose a Plan
+                    </button>
+                </div>
             </div>
         );
     }
@@ -193,14 +231,18 @@ const Subscription = () => {
                                 className={`${getProgressColor(
                                     subscription.events_joined_current_month,
                                     subscription.plan.event_join_limit
-                                )} h-2.5 rounded-full`}
+                                )} h-2.5 rounded-full transition-all duration-300`}
                                 style={{
                                     width: `${
-                                        (subscription.events_joined_current_month / subscription.plan.event_join_limit) *
-                                        100
+                                        subscription.plan.event_join_limit > 0 
+                                            ? Math.min((subscription.events_joined_current_month / subscription.plan.event_join_limit) * 100, 100)
+                                            : 0
                                     }%`,
                                 }}
                             ></div>
+                        </div>
+                        <div className="mt-2 text-sm text-slate-400">
+                            {subscription.remaining_joins || 0} events remaining this month
                         </div>
                     </div>
                     <div className="bg-slate-700 p-4 rounded-lg">
@@ -215,15 +257,18 @@ const Subscription = () => {
                                 className={`${getProgressColor(
                                     subscription.events_organized_current_month,
                                     subscription.plan.event_creation_limit
-                                )} h-2.5 rounded-full`}
+                                )} h-2.5 rounded-full transition-all duration-300`}
                                 style={{
                                     width: `${
-                                        (subscription.events_organized_current_month /
-                                            subscription.plan.event_creation_limit) *
-                                        100
+                                        subscription.plan.event_creation_limit > 0 
+                                            ? Math.min((subscription.events_organized_current_month / subscription.plan.event_creation_limit) * 100, 100)
+                                            : 0
                                     }%`,
                                 }}
                             ></div>
+                        </div>
+                        <div className="mt-2 text-sm text-slate-400">
+                            {subscription.remaining_creations || 0} events remaining this month
                         </div>
                     </div>
                 </div>

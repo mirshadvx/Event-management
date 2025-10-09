@@ -30,6 +30,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import Confetti from "react-confetti-boom";
+import SubscriptionErrorHandler from "@/components/common/SubscriptionErrorHandler";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -215,6 +216,7 @@ function CheckoutPage() {
     width: undefined,
     height: undefined,
   });
+  const [subscriptionError, setSubscriptionError] = useState(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -315,6 +317,30 @@ function CheckoutPage() {
       return response.data;
     } catch (error) {
       console.log(error);
+      // Handle subscription-related errors
+      if (error.response?.status === 403) {
+        const errorData = error.response.data;
+        if (errorData.subscription_required) {
+          setSubscriptionError({
+            subscriptionRequired: true,
+            message: errorData.message,
+          });
+        } else if (errorData.subscription_expired) {
+          setSubscriptionError({
+            subscriptionExpired: true,
+            message: errorData.message,
+            expiredDate: errorData.expired_date,
+          });
+        } else if (errorData.subscription_limit_reached) {
+          setSubscriptionError({
+            limitReached: true,
+            message: errorData.message,
+            currentUsage: errorData.current_usage,
+            limit: errorData.limit,
+          });
+        }
+      }
+      throw error;
     }
   };
 
@@ -335,7 +361,32 @@ function CheckoutPage() {
     } catch (error) {
       console.error("Payment error:", error);
       setPaymentStatus("error");
-      setCouponError(error.response?.data?.error || "Payment failed.");
+      
+      // Handle subscription-related errors for wallet payments too
+      if (error.response?.status === 403) {
+        const errorData = error.response.data;
+        if (errorData.subscription_required) {
+          setSubscriptionError({
+            subscriptionRequired: true,
+            message: errorData.message,
+          });
+        } else if (errorData.subscription_expired) {
+          setSubscriptionError({
+            subscriptionExpired: true,
+            message: errorData.message,
+            expiredDate: errorData.expired_date,
+          });
+        } else if (errorData.subscription_limit_reached) {
+          setSubscriptionError({
+            limitReached: true,
+            message: errorData.message,
+            currentUsage: errorData.current_usage,
+            limit: errorData.limit,
+          });
+        }
+      } else {
+        setCouponError(error.response?.data?.error || "Payment failed.");
+      }
     }
   };
 
@@ -550,6 +601,21 @@ function CheckoutPage() {
 
   return (
     <Elements stripe={stripePromise}>
+      {/* Subscription Error Handler */}
+      {subscriptionError && (
+        <SubscriptionErrorHandler
+          error={subscriptionError.message}
+          onClose={() => setSubscriptionError(null)}
+          onRetry={() => setSubscriptionError(null)}
+          subscriptionRequired={subscriptionError.subscriptionRequired}
+          subscriptionExpired={subscriptionError.subscriptionExpired}
+          limitReached={subscriptionError.limitReached}
+          currentUsage={subscriptionError.currentUsage}
+          limit={subscriptionError.limit}
+          type="event"
+        />
+      )}
+      
       <div
         className={cn(
           "min-h-screen flex flex-col",
