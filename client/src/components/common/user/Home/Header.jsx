@@ -82,11 +82,16 @@ const Header = () => {
 
     useEffect(() => {
         if (isAuthenticated && user) {
+            console.log("Header: Setting up WebSocket connection for user:", user.id);
+            
             const handleNotification = (data) => {
+                console.log("Header: Received notification data:", data);
                 setNotifications((prevNotifications) => {
                     if (prevNotifications.some((notif) => notif.id === data.id)) {
-                        return prevNotifications; // Skip duplicate
+                        console.log("Header: Duplicate notification, skipping");
+                        return prevNotifications; 
                     }
+                    console.log("Header: Adding new notification to list");
                     return [data, ...prevNotifications];
                 });
                 setUnreadCount((prevCount) => prevCount + 1);
@@ -100,6 +105,7 @@ const Header = () => {
             });
 
             return () => {
+                console.log("Header: Cleaning up WebSocket connection for user:", user.id);
                 removeListener(handleNotification);
                 disconnectWebSocket();
             };

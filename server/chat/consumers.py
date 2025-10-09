@@ -352,6 +352,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 {
                     "type": "notification",
                     "id": event["id"],
+                    "user": event["user"],
                     "message": event["message"],
                     "created_at": event["created_at"],
                 }

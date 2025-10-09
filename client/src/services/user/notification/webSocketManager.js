@@ -9,9 +9,10 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 
 export const connectWebSocket = async (userId, onMessage) => {
+    addListener(onMessage);
+    
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
         console.log("WebSocket connection already established or connecting");
-        addListener(onMessage);
         return;
     }
 
@@ -23,16 +24,18 @@ export const connectWebSocket = async (userId, onMessage) => {
     try {
         const token = await chatApi.getSocketToken();
         const socketUrl = `${baseWSUrl}/ws/notifications/${userId}/?token=${token}`;
+        console.log("Creating new WebSocket connection for user:", userId);
         socket = new WebSocket(socketUrl);
 
         socket.onopen = () => {
-            console.log("WebSocket connected");
+            console.log("WebSocket connected for user:", userId);
             reconnectAttempts = 0;
         };
 
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                console.log("WebSocket notification received for user:", userId, data);
                 listeners.forEach((callback) => callback(data));
             } catch (err) {
                 console.error("Error parsing WebSocket message:", err);
@@ -40,7 +43,7 @@ export const connectWebSocket = async (userId, onMessage) => {
         };
 
         socket.onclose = () => {
-            console.log("WebSocket disconnected");
+            console.log("WebSocket disconnected for user:", userId);
             socket = null;
             if (reconnectAttempts < maxReconnectAttempts) {
                 reconnectAttempts++;
@@ -56,8 +59,6 @@ export const connectWebSocket = async (userId, onMessage) => {
             console.error("WebSocket error:", error);
             socket.close();
         };
-
-        addListener(onMessage);
     } catch (error) {
         console.error("Error connecting WebSocket:", error);
     }
