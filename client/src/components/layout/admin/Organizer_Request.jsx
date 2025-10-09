@@ -63,7 +63,7 @@ const OrganizerRequest = () => {
         fetchRequests();
     }, [statusFilter, currentPage, itemsPerPage]);
     const handleSearch = () => {
-        fetchRequests(); // Trigger search manually
+        fetchRequests();
     };
 
     useEffect(() => {

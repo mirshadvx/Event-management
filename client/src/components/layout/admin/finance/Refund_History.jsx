@@ -38,7 +38,7 @@ const Refund_History = () => {
         page_size: itemsPerPage,
         search: searchTerm || undefined,
         date_range:
-          dateRange !== "all" && dateRange !== "custom" ? dateRange : undefined, // Updated to handle custom
+          dateRange !== "all" && dateRange !== "custom" ? dateRange : undefined,
         event_type: eventType !== "all" ? eventType : undefined,
         start_date: startDate
           ? startDate.toISOString().split("T")[0]
