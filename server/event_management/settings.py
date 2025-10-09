@@ -17,9 +17,8 @@ DEBUG = os.getenv("DEBUT", "TRUE") == "TRUE"
 ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
-CSRF_TRUSTED_ORIGINS = [
-    "https://api.evenxo.xyz",
-]
+
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
@@ -160,15 +159,20 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_TRUSTED_ORIGINS = [
-    "https://evenxo.xyz",
-    "https://www.evenxo.xyz",
-    "https://api.evenxo.xyz",
-]
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+# CSRF_COOKIE_SAMESITE = "None"
+# SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://evenxo.xyz",
+#     "https://www.evenxo.xyz",
+#     "https://api.evenxo.xyz",
+# ]
 
 SIMPLE_JWT = {
     "LEEWAY": 100,
