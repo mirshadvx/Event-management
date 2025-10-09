@@ -38,6 +38,33 @@ class EventCreateView(APIView):
 
     def handle_event(self, request, *args, **kwargs):
         event_id = request.data.get("event_id")
+        
+        if not event_id:
+            try:
+                from Admin.models import UserSubscription
+                subscription = UserSubscription.objects.get(user=request.user, is_active=True)
+                
+                if not subscription.can_organize_event():
+                    return Response(
+                        {
+                            "success": False,
+                            "message": f"You have reached your monthly event creation limit ({subscription.plan.event_creation_limit}). Upgrade your plan to create more events.",
+                            "subscription_limit_reached": True,
+                            "current_usage": subscription.events_organized_current_month,
+                            "limit": subscription.plan.event_creation_limit,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except UserSubscription.DoesNotExist:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "You need an active subscription to create events.",
+                        "subscription_required": True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        
         try:
             if event_id:
                 event = Event.objects.get(id=event_id, organizer=request.user)
@@ -57,6 +84,15 @@ class EventCreateView(APIView):
                     validated_data["published_at"] = timezone.now().date()
 
                 event = serializer.save()
+
+                # Increment subscription counter for new events
+                if not event_id:
+                    try:
+                        from Admin.models import UserSubscription
+                        subscription = UserSubscription.objects.get(user=request.user, is_active=True)
+                        subscription.inc_organized_count()
+                    except UserSubscription.DoesNotExist:
+                        pass  # Handle gracefully if subscription not found
 
                 if not event_id:
                     group_chat = GroupConversation.objects.create(
@@ -155,7 +191,7 @@ def handle_like(request, event):
     like, created = Like.objects.get_or_create(user=user, event=event)
 
     if created:
-        send_user_notification(
+        send_user_notification.delay(
             event.organizer.id, f"{user.username} liked your {event.event_title}"
         )
         return Response(
@@ -180,7 +216,7 @@ def handle_comment(request, event):
         )
 
     comment = Comment.objects.create(user=user, event=event, text=text)
-    send_user_notification(
+    send_user_notification.delay(
         event.organizer.id, f"{user.username} commented on your {event.event_title}"
     )
 

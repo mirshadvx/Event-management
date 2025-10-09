@@ -42,7 +42,6 @@ const ImageCropper = ({ image, onCropDone, onCropCancel }) => {
   //   setAspectRatio(aspectRatio === 3/5 ? 5/3 : 3/5);
   // };
 
-  // Reset crop to center
   const resetCrop = () => {
     setCrop({ x: 0, y: 0 });
     setZoom(initialZoom);

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import SubscriptionErrorHandler from "@/components/common/SubscriptionErrorHandler";
 
 const today = new Date();
 today.setHours(0, 0, 0, 0);
@@ -25,6 +26,7 @@ const CreateEvent_Outlet = () => {
     event_banner: { src: "", cropped: "", isCropping: false },
     promotional_image: { src: "", cropped: "", isCropping: false },
   });
+  const [subscriptionError, setSubscriptionError] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const eventId = new URLSearchParams(location.search).get("eventId");
@@ -277,9 +279,35 @@ const CreateEvent_Outlet = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Submission error:", error);
+      
+      if (error.response?.status === 403 && error.response?.data) {
+        const errorData = error.response.data;
+        
+        if (errorData.subscription_limit_reached) {
+          setSubscriptionError({
+            subscriptionLimitReached: true,
+            message: errorData.message,
+            currentUsage: errorData.current_usage || 0,
+            limit: errorData.limit || 0,
+            type: "event"
+          });
+          return; // Don't show toast error for subscription limits
+        }
+        
+        if (errorData.subscription_required) {
+          setSubscriptionError({
+            subscriptionRequired: true,
+            message: errorData.message,
+            type: "event"
+          });
+          return; // Don't show toast error for subscription required
+        }
+      }
+      
+      // Handle other errors
       toast.error(
         "Error submitting event: " +
-          (error.response?.data?.detail || error.message)
+          (error.response?.data?.detail || error.response?.data?.message || error.message)
       );
     } finally {
       setLoading(false);
@@ -894,6 +922,20 @@ const CreateEvent_Outlet = () => {
           </Button>
         </div>
       </form>
+      
+      {/* Subscription Error Handler */}
+      {subscriptionError && (
+        <SubscriptionErrorHandler
+          error={subscriptionError.message}
+          onClose={() => setSubscriptionError(null)}
+          onRetry={() => setSubscriptionError(null)}
+          subscriptionRequired={subscriptionError.subscriptionRequired}
+          limitReached={subscriptionError.subscriptionLimitReached}
+          currentUsage={subscriptionError.currentUsage}
+          limit={subscriptionError.limit}
+          type={subscriptionError.type}
+        />
+      )}
     </div>
   );
 };
