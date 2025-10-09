@@ -4,7 +4,7 @@ from .models import Profile, SocialMediaLink, UserSettings
 from decouple import config
 import redis
 from .models import Wallet, Profile, Booking, WalletTransaction
-from Admin.models import Coupon, SubscriptionPlan, UserSubscription
+from Admin.models import Coupon, SubscriptionPlan, UserSubscription, SubscriptionTransaction
 from event.models import Ticket, TicketPurchase, Event, Comment
 
 redis_client = redis.Redis(
@@ -28,8 +28,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ["username", "email", "password"]
 
     def validate(self, data):
-        # if redis_client.exists(f"temp_user:{data["email"]}") or Profile.objects.filter(email=data["email"]).exists():
-        #     raise serializers.ValidationError({"email":"Email is already in use"})
         return data
 
 
@@ -100,13 +98,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return instance
 
     def get_plan(self, obj):
-        subscription = obj.user_subscription.first()
+        subscription = obj.user_subscription.filter(is_active=True).first()
         if subscription is not None:
             return subscription.plan.name
         return None
 
     def get_plan_expired(self, obj):
-        subscription = obj.user_subscription.first()
+        subscription = obj.user_subscription.filter(is_active=True).first()
         if subscription is not None:
             return subscription.is_expired()
         return None
@@ -270,31 +268,60 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
 
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SubscriptionPlan
+        model = UserSubscription
         fields = [
-            "name",
-            "price",
-            "event_join_limit",
-            "event_creation_limit",
-            "email_notification",
-            "group_chat",
-            "personal_chat",
-            "advanced_analytics",
-            "ticket_scanning",
-            "live_streaming",
+            "id",
+            "plan",
+            "start_date",
+            "end_date",
+            "is_active",
+            "payment_method",
+            "payment_id",
+            "events_joined_current_month",
+            "events_organized_current_month",
+            "days_remaining",
+            "is_expired",
+            "can_join_event",
+            "can_organize_event",
+            "get_usage_percentage",
+            "get_creation_usage_percentage",
+            "get_remaining_joins",
+            "get_remaining_creations",
+        ]
+        read_only_fields = [
+            "id",
+            "start_date",
+            "end_date",
+            "is_active",
+            "events_joined_current_month",
+            "events_organized_current_month",
+            "days_remaining",
+            "is_expired",
+            "can_join_event",
+            "can_organize_event",
+            "get_usage_percentage",
+            "get_creation_usage_percentage",
+            "get_remaining_joins",
+            "get_remaining_creations",
         ]
 
 
 class UserPlanDetailsSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source="user.username")
-    plan = UserSubscriptionSerializer()
+    plan = SubscriptionPlanSerializer()
     days_remaining = serializers.SerializerMethodField()
     is_expired = serializers.SerializerMethodField()
+    usage_percentage = serializers.SerializerMethodField()
+    creation_usage_percentage = serializers.SerializerMethodField()
+    remaining_joins = serializers.SerializerMethodField()
+    remaining_creations = serializers.SerializerMethodField()
 
     class Meta:
         model = UserSubscription
         fields = [
+            "id",
             "user",
+            "plan",
             "start_date",
             "end_date",
             "is_active",
@@ -303,7 +330,10 @@ class UserPlanDetailsSerializer(serializers.ModelSerializer):
             "events_organized_current_month",
             "days_remaining",
             "is_expired",
-            "plan",
+            "usage_percentage",
+            "creation_usage_percentage",
+            "remaining_joins",
+            "remaining_creations",
         ]
 
     def get_days_remaining(self, obj):
@@ -311,3 +341,30 @@ class UserPlanDetailsSerializer(serializers.ModelSerializer):
 
     def get_is_expired(self, obj):
         return obj.is_expired()
+
+    def get_usage_percentage(self, obj):
+        return obj.get_usage_percentage()
+
+    def get_creation_usage_percentage(self, obj):
+        return obj.get_creation_usage_percentage()
+
+    def get_remaining_joins(self, obj):
+        return obj.get_remaining_joins()
+
+    def get_remaining_creations(self, obj):
+        return obj.get_remaining_creations()
+
+
+class SubscriptionTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionTransaction
+        fields = [
+            "id",
+            "subscription",
+            "amount",
+            "transaction_type",
+            "payment_method",
+            "transaction_id",
+            "transaction_date",
+        ]
+        read_only_fields = ["id", "transaction_date"]

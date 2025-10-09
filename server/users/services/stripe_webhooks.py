@@ -3,6 +3,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.utils import timezone
+from datetime import timedelta
 import json
 from users.models import Profile
 from Admin.models import UserSubscription, SubscriptionTransaction, SubscriptionPlan
@@ -83,7 +85,44 @@ def handle_payment_intent_succeeded(payment_intent):
                 print(f"[Webhook Error]: Premium plan not found")
 
         elif transaction_type == "subscription_purchase":
-            pass
+            try:
+                plan_id = payment_intent.get("metadata", {}).get("plan_id")
+                if plan_id:
+                    plan = SubscriptionPlan.objects.get(id=plan_id, active=True)
+                    
+                    existing_subscription = UserSubscription.objects.filter(
+                        user=user, is_active=True, end_date__gt=timezone.now()
+                    ).first()
+                    
+                    if not existing_subscription:
+                        end_date = timezone.now() + timedelta(days=30)
+                        subscription = UserSubscription.objects.create(
+                            user=user,
+                            plan=plan,
+                            start_date=timezone.now(),
+                            end_date=end_date,
+                            is_active=True,
+                            payment_method="stripe",
+                            payment_id=payment_intent["id"],
+                        )
+                        
+                        amount = payment_intent["amount"] / 100
+                        SubscriptionTransaction.objects.create(
+                            subscription=subscription,
+                            amount=amount,
+                            transaction_type="purchase",
+                            payment_method="stripe",
+                            transaction_id=payment_intent["id"],
+                        )
+                        
+                        logger.info(f"Created subscription for user {user_id}")
+                    else:
+                        logger.info(f"User {user_id} already has active subscription")
+                        
+            except SubscriptionPlan.DoesNotExist:
+                logger.error(f"[Webhook Error]: Plan not found for ID {plan_id}")
+            except Exception as e:
+                logger.error(f"[Webhook Error]: Error processing subscription purchase: {str(e)}")
     except Profile.DoesNotExist:
         print(f"[Webhook Error]: User not found with ID {user_id}")
     except Exception as e:
@@ -92,6 +131,37 @@ def handle_payment_intent_succeeded(payment_intent):
 
 def handle_payment_intent_failed(payment_intent):
     user_id = payment_intent.get("metadata", {}).get("user_id")
+    transaction_type = payment_intent.get("metadata", {}).get("transaction_type")
+    
+    if not user_id:
+        return
+
+    logger.error(f"[Payment Failed]: User {user_id}, Intent {payment_intent['id']}, Type: {transaction_type}")
+    
+
+def handle_charge_refunded(charge):
+    payment_intent_id = charge.get("payment_intent")
+    if payment_intent_id:
+        try:
+            transaction = SubscriptionTransaction.objects.get(
+                transaction_id=payment_intent_id
+            )
+            logger.info(f"Charge refunded for transaction {payment_intent_id}")
+        except SubscriptionTransaction.DoesNotExist:
+            logger.warning(f"Transaction not found for refunded charge {payment_intent_id}")
+
+
+def handle_subscription_deleted(subscription):
+    stripe_subscription_id = subscription.get("id")
+    try:
+        user_subscription = UserSubscription.objects.get(
+            payment_id=stripe_subscription_id
+        )
+        user_subscription.is_active = False
+        user_subscription.save()
+        logger.info(f"Deactivated subscription {user_subscription.id}")
+    except UserSubscription.DoesNotExist:
+        logger.warning(f"Subscription not found for deleted Stripe subscription {stripe_subscription_id}")
 
     if not user_id:
         return

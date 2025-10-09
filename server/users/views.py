@@ -19,6 +19,7 @@ from .serializers import (
     SubscriptionPlanSerializer,
     ProfileEventJoinedSerializer,
     UserPlanDetailsSerializer,
+    SubscriptionTransactionSerializer,
 )
 from rest_framework import status
 import redis
@@ -578,6 +579,31 @@ class CheckoutAPIView(APIView):
             event = get_object_or_404(Event, id=event_id, is_published=True)
             user = request.user
 
+            # Check subscription limits for event joining
+            try:
+                subscription = UserSubscription.objects.get(user=user, is_active=True)
+                
+                if not subscription.can_join_event():
+                    return Response(
+                        {
+                            "success": False,
+                            "message": f"You have reached your monthly event joining limit ({subscription.plan.event_join_limit}). Upgrade your plan to join more events.",
+                            "subscription_limit_reached": True,
+                            "current_usage": subscription.events_joined_current_month,
+                            "limit": subscription.plan.event_join_limit,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except UserSubscription.DoesNotExist:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "You need an active subscription to join events.",
+                        "subscription_required": True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             with transaction.atomic():
                 subtotal = Decimal("0")
                 ticket_purchases = []
@@ -697,6 +723,13 @@ class CheckoutAPIView(APIView):
                     user_id=user.id,
                     message=f"Booking successful for {event.event_title}",
                 )
+
+                # Increment subscription counter for event joining
+                try:
+                    subscription = UserSubscription.objects.get(user=user, is_active=True)
+                    subscription.inc_joined_count()
+                except UserSubscription.DoesNotExist:
+                    pass  # Handle gracefully if subscription not found
 
                 return Response(
                     {
@@ -1102,6 +1135,13 @@ class SubscriptionCheckout(APIView):
 
         try:
             plan = SubscriptionPlan.objects.get(id=plan_id)
+            logger.info(f"Found plan: {plan.name}, price: {plan.price}, active: {plan.active}")
+            
+            if not plan.active:
+                return Response(
+                    {"success": False, "message": "This subscription plan is not currently available"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             existing = UserSubscription.objects.filter(
                 user=user, is_active=True, end_date__gt=timezone.now()
@@ -1116,10 +1156,15 @@ class SubscriptionCheckout(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            payment_intent_id = None
+            
             if payment_method == "stripe":
                 result = self.handle_stripe_payment(request, plan, user)
                 if result is not None:
                     return result
+                # Extract payment intent ID from request data
+                payment_intent_id = request.data.get("payment_intent_id")
+                logger.info(f"Processing Stripe payment with intent ID: {payment_intent_id}")
 
             elif payment_method == "wallet":
                 result = self.handle_wallet_payment(plan, user)
@@ -1133,15 +1178,32 @@ class SubscriptionCheckout(APIView):
                 )
 
             end_date = timezone.now() + timedelta(days=30)
-            subscription, _ = UserSubscription.objects.update_or_create(
+            subscription, created = UserSubscription.objects.update_or_create(
                 user=user,
                 defaults={
                     "plan": plan,
                     "start_date": timezone.now(),
                     "end_date": end_date,
                     "is_active": True,
+                    "payment_method": payment_method,
+                    "payment_id": payment_intent_id if payment_method == "stripe" else None,
                 },
             )
+            logger.info(f"Created/updated subscription for user {user.id}: {subscription.id}, plan: {plan.name}")
+
+            # Create transaction record
+            try:
+                SubscriptionTransaction.objects.create(
+                    subscription=subscription,
+                    amount=plan.price,
+                    transaction_type="purchase",
+                    payment_method=payment_method,
+                    transaction_id=payment_intent_id if payment_method == "stripe" else None,
+                )
+                logger.info(f"Created subscription transaction for user {user.id}, plan {plan.name}")
+            except Exception as e:
+                logger.error(f"Error creating subscription transaction: {str(e)}")
+                # Don't fail the entire process if transaction creation fails
 
             return Response(
                 {
@@ -1169,7 +1231,7 @@ class SubscriptionCheckout(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
-            logger.error(f"Unhandled subscription error: {str(e)}")
+            logger.error(f"Unhandled subscription error: {str(e)}", exc_info=True)
             return Response(
                 {"success": False, "message": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1182,7 +1244,11 @@ class SubscriptionCheckout(APIView):
                 intent = stripe.PaymentIntent.create(
                     amount=int(plan.price * 100),
                     currency="inr",
-                    metadata={"user_id": str(user.id), "plan_id": str(plan.id)},
+                    metadata={
+                        "user_id": str(user.id), 
+                        "plan_id": str(plan.id),
+                        "transaction_type": "subscription_purchase"
+                    },
                     description=f"Subscription to {plan.name}",
                 )
                 return Response(
@@ -1802,3 +1868,252 @@ class RenewSubscription(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class RenewSubscription(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get renewal information for current subscription"""
+        user = request.user
+        try:
+            current_subscription = UserSubscription.objects.get(user=user, is_active=True)
+            
+            if not current_subscription.is_expired():
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Your subscription is still active. No renewal needed.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "subscription": UserPlanDetailsSerializer(current_subscription).data,
+                    "renewal_price": float(current_subscription.plan.price),
+                }
+            )
+
+        except UserSubscription.DoesNotExist:
+            return Response(
+                {"success": False, "message": "No subscription found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    def post(self, request):
+        """Renew expired subscription"""
+        user = request.user
+        payment_method = request.data.get("payment_method")
+        
+        try:
+            current_subscription = UserSubscription.objects.get(user=user, is_active=True)
+            
+            if not current_subscription.is_expired():
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Your subscription is still active. No renewal needed.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if payment_method == "stripe":
+                result = self.handle_stripe_renewal(request, current_subscription, user)
+                if result is not None:
+                    return result
+            elif payment_method == "wallet":
+                result = self.handle_wallet_renewal(current_subscription, user)
+                if result is not None:
+                    return result
+            else:
+                return Response(
+                    {"success": False, "message": "Invalid payment method"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Extend subscription by 30 days
+            current_subscription.end_date = timezone.now() + timedelta(days=30)
+            current_subscription.is_active = True
+            current_subscription.payment_method = payment_method
+            current_subscription.save()
+
+            # Create renewal transaction
+            SubscriptionTransaction.objects.create(
+                subscription=current_subscription,
+                amount=current_subscription.plan.price,
+                transaction_type="renewal",
+                payment_method=payment_method,
+                transaction_id=request.data.get("payment_intent_id") if payment_method == "stripe" else None,
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Subscription renewed successfully",
+                    "subscription": UserPlanDetailsSerializer(current_subscription).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except UserSubscription.DoesNotExist:
+            return Response(
+                {"success": False, "message": "No subscription found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(f"Renewal error: {str(e)}")
+            return Response(
+                {"success": False, "message": "An error occurred during renewal"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def handle_stripe_renewal(self, request, subscription, user):
+        """Handle Stripe payment for renewal"""
+        data = request.data
+        try:
+            if data.get("create_intent"):
+                intent = stripe.PaymentIntent.create(
+                    amount=int(subscription.plan.price * 100),
+                    currency="inr",
+                    metadata={
+                        "user_id": str(user.id),
+                        "subscription_id": str(subscription.id),
+                        "transaction_type": "subscription_renewal",
+                    },
+                    description=f"Renewal for {subscription.plan.name} subscription",
+                )
+                return Response(
+                    {
+                        "success": True,
+                        "client_secret": intent.client_secret,
+                        "intent_id": intent.id,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                intent_id = data.get("payment_intent_id")
+                if not intent_id:
+                    return Response(
+                        {"success": False, "message": "Missing payment intent ID"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                intent = stripe.PaymentIntent.retrieve(intent_id)
+                if intent.status != "succeeded":
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Payment not completed",
+                            "intent_status": intent.status,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe renewal error: {str(e)}")
+            return Response(
+                {"success": False, "message": f"Stripe error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def handle_wallet_renewal(self, subscription, user):
+        """Handle wallet payment for renewal"""
+        try:
+            wallet = Wallet.objects.get(user=user)
+            if wallet.balance < subscription.plan.price:
+                return Response(
+                    {"success": False, "message": "Insufficient wallet balance"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            wallet.balance -= subscription.plan.price
+            wallet.save()
+
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                transaction_type="PAYMENT",
+                amount=subscription.plan.price,
+                description=f"Subscription renewal for {subscription.plan.name}",
+            )
+        except Wallet.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Wallet not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+class UserPlanDetails(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get user's subscription details"""
+        user = request.user
+        try:
+            subscription = UserSubscription.objects.get(user=user, is_active=True)
+            serializer = UserPlanDetailsSerializer(subscription)
+            
+            return Response(
+                {
+                    "success": True,
+                    "subscription": serializer.data,
+                }
+            )
+        except UserSubscription.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "No active subscription found",
+                    "subscription": None,
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(f"Error fetching subscription details: {str(e)}")
+            return Response(
+                {
+                    "success": False,
+                    "message": "An error occurred while fetching subscription details",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class SubscriptionTransactions(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get user's subscription transaction history"""
+        user = request.user
+        try:
+            subscription = UserSubscription.objects.get(user=user, is_active=True)
+            transactions = SubscriptionTransaction.objects.filter(
+                subscription=subscription
+            ).order_by('-transaction_date')
+            
+            serializer = SubscriptionTransactionSerializer(transactions, many=True)
+            
+            return Response(
+                {
+                    "success": True,
+                    "transactions": serializer.data,
+                }
+            )
+        except UserSubscription.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "No active subscription found",
+                    "transactions": [],
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error(f"Error fetching subscription transactions: {str(e)}")
+            return Response(
+                {
+                    "success": False,
+                    "message": "An error occurred while fetching transaction history",
+                    "transactions": [],
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
