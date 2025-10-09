@@ -27,6 +27,11 @@ from .views import (
     ExportRevenuePDF,
     DashBoardView,
 )
+from .admin_subscription_views import (
+    AdminSubscriptionStats,
+    AdminRecentSubscriptions,
+    AdminResetSubscriptionCounters,
+)
 
 router = DefaultRouter()
 router.register(
@@ -109,4 +114,8 @@ urlpatterns = [
     path("events/", EventList.as_view(), name="event-list"),
     path("export-revenue-pdf/", ExportRevenuePDF.as_view(), name="export-revenue-pdf"),
     path("dashboard-data/", DashBoardView.as_view(), name="dashboard-datas"),
+    # Admin subscription management
+    path("subscription-stats/", AdminSubscriptionStats.as_view(), name="admin-subscription-stats"),
+    path("recent-subscriptions/", AdminRecentSubscriptions.as_view(), name="admin-recent-subscriptions"),
+    path("reset-subscription-counters/", AdminResetSubscriptionCounters.as_view(), name="admin-reset-counters"),
 ]

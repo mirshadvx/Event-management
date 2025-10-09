@@ -181,28 +181,28 @@ class SubscriptionPlan(models.Model):
     def ensure_default_plans(cls):
         defaults = {
             "basic": {
-                "price": 0,
-                "event_join_limit": 0,
-                "event_creation_limit": 0,
+                "price": 0.00,
+                "event_join_limit": 5,
+                "event_creation_limit": 2,
                 "email_notification": True,
                 "group_chat": False,
                 "personal_chat": False,
                 "advanced_analytics": False,
                 "ticket_scanning": False,
                 "live_streaming": False,
-                "active": False,
+                "active": True,
             },
             "premium": {
-                "price": 0,
-                "event_join_limit": 0,
-                "event_creation_limit": 0,
+                "price": 29.99,
+                "event_join_limit": 50,
+                "event_creation_limit": 20,
                 "email_notification": True,
                 "group_chat": True,
                 "personal_chat": True,
                 "advanced_analytics": True,
                 "ticket_scanning": True,
                 "live_streaming": True,
-                "active": False,
+                "active": True,
             },
         }
         for plan_name, plan_data in defaults.items():
@@ -232,10 +232,18 @@ class UserSubscription(models.Model):
         return self.is_active and not self.is_expired()
 
     def can_join_event(self):
-        return self.events_joined_current_month <= self.plan.event_join_limit
+        if not self.is_valid():
+            return False
+        if self.plan.event_join_limit == 0:
+            return False
+        return self.events_joined_current_month < self.plan.event_join_limit
 
     def can_organize_event(self):
-        return self.events_organized_current_month <= self.plan.event_creation_limit
+        if not self.is_valid():
+            return False
+        if self.plan.event_creation_limit == 0:
+            return False
+        return self.events_organized_current_month < self.plan.event_creation_limit
 
     def inc_joined_count(self):
         self.events_joined_current_month += 1
@@ -248,11 +256,38 @@ class UserSubscription(models.Model):
     def days_remaining(self):
         if not self.is_valid():
             return 0
-        print(
-            self.end_date, "00000", self.end_date.date(), "8888", timezone.now().date()
-        )
         days = self.end_date.date() - timezone.now().date()
         return max(days.days, 0)
+
+    def reset_monthly_counters(self):
+        """Reset monthly counters - should be called monthly"""
+        self.events_joined_current_month = 0
+        self.events_organized_current_month = 0
+        self.save()
+
+    def get_usage_percentage(self):
+        """Get usage percentage for joined events"""
+        if self.plan.event_join_limit == 0:
+            return 0
+        return (self.events_joined_current_month / self.plan.event_join_limit) * 100
+
+    def get_creation_usage_percentage(self):
+        """Get usage percentage for created events"""
+        if self.plan.event_creation_limit == 0:
+            return 0
+        return (self.events_organized_current_month / self.plan.event_creation_limit) * 100
+
+    def get_remaining_joins(self):
+        """Get remaining event joins"""
+        if self.plan.event_join_limit == 0:
+            return 0
+        return max(0, self.plan.event_join_limit - self.events_joined_current_month)
+
+    def get_remaining_creations(self):
+        """Get remaining event creations"""
+        if self.plan.event_creation_limit == 0:
+            return 0
+        return max(0, self.plan.event_creation_limit - self.events_organized_current_month)
 
 
 class SubscriptionTransaction(models.Model):
