@@ -1,128 +1,165 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import ChatSidebar from "@/components/user/chat/ChatSidebar";
 import ChatInfo from "@/components/user/chat/ChatInfo";
 import ChatWindow from "@/components/user/chat/ChatWindow";
 import Header from "@/components/common/user/Home/Header";
+import chatApi from "@/services/user/chat/chatApi";
 
 const MainLayout = () => {
-    const [activeTab, setActiveTab] = useState("Personal");
-    const [activeChatID, setActiveChatID] = useState(null);
-    const [chatHeader, setChatHeader] = useState(null);
-    const [profilePicture, setprofilePicture] = useState(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isInfoOpen, setIsInfoOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState("Personal");
+  const [activeChatID, setActiveChatID] = useState(null);
+  const [chatHeader, setChatHeader] = useState(null);
+  const [profilePicture, setprofilePicture] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user: currentUser } = useSelector((state) => state.user);
 
-    useEffect(() => {
-        const checkIfMobile = () => {
-            setIsMobile(window.innerWidth < 1024);
-        };
-        checkIfMobile();
-        window.addEventListener("resize", checkIfMobile);
-        return () => window.removeEventListener("resize", checkIfMobile);
-    }, []);
-
-    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
-    const toggleInfo = () => setIsInfoOpen(!isInfoOpen);
-
-    const handleTabChange = (tab) => {
-        setActiveTab(tab);
-        setActiveChatID(null);
-        setChatHeader(null);
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
     };
+    checkIfMobile();
+    window.addEventListener("resize", checkIfMobile);
+    return () => window.removeEventListener("resize", checkIfMobile);
+  }, []);
 
-    const MobileLayout = () => (
-        <div className="relative flex-1 h-[calc(100vh-64px)] overflow-hidden flex flex-col pt-14">
-            <div className="flex-1 flex flex-col relative z-10 bg-gray-900 overflow-hidden">
-                <ChatWindow
-                    chatID={activeChatID}
-                    chatHeader={chatHeader}
-                    chatprofilePicture={profilePicture}
-                    onMenuClick={toggleSidebar}
-                    onInfoClick={toggleInfo}
-                    activeTab={activeTab}
-                />
-            </div>
+  // Handle conversation query parameter
+  useEffect(() => {
+    const conversationId = searchParams.get("conversation");
+    if (conversationId && activeTab === "Personal" && currentUser) {
+      // Fetch conversation details and set it as active
+      chatApi
+        .getConversations()
+        .then((response) => {
+          const conversation = response.data.find(
+            (conv) => conv.id === parseInt(conversationId)
+          );
+          if (conversation && conversation.participants) {
+            const otherParticipant = conversation.participants.find(
+              (participant) => participant.id !== currentUser.id
+            );
+            if (otherParticipant) {
+              setActiveChatID(conversation.id);
+              setChatHeader(otherParticipant.username);
+              setprofilePicture(otherParticipant.profile_picture || null);
+              // Remove query parameter from URL
+              const newParams = new URLSearchParams(searchParams);
+              newParams.delete("conversation");
+              setSearchParams(newParams, { replace: true });
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching conversation:", error);
+        });
+    }
+  }, [searchParams, activeTab, currentUser, setSearchParams]);
 
-            <div
-                className={`fixed inset-y-0 top-16 left-0 z-30 w-80 bg-gray-800 shadow-lg transform transition-transform duration-300 ${
-                    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                }`}
-            >
-                <ChatSidebar
-                    activeChatID={activeChatID}
-                    setActiveChatID={(chatID, title, profilePicture) => {
-                        setActiveChatID(chatID);
-                        setChatHeader(title);
-                        setprofilePicture(profilePicture);
-                        setIsSidebarOpen(false);
-                    }}
-                    activeTab={activeTab}
-                    setActiveTab={handleTabChange}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                />
-            </div>
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleInfo = () => setIsInfoOpen(!isInfoOpen);
 
-            <div
-                className={`fixed inset-y-0 top-16 right-0 z-30 w-80 bg-gray-800 shadow-lg transform transition-transform duration-300 ${
-                    isInfoOpen ? "translate-x-0" : "translate-x-full"
-                }`}
-            >
-                <ChatInfo chatID={activeChatID} tab={activeTab} />
-            </div>
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setActiveChatID(null);
+    setChatHeader(null);
+  };
 
-            {(isSidebarOpen || isInfoOpen) && (
-                <div
-                    className="fixed inset-0 top-16 bg-black bg-opacity-50 z-20"
-                    onClick={() => {
-                        setIsSidebarOpen(false);
-                        setIsInfoOpen(false);
-                    }}
-                />
-            )}
-        </div>
-    );
+  const MobileLayout = () => (
+    <div className="relative flex-1 h-[calc(100vh-64px)] overflow-hidden flex flex-col pt-14">
+      <div className="flex-1 flex flex-col relative z-10 bg-gray-900 overflow-hidden">
+        <ChatWindow
+          chatID={activeChatID}
+          chatHeader={chatHeader}
+          chatprofilePicture={profilePicture}
+          onMenuClick={toggleSidebar}
+          onInfoClick={toggleInfo}
+          activeTab={activeTab}
+        />
+      </div>
 
-    const DesktopLayout = () => (
-        <div className="flex pt-15  h-[calc(108.5vh-64px)]">
-            <div className="w-80 flex-shrink-0">
-                <ChatSidebar
-                    activeChatID={activeChatID}
-                    setActiveChatID={(chatID, title, profilePicture) => {
-                        setActiveChatID(chatID);
-                        setChatHeader(title);
-                        setprofilePicture(profilePicture);
-                    }}
-                    activeTab={activeTab}
-                    setActiveTab={handleTabChange}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                />
-            </div>
-            <div className="flex-1">
-                <ChatWindow
-                    chatID={activeChatID}
-                    chatHeader={chatHeader}
-                    chatprofilePicture={profilePicture}
-                    onMenuClick={() => {}}
-                    onInfoClick={() => {}}
-                    activeTab={activeTab}
-                />
-            </div>
-            <div className="w-80 flex-shrink-0">
-                <ChatInfo chatID={activeChatID} tab={activeTab} />
-            </div>
-        </div>
-    );
+      <div
+        className={`fixed inset-y-0 top-16 left-0 z-30 w-80 bg-gray-800 shadow-lg transform transition-transform duration-300 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <ChatSidebar
+          activeChatID={activeChatID}
+          setActiveChatID={(chatID, title, profilePicture) => {
+            setActiveChatID(chatID);
+            setChatHeader(title);
+            setprofilePicture(profilePicture);
+            setIsSidebarOpen(false);
+          }}
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+      </div>
 
-    return (
-        <div className="flex flex-col h-screen bg-gray-900 text-white">
-            <Header />
-            {isMobile ? <MobileLayout /> : <DesktopLayout />}
-        </div>
-    );
+      <div
+        className={`fixed inset-y-0 top-16 right-0 z-30 w-80 bg-gray-800 shadow-lg transform transition-transform duration-300 ${
+          isInfoOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <ChatInfo chatID={activeChatID} tab={activeTab} />
+      </div>
+
+      {(isSidebarOpen || isInfoOpen) && (
+        <div
+          className="fixed inset-0 top-16 bg-black bg-opacity-50 z-20"
+          onClick={() => {
+            setIsSidebarOpen(false);
+            setIsInfoOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+
+  const DesktopLayout = () => (
+    <div className="flex pt-15  h-[calc(108.5vh-64px)]">
+      <div className="w-80 flex-shrink-0">
+        <ChatSidebar
+          activeChatID={activeChatID}
+          setActiveChatID={(chatID, title, profilePicture) => {
+            setActiveChatID(chatID);
+            setChatHeader(title);
+            setprofilePicture(profilePicture);
+          }}
+          activeTab={activeTab}
+          setActiveTab={handleTabChange}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+      </div>
+      <div className="flex-1">
+        <ChatWindow
+          chatID={activeChatID}
+          chatHeader={chatHeader}
+          chatprofilePicture={profilePicture}
+          onMenuClick={() => {}}
+          onInfoClick={() => {}}
+          activeTab={activeTab}
+        />
+      </div>
+      <div className="w-80 flex-shrink-0">
+        <ChatInfo chatID={activeChatID} tab={activeTab} />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-900 text-white">
+      <Header />
+      {isMobile ? <MobileLayout /> : <DesktopLayout />}
+    </div>
+  );
 };
 
 export default MainLayout;

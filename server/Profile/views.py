@@ -15,6 +15,7 @@ from django.utils import timezone
 from event.models import Event, Review
 from users.tasks import send_user_notification
 from chat.models import Conversation
+from django.db.models import Q
 
 
 class UserProfile(APIView):
@@ -30,6 +31,47 @@ class UserProfile(APIView):
 
         serializer = UserProfileSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        search_query = request.query_params.get("search", "").strip()
+        limit = int(request.query_params.get("limit", 20))
+
+        if not search_query:
+            return Response({"results": []}, status=status.HTTP_200_OK)
+
+        # Search users by username (excluding current user)
+        users = (
+            Profile.objects.filter(
+                Q(username__icontains=search_query) | Q(email__icontains=search_query)
+            )
+            .exclude(id=request.user.id)
+            .filter(is_active=True)[:limit]
+        )
+
+        # Simple serializer for search results
+        results = []
+        for user in users:
+            is_following = Follow.objects.filter(
+                follower=request.user, followed=user, status="accepted"
+            ).exists()
+
+            results.append(
+                {
+                    "id": user.id,
+                    "username": user.username,
+                    "profile_picture": user.profile_picture or "",
+                    "title": user.title or "",
+                    "bio": user.bio or "",
+                    "is_following": is_following,
+                    "organizer_verified": user.organizerVerified,
+                }
+            )
+
+        return Response({"results": results}, status=status.HTTP_200_OK)
 
 
 class FollowView(APIView):
