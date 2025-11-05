@@ -158,6 +158,7 @@ class RevenueDistribution(models.Model):
 
 class SubscriptionPlan(models.Model):
     PLAN_CHOICES = [
+        ("trial", "Trial"),
         ("basic", "Basic"),
         ("premium", "Premium"),
     ]
@@ -165,7 +166,6 @@ class SubscriptionPlan(models.Model):
     price = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
     event_join_limit = models.PositiveIntegerField(default=0)
     event_creation_limit = models.PositiveIntegerField(default=0)
-    # features
     email_notification = models.BooleanField(default=False)
     group_chat = models.BooleanField(default=False)
     personal_chat = models.BooleanField(default=False)
@@ -180,6 +180,18 @@ class SubscriptionPlan(models.Model):
     @classmethod
     def ensure_default_plans(cls):
         defaults = {
+            "trial": {
+                "price": 0.00,
+                "event_join_limit": 10,
+                "event_creation_limit": 5,
+                "email_notification": True,
+                "group_chat": True,
+                "personal_chat": True,
+                "advanced_analytics": True,
+                "ticket_scanning": True,
+                "live_streaming": True,
+                "active": True,
+            },
             "basic": {
                 "price": 0.00,
                 "event_join_limit": 5,
@@ -260,34 +272,33 @@ class UserSubscription(models.Model):
         return max(days.days, 0)
 
     def reset_monthly_counters(self):
-        """Reset monthly counters - should be called monthly"""
         self.events_joined_current_month = 0
         self.events_organized_current_month = 0
         self.save()
 
     def get_usage_percentage(self):
-        """Get usage percentage for joined events"""
         if self.plan.event_join_limit == 0:
             return 0
         return (self.events_joined_current_month / self.plan.event_join_limit) * 100
 
     def get_creation_usage_percentage(self):
-        """Get usage percentage for created events"""
         if self.plan.event_creation_limit == 0:
             return 0
-        return (self.events_organized_current_month / self.plan.event_creation_limit) * 100
+        return (
+            self.events_organized_current_month / self.plan.event_creation_limit
+        ) * 100
 
     def get_remaining_joins(self):
-        """Get remaining event joins"""
         if self.plan.event_join_limit == 0:
             return 0
         return max(0, self.plan.event_join_limit - self.events_joined_current_month)
 
     def get_remaining_creations(self):
-        """Get remaining event creations"""
         if self.plan.event_creation_limit == 0:
             return 0
-        return max(0, self.plan.event_creation_limit - self.events_organized_current_month)
+        return max(
+            0, self.plan.event_creation_limit - self.events_organized_current_month
+        )
 
 
 class SubscriptionTransaction(models.Model):
