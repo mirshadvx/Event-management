@@ -247,6 +247,28 @@ def verify_otp(request):
 
         Wallet.objects.create(user=user)
 
+        try:
+            trial_plan = SubscriptionPlan.objects.get(name="trial", active=True)
+            end_date = timezone.now() + timedelta(days=30)
+            UserSubscription.objects.create(
+                user=user,
+                plan=trial_plan,
+                start_date=timezone.now(),
+                end_date=end_date,
+                is_active=True,
+            )
+        except SubscriptionPlan.DoesNotExist:
+            SubscriptionPlan.ensure_default_plans()
+            trial_plan = SubscriptionPlan.objects.get(name="trial", active=True)
+            end_date = timezone.now() + timedelta(days=30)
+            UserSubscription.objects.create(
+                user=user,
+                plan=trial_plan,
+                start_date=timezone.now(),
+                end_date=end_date,
+                is_active=True,
+            )
+
         redis_client.delete(temp_user_key)
 
         return Response({"success": True, "message": "email varified!"})
@@ -582,7 +604,7 @@ class CheckoutAPIView(APIView):
             # Check subscription limits for event joining
             try:
                 subscription = UserSubscription.objects.get(user=user, is_active=True)
-                
+
                 if not subscription.can_join_event():
                     return Response(
                         {
@@ -726,7 +748,9 @@ class CheckoutAPIView(APIView):
 
                 # Increment subscription counter for event joining
                 try:
-                    subscription = UserSubscription.objects.get(user=user, is_active=True)
+                    subscription = UserSubscription.objects.get(
+                        user=user, is_active=True
+                    )
                     subscription.inc_joined_count()
                 except UserSubscription.DoesNotExist:
                     pass  # Handle gracefully if subscription not found
@@ -1102,11 +1126,22 @@ class ResetPasswordView(APIView):
 
 
 class SubscriptionCheckout(APIView):
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get(self, request):
         try:
-            plans = SubscriptionPlan.objects.all()
+            include_trial = (
+                request.query_params.get("include_trial", "false").lower() == "true"
+            )
+
+            plans_query = SubscriptionPlan.objects.filter(active=True)
+            if not include_trial:
+                plans_query = plans_query.exclude(name="trial")
+
+            plans = plans_query
             serializer = SubscriptionPlanSerializer(plans, many=True)
             return Response(
                 {"success": True, "plans": serializer.data}, status=status.HTTP_200_OK
@@ -1135,11 +1170,25 @@ class SubscriptionCheckout(APIView):
 
         try:
             plan = SubscriptionPlan.objects.get(id=plan_id)
-            logger.info(f"Found plan: {plan.name}, price: {plan.price}, active: {plan.active}")
-            
+            logger.info(
+                f"Found plan: {plan.name}, price: {plan.price}, active: {plan.active}"
+            )
+
+            if plan.name == "trial":
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Trial plan cannot be purchased. It is automatically assigned to new users.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             if not plan.active:
                 return Response(
-                    {"success": False, "message": "This subscription plan is not currently available"},
+                    {
+                        "success": False,
+                        "message": "This subscription plan is not currently available",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -1147,24 +1196,25 @@ class SubscriptionCheckout(APIView):
                 user=user, is_active=True, end_date__gt=timezone.now()
             ).first()
 
-            if existing:
+            if existing and existing.plan.name != "trial":
                 return Response(
                     {
                         "success": False,
-                        "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}.",
+                        "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}. Please wait for it to expire or upgrade through the upgrade page.",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
             payment_intent_id = None
-            
+
             if payment_method == "stripe":
                 result = self.handle_stripe_payment(request, plan, user)
                 if result is not None:
                     return result
-                # Extract payment intent ID from request data
                 payment_intent_id = request.data.get("payment_intent_id")
-                logger.info(f"Processing Stripe payment with intent ID: {payment_intent_id}")
+                logger.info(
+                    f"Processing Stripe payment with intent ID: {payment_intent_id}"
+                )
 
             elif payment_method == "wallet":
                 result = self.handle_wallet_payment(plan, user)
@@ -1178,33 +1228,58 @@ class SubscriptionCheckout(APIView):
                 )
 
             end_date = timezone.now() + timedelta(days=30)
-            subscription, created = UserSubscription.objects.update_or_create(
-                user=user,
-                defaults={
-                    "plan": plan,
-                    "start_date": timezone.now(),
-                    "end_date": end_date,
-                    "is_active": True,
-                    "payment_method": payment_method,
-                    "payment_id": payment_intent_id if payment_method == "stripe" else None,
-                },
-            )
-            logger.info(f"Created/updated subscription for user {user.id}: {subscription.id}, plan: {plan.name}")
 
-            # Create transaction record
+            if existing and existing.plan.name == "trial":
+
+                subscription = existing
+                subscription.plan = plan
+                subscription.start_date = timezone.now()
+                subscription.end_date = end_date
+                subscription.is_active = True
+                subscription.payment_method = payment_method
+                subscription.payment_id = (
+                    payment_intent_id if payment_method == "stripe" else None
+                )
+                subscription.events_joined_current_month = 0
+                subscription.events_organized_current_month = 0
+                subscription.save()
+                logger.info(
+                    f"Replaced trial subscription with {plan.name} plan for user {user.id}"
+                )
+            else:
+
+                subscription, created = UserSubscription.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        "plan": plan,
+                        "start_date": timezone.now(),
+                        "end_date": end_date,
+                        "is_active": True,
+                        "payment_method": payment_method,
+                        "payment_id": (
+                            payment_intent_id if payment_method == "stripe" else None
+                        ),
+                    },
+                )
+                logger.info(
+                    f"Created/updated subscription for user {user.id}: {subscription.id}, plan: {plan.name}"
+                )
+
             try:
                 SubscriptionTransaction.objects.create(
                     subscription=subscription,
                     amount=plan.price,
                     transaction_type="purchase",
                     payment_method=payment_method,
-                    transaction_id=payment_intent_id if payment_method == "stripe" else None,
+                    transaction_id=(
+                        payment_intent_id if payment_method == "stripe" else None
+                    ),
                 )
-                logger.info(f"Created subscription transaction for user {user.id}, plan {plan.name}")
+                logger.info(
+                    f"Created subscription transaction for user {user.id}, plan {plan.name}"
+                )
             except Exception as e:
                 logger.error(f"Error creating subscription transaction: {str(e)}")
-                # Don't fail the entire process if transaction creation fails
-
             return Response(
                 {
                     "success": True,
@@ -1245,9 +1320,9 @@ class SubscriptionCheckout(APIView):
                     amount=int(plan.price * 100),
                     currency="inr",
                     metadata={
-                        "user_id": str(user.id), 
+                        "user_id": str(user.id),
                         "plan_id": str(plan.id),
-                        "transaction_type": "subscription_purchase"
+                        "transaction_type": "subscription_purchase",
                     },
                     description=f"Subscription to {plan.name}",
                 )
@@ -1877,8 +1952,10 @@ class RenewSubscription(APIView):
         """Get renewal information for current subscription"""
         user = request.user
         try:
-            current_subscription = UserSubscription.objects.get(user=user, is_active=True)
-            
+            current_subscription = UserSubscription.objects.get(
+                user=user, is_active=True
+            )
+
             if not current_subscription.is_expired():
                 return Response(
                     {
@@ -1891,7 +1968,9 @@ class RenewSubscription(APIView):
             return Response(
                 {
                     "success": True,
-                    "subscription": UserPlanDetailsSerializer(current_subscription).data,
+                    "subscription": UserPlanDetailsSerializer(
+                        current_subscription
+                    ).data,
                     "renewal_price": float(current_subscription.plan.price),
                 }
             )
@@ -1906,10 +1985,12 @@ class RenewSubscription(APIView):
         """Renew expired subscription"""
         user = request.user
         payment_method = request.data.get("payment_method")
-        
+
         try:
-            current_subscription = UserSubscription.objects.get(user=user, is_active=True)
-            
+            current_subscription = UserSubscription.objects.get(
+                user=user, is_active=True
+            )
+
             if not current_subscription.is_expired():
                 return Response(
                     {
@@ -1945,14 +2026,20 @@ class RenewSubscription(APIView):
                 amount=current_subscription.plan.price,
                 transaction_type="renewal",
                 payment_method=payment_method,
-                transaction_id=request.data.get("payment_intent_id") if payment_method == "stripe" else None,
+                transaction_id=(
+                    request.data.get("payment_intent_id")
+                    if payment_method == "stripe"
+                    else None
+                ),
             )
 
             return Response(
                 {
                     "success": True,
                     "message": "Subscription renewed successfully",
-                    "subscription": UserPlanDetailsSerializer(current_subscription).data,
+                    "subscription": UserPlanDetailsSerializer(
+                        current_subscription
+                    ).data,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -2042,6 +2129,8 @@ class RenewSubscription(APIView):
                 {"success": False, "message": "Wallet not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+
 class UserPlanDetails(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -2051,7 +2140,7 @@ class UserPlanDetails(APIView):
         try:
             subscription = UserSubscription.objects.get(user=user, is_active=True)
             serializer = UserPlanDetailsSerializer(subscription)
-            
+
             return Response(
                 {
                     "success": True,
@@ -2088,10 +2177,10 @@ class SubscriptionTransactions(APIView):
             subscription = UserSubscription.objects.get(user=user, is_active=True)
             transactions = SubscriptionTransaction.objects.filter(
                 subscription=subscription
-            ).order_by('-transaction_date')
-            
+            ).order_by("-transaction_date")
+
             serializer = SubscriptionTransactionSerializer(transactions, many=True)
-            
+
             return Response(
                 {
                     "success": True,
