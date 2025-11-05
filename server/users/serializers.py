@@ -4,7 +4,12 @@ from .models import Profile, SocialMediaLink, UserSettings
 from decouple import config
 import redis
 from .models import Wallet, Profile, Booking, WalletTransaction
-from Admin.models import Coupon, SubscriptionPlan, UserSubscription, SubscriptionTransaction
+from Admin.models import (
+    Coupon,
+    SubscriptionPlan,
+    UserSubscription,
+    SubscriptionTransaction,
+)
 from event.models import Ticket, TicketPurchase, Event, Comment
 
 redis_client = redis.Redis(

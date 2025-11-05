@@ -38,12 +38,15 @@ class EventCreateView(APIView):
 
     def handle_event(self, request, *args, **kwargs):
         event_id = request.data.get("event_id")
-        
+
         if not event_id:
             try:
                 from Admin.models import UserSubscription
-                subscription = UserSubscription.objects.get(user=request.user, is_active=True)
-                
+
+                subscription = UserSubscription.objects.get(
+                    user=request.user, is_active=True
+                )
+
                 if not subscription.can_organize_event():
                     return Response(
                         {
@@ -64,7 +67,7 @@ class EventCreateView(APIView):
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
-        
+
         try:
             if event_id:
                 event = Event.objects.get(id=event_id, organizer=request.user)
@@ -89,7 +92,10 @@ class EventCreateView(APIView):
                 if not event_id:
                     try:
                         from Admin.models import UserSubscription
-                        subscription = UserSubscription.objects.get(user=request.user, is_active=True)
+
+                        subscription = UserSubscription.objects.get(
+                            user=request.user, is_active=True
+                        )
                         subscription.inc_organized_count()
                     except UserSubscription.DoesNotExist:
                         pass  # Handle gracefully if subscription not found

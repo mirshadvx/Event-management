@@ -17,18 +17,17 @@ def send_user_notification(user_id, message):
         from channels.layers import get_channel_layer
         from asgiref.sync import async_to_sync
         import json
-        
+
         user = Profile.objects.get(id=user_id)
-        notification = Notification.objects.create(
-            user=user,
-            message=message
-        )
-        
+        notification = Notification.objects.create(user=user, message=message)
+
         channel_layer = get_channel_layer()
         notification_group_name = f"notifications_{user_id}"
-        
-        logger.info(f"Sending WebSocket notification to group: {notification_group_name}")
-        
+
+        logger.info(
+            f"Sending WebSocket notification to group: {notification_group_name}"
+        )
+
         async_to_sync(channel_layer.group_send)(
             notification_group_name,
             {
@@ -37,14 +36,16 @@ def send_user_notification(user_id, message):
                 "user": user.id,
                 "message": notification.message,
                 "created_at": notification.created_at.isoformat(),
-            }
+            },
         )
-        
-        logger.info(f"WebSocket notification sent for notification ID: {notification.id}")
-        
+
+        logger.info(
+            f"WebSocket notification sent for notification ID: {notification.id}"
+        )
+
         logger.info(f"Notification sent to user {user_id}: {message}")
         return f"Notification sent to user {user_id}"
-        
+
     except Exception as e:
         logger.error(f"Error sending notification to user {user_id}: {str(e)}")
         raise
@@ -59,14 +60,14 @@ def reset_monthly_subscription_counters():
     try:
         active_subscriptions = UserSubscription.objects.filter(is_active=True)
         reset_count = 0
-        
+
         for subscription in active_subscriptions:
             subscription.reset_monthly_counters()
             reset_count += 1
-            
+
         logger.info(f"Reset monthly counters for {reset_count} subscriptions")
         return f"Successfully reset counters for {reset_count} subscriptions"
-        
+
     except Exception as e:
         logger.error(f"Error resetting subscription counters: {str(e)}")
         raise
@@ -79,19 +80,18 @@ def check_expired_subscriptions():
     """
     try:
         expired_subscriptions = UserSubscription.objects.filter(
-            is_active=True,
-            end_date__lt=timezone.now()
+            is_active=True, end_date__lt=timezone.now()
         )
-        
+
         expired_count = 0
         for subscription in expired_subscriptions:
             subscription.is_active = False
             subscription.save()
             expired_count += 1
-            
+
         logger.info(f"Deactivated {expired_count} expired subscriptions")
         return f"Successfully deactivated {expired_count} expired subscriptions"
-        
+
     except Exception as e:
         logger.error(f"Error checking expired subscriptions: {str(e)}")
         raise

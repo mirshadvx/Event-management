@@ -7,7 +7,10 @@ from django.utils import timezone
 from datetime import timedelta
 from Admin.models import UserSubscription, SubscriptionPlan, SubscriptionTransaction
 from users.models import Profile
-from users.serializers import UserPlanDetailsSerializer, SubscriptionTransactionSerializer
+from users.serializers import (
+    UserPlanDetailsSerializer,
+    SubscriptionTransactionSerializer,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,21 +30,27 @@ class AdminSubscriptionStats(APIView):
 
             # Calculate stats
             total_subscriptions = UserSubscription.objects.count()
-            active_subscriptions = UserSubscription.objects.filter(is_active=True).count()
+            active_subscriptions = UserSubscription.objects.filter(
+                is_active=True
+            ).count()
             expired_subscriptions = UserSubscription.objects.filter(
                 is_active=True, end_date__lt=timezone.now()
             ).count()
 
             # Revenue calculations
-            total_revenue = SubscriptionTransaction.objects.aggregate(
-                total=Sum('amount')
-            )['total'] or 0
+            total_revenue = (
+                SubscriptionTransaction.objects.aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
 
             # Monthly revenue (last 30 days)
             thirty_days_ago = timezone.now() - timedelta(days=30)
-            monthly_revenue = SubscriptionTransaction.objects.filter(
-                transaction_date__gte=thirty_days_ago
-            ).aggregate(total=Sum('amount'))['total'] or 0
+            monthly_revenue = (
+                SubscriptionTransaction.objects.filter(
+                    transaction_date__gte=thirty_days_ago
+                ).aggregate(total=Sum("amount"))["total"]
+                or 0
+            )
 
             stats = {
                 "total_subscriptions": total_subscriptions,
@@ -79,22 +88,24 @@ class AdminRecentSubscriptions(APIView):
                 )
 
             recent_subscriptions = UserSubscription.objects.select_related(
-                'user', 'plan'
-            ).order_by('-start_date')[:10]
+                "user", "plan"
+            ).order_by("-start_date")[:10]
 
             subscriptions_data = []
             for subscription in recent_subscriptions:
-                subscriptions_data.append({
-                    "id": subscription.id,
-                    "user": subscription.user.username,
-                    "plan": {
-                        "name": subscription.plan.name,
-                        "price": float(subscription.plan.price),
-                    },
-                    "is_active": subscription.is_active,
-                    "start_date": subscription.start_date,
-                    "end_date": subscription.end_date,
-                })
+                subscriptions_data.append(
+                    {
+                        "id": subscription.id,
+                        "user": subscription.user.username,
+                        "plan": {
+                            "name": subscription.plan.name,
+                            "price": float(subscription.plan.price),
+                        },
+                        "is_active": subscription.is_active,
+                        "start_date": subscription.start_date,
+                        "end_date": subscription.end_date,
+                    }
+                )
 
             return Response(
                 {
@@ -106,7 +117,10 @@ class AdminRecentSubscriptions(APIView):
         except Exception as e:
             logger.error(f"Error fetching recent subscriptions: {str(e)}")
             return Response(
-                {"success": False, "message": "An error occurred while fetching subscriptions"},
+                {
+                    "success": False,
+                    "message": "An error occurred while fetching subscriptions",
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -130,7 +144,9 @@ class AdminResetSubscriptionCounters(APIView):
                 subscription.reset_monthly_counters()
                 reset_count += 1
 
-            logger.info(f"Admin {request.user.username} reset counters for {reset_count} subscriptions")
+            logger.info(
+                f"Admin {request.user.username} reset counters for {reset_count} subscriptions"
+            )
 
             return Response(
                 {
@@ -143,6 +159,9 @@ class AdminResetSubscriptionCounters(APIView):
         except Exception as e:
             logger.error(f"Error resetting subscription counters: {str(e)}")
             return Response(
-                {"success": False, "message": "An error occurred while resetting counters"},
+                {
+                    "success": False,
+                    "message": "An error occurred while resetting counters",
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

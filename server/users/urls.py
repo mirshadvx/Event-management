@@ -45,5 +45,9 @@ urlpatterns = [
         "subscription-details/", UserPlanDetails.as_view(), name="subscription_details"
     ),
     path("renew-subscription/", RenewSubscription.as_view(), name="renew_subscriptoin"),
-    path("subscription-transactions/", SubscriptionTransactions.as_view(), name="subscription_transactions"),
+    path(
+        "subscription-transactions/",
+        SubscriptionTransactions.as_view(),
+        name="subscription_transactions",
+    ),
 ]
