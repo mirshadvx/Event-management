@@ -8,7 +8,7 @@ import ImageEditModal from "@/components/common/user/Profile/profile/ImageEditMo
 import { toast } from "sonner";
 import api from "@/services/api";
 import { CheckOrganizerStatus } from "@/services/api";
-import { useWebSocket } from "@/hooks/profile/useWebSocket";
+import { addListener, removeListener, connectWebSocket } from "@/services/user/notification/webSocketManager";
 
 const Profile_outlet = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -102,29 +102,43 @@ const Profile_outlet = () => {
         }
     };
 
-    useWebSocket(
-        baseWebSocketURL,
-        user?.id,
-        (data) => {
-            if (data.type === "status_update") {
+    // Listen for organizer status updates via Socket.IO
+    useEffect(() => {
+        if (!user?.id) return;
+
+        // Connect to WebSocket for notifications
+        connectWebSocket(String(user.id), () => {});
+
+        const handleOrganizerStatusUpdate = (data) => {
+            if (data.type === "organizer_status_update") {
                 setOrganizerStatus(data.status);
-                setAdminNotes(data.admin_notes);
+                setAdminNotes(data.admin_notes || "");
                 setOrganizerVerified(data.organizerVerified);
+                
+                // Refresh user data to get updated organizer status
+                dispatch(get_ProfileData());
+                
                 if (data.status === "approved") {
-                    toast.success("Your organizer request has been approved!", {
+                    toast.success(data.message || "Your organizer request has been approved!", {
                         duration: 3000,
                         className: "text-white p-4 rounded-md",
                     });
                 } else if (data.status === "rejected") {
-                    toast.error(`Your organizer request was rejected. ${data.admin_notes || ""}`, {
+                    toast.error(data.message || `Your organizer request was rejected. ${data.admin_notes || ""}`, {
                         duration: 5000,
                         className: "text-white p-4 rounded-md",
                     });
                 }
             }
-        },
-        user && organizerVerified === false
-    );
+        };
+
+        // Add listener for organizer status updates
+        addListener(handleOrganizerStatusUpdate);
+        
+        return () => {
+            removeListener(handleOrganizerStatusUpdate);
+        };
+    }, [user?.id, dispatch]);
 
     const transformSocialLinks = (links) => {
         const result = {};
