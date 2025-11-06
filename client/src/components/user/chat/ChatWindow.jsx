@@ -88,7 +88,7 @@ const ChatWindow = ({ chatID, chatHeader, chatprofilePicture, onMenuClick, onInf
         });
 
         if (data.sender_id !== user.id && !isImage) {
-            socketService.sendMessage({ type: "read", message_id: data.message_id });
+            socketService.markRead(data.message_id);
         }
     };
 
@@ -180,7 +180,6 @@ const ChatWindow = ({ chatID, chatHeader, chatprofilePicture, onMenuClick, onInf
                 const chatType = activeTab === "Events" ? "group" : "personal";
                 await socketService.connect(chatID, token, chatType);
 
-                // Register listeners
                 socketService.on("message", handleMessage);
                 socketService.on("image", handleMessage);
                 socketService.on("read", handleRead);
@@ -233,7 +232,7 @@ const ChatWindow = ({ chatID, chatHeader, chatprofilePicture, onMenuClick, onInf
             isImage: false,
         };
         setMessages((prev) => [...prev, newMessage]);
-        socketService.sendMessage({ type: "message", message: content });
+        socketService.sendMessage({ message: content });
     };
 
     const handleSendImage = (imageData) => {
@@ -255,7 +254,7 @@ const ChatWindow = ({ chatID, chatHeader, chatprofilePicture, onMenuClick, onInf
             isImage: true,
         };
         setMessages((prev) => [...prev, newMessage]);
-        socketService.sendMessage({ type: "image", image: imageData });
+        socketService.sendImage({ image: imageData });
     };
 
     const handleTyping = () => {

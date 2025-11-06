@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   IoMdChatbubbles,
   IoIosNotifications,
@@ -90,40 +90,71 @@ const Header = () => {
     }
   }, [user, isAuthenticated, loading, dispatch]);
 
+  const handleNotification = useCallback((data) => {
+    console.log("Header: Received notification data:", data);
+
+    if (!data || !data.id) {
+      console.error("Header: Invalid notification data received:", data);
+      return;
+    }
+
+    setNotifications((prevNotifications) => {
+      const isDuplicate = prevNotifications.some(
+        (notif) => notif.id === data.id
+      );
+      if (isDuplicate) {
+        console.log("Header: Duplicate notification, skipping. ID:", data.id);
+        return prevNotifications;
+      }
+      console.log("Header: Adding new notification to list. ID:", data.id);
+      console.log(
+        "Header: Previous notifications count:",
+        prevNotifications.length
+      );
+      const newNotifications = [data, ...prevNotifications];
+      console.log("Header: New notifications count:", newNotifications.length);
+      return newNotifications;
+    });
+
+    setUnreadCount((prevCount) => {
+      const newCount = prevCount + 1;
+      console.log("Header: Updated unread count:", newCount);
+      return newCount;
+    });
+  }, []);
+
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user?.id) {
       console.log("Header: Setting up WebSocket connection for user:", user.id);
 
-      const handleNotification = (data) => {
-        console.log("Header: Received notification data:", data);
-        setNotifications((prevNotifications) => {
-          if (prevNotifications.some((notif) => notif.id === data.id)) {
-            console.log("Header: Duplicate notification, skipping");
-            return prevNotifications;
+      connectWebSocket(String(user.id), handleNotification);
+
+      fetchNotifications()
+        .then((data) => {
+          console.log("Header: Fetched notifications:", data);
+          if (Array.isArray(data)) {
+            setNotifications(data);
+            setUnreadCount(data.length);
           }
-          console.log("Header: Adding new notification to list");
-          return [data, ...prevNotifications];
+        })
+        .catch((error) => {
+          console.error("Header: Error fetching notifications:", error);
         });
-        setUnreadCount((prevCount) => prevCount + 1);
-      };
-
-      connectWebSocket(user.id, handleNotification);
-
-      fetchNotifications().then((data) => {
-        setNotifications(data);
-        setUnreadCount(data.length);
-      });
 
       return () => {
         console.log(
-          "Header: Cleaning up WebSocket connection for user:",
+          "Header: Removing notification listener for user:",
           user.id
         );
         removeListener(handleNotification);
-        disconnectWebSocket();
       };
+    } else if (!isAuthenticated) {
+      console.log("Header: User not authenticated, disconnecting WebSocket");
+      disconnectWebSocket();
+      setNotifications([]);
+      setUnreadCount(0);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id, handleNotification]);
 
   const toggleDropdown = () => {
     setDropdownOpen(!dropdownOpen);

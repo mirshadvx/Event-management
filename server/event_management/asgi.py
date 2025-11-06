@@ -3,22 +3,25 @@ import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "event_management.settings")
 django.setup()
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
+
+from channels.routing import ProtocolTypeRouter
 from django.core.asgi import get_asgi_application
-from Admin.routing import websocket_urlpatterns as admin_websocket_urlpatterns
-from chat.routing import websocket_urlpatterns as chat_websocket_urlpatterns
-from chat.middleware import TokenAuthMiddleware
-from channels.routing import URLRouter
+from chat.socketio_server import socketio_app
 
 django_asgi_app = get_asgi_application()
 
 
-combined_websocket_patterns = admin_websocket_urlpatterns + chat_websocket_urlpatterns
+async def http_handler(scope, receive, send):
+    """Handle HTTP requests, routing Socket.io to Socket.io app"""
+    path = scope.get("path", "")
+    
+    if path.startswith("/socket.io/"):
+        await socketio_app(scope, receive, send)
+    else:
+        await django_asgi_app(scope, receive, send)
 
-application = ProtocolTypeRouter(
-    {
-        "http": django_asgi_app,
-        "websocket": TokenAuthMiddleware(URLRouter(combined_websocket_patterns)),
-    }
-)
+
+application = ProtocolTypeRouter({
+    "http": http_handler,
+    "websocket": socketio_app,
+})
