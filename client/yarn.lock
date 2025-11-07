@@ -1840,11 +1840,6 @@
     "@types/babel__core" "^7.20.5"
     react-refresh "^0.14.2"
 
-"@zegocloud/zego-uikit-prebuilt@^2.14.3-beta":
-  version "2.14.3-beta"
-  resolved "https://registry.npmjs.org/@zegocloud/zego-uikit-prebuilt/-/zego-uikit-prebuilt-2.14.3-beta.tgz"
-  integrity sha512-Z7obUGKu0uC/88bHWDXsrqQUkP+cngje17AaCEehxH08FCunOeZAYFCrvcPqFdudxFNPBbEkrZ3pinSr2gJRjw==
-
 acorn-jsx@^5.3.2:
   version "5.3.2"
   resolved "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-5.3.2.tgz"

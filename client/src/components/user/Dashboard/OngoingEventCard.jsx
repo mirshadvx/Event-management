@@ -1,5 +1,5 @@
 import React from "react";
-import { MapPin, X, Users, Clock } from "lucide-react";
+import { MapPin, X, Users, Clock, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HiChevronDoubleUp } from "react-icons/hi";
 import { format } from "date-fns";
@@ -128,9 +128,10 @@ const OngoingEventCard = ({
 
                                 <Button
                                     size="sm"
-                                    className="bg-red-500 hover:bg-red-600 text-white"
+                                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg flex items-center gap-2 font-semibold"
                                     onClick={() => onGoLiveClick(event)}
                                 >
+                                    <Radio className="h-4 w-4" />
                                     Go Live
                                 </Button>
                             </div>

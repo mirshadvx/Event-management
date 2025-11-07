@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Search, Calendar, ChevronDown, MapPin, Star, X, Menu } from "lucide-react";
+import { Search, Calendar, ChevronDown, MapPin, Star, X, Menu, Radio, Users, Loader2, Wifi, WifiOff } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { HiChevronDoubleUp } from "react-icons/hi";
 import { HashLoader } from "react-spinners";
 import { v4 as uuidv4 } from "uuid";
-import { generateKitToken, createZegoInstance, joinRoomAsAudience, destroyZegoInstance } from "@/services/ZegoService";
+import WebRTCService from "@/services/WebRTCService";
 import ReviewModal from "@/components/user/Dashboard/ReviewModal";
 
 import {
@@ -45,7 +45,10 @@ const Participated_Outlet = () => {
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const liveStreamRef = useRef(null);
-    const zegoInstanceRef = useRef(null);
+    const videoRef = useRef(null);
+    const [streamReady, setStreamReady] = useState(false);
+    const streamStartedRef = useRef(false);
+    const [connectionStatus, setConnectionStatus] = useState("disconnected"); // disconnected, connecting, connected
 
     const categories = ["Conference", "Workshop", "Seminar"];
     const timeFilters = ["All", "Today", "Week", "Month", "Custom"];
@@ -99,32 +102,82 @@ const Participated_Outlet = () => {
 
     const watchLiveStream = async (event) => {
         try {
+            console.log("[Participated_Outlet] Watching live stream for event:", event.id);
+            
+            let retries = 0;
+            const maxRetries = 10;
+            while (!videoRef.current && retries < maxRetries) {
+                console.log(`[Participated_Outlet] Waiting for video element... (attempt ${retries + 1}/${maxRetries})`);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                retries++;
+            }
+
+            if (!videoRef.current) {
+                throw new Error("Video element not available after waiting");
+            }
+
+            console.log("[Participated_Outlet] Video element ready, fetching stream info");
             const response = await api.get(`event/stream/${event.id}/`);
             const { room_id } = response.data;
+            console.log("[Participated_Outlet] Room ID:", room_id);
 
-            const userID = `participant_${Math.random().toString(36).substring(2)}`;
-            const userName = `Participant_${Math.random().toString(36).substring(2)}`;
+            setStreamReady(false);
 
-            const kitToken = generateKitToken(room_id, userID, userName);
+            console.log("[Participated_Outlet] Video element ready, joining as participant");
 
-            const zp = createZegoInstance(kitToken);
-            zegoInstanceRef.current = zp;
+            setConnectionStatus("connecting");
+            WebRTCService.setOnRemoteStream((stream, userId) => {
+                console.log("[Participated_Outlet] Remote stream received from:", userId);
+                if (videoRef.current && videoRef.current.srcObject !== stream) {
+                    videoRef.current.srcObject = stream;
+                    const playPromise = videoRef.current.play();
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log("[Participated_Outlet] Remote stream playing");
+                                setStreamReady(true);
+                                setConnectionStatus("connected");
+                            })
+                            .catch(err => {
+                                if (err.name !== 'AbortError') {
+                                    console.error("[Participated_Outlet] Error playing video:", err);
+                                } else {
+                                    setStreamReady(true);
+                                    setConnectionStatus("connected");
+                                }
+                            });
+                    } else {
+                        setStreamReady(true);
+                        setConnectionStatus("connected");
+                    }
+                }
+            });
 
-            joinRoomAsAudience(zp, liveStreamRef.current);
+            WebRTCService.setOnStreamEnded(() => {
+                console.log("[Participated_Outlet] Stream ended callback triggered");
+                toast.info("Stream ended by host");
+                setStreamReady(false);
+                setConnectionStatus("disconnected");
+                cleanupStream();
+            });
+
+            await WebRTCService.joinAsParticipant(room_id, videoRef.current);
+            console.log("[Participated_Outlet] Successfully joined as participant");
 
             toast.success("Joined live stream successfully!");
         } catch (error) {
-            console.error("Error joining live stream:", error);
-            toast.error("Failed to join live stream");
-            if (liveStreamRef.current) {
-                liveStreamRef.current.innerHTML = '<p class="text-red-500">No active stream available</p>';
-            }
+            console.error("[Participated_Outlet] Error joining live stream:", error);
+            toast.error("Failed to join live stream: " + (error.message || "Unknown error"));
+            setStreamReady(false);
+            cleanupStream();
         }
     };
 
     const cleanupStream = () => {
-        destroyZegoInstance(zegoInstanceRef.current);
-        zegoInstanceRef.current = null;
+        console.log("[Participated_Outlet] Cleaning up stream");
+        WebRTCService.cleanup();
+        setStreamReady(false);
+        setConnectionStatus("disconnected");
     };
 
     useEffect(() => {
@@ -139,6 +192,46 @@ const Participated_Outlet = () => {
             fetchEvents(page);
         }
     }, [page, fetchEvents, initialLoad]);
+
+    useEffect(() => {
+        if (isWatchLiveModalOpen && selectedEvent && !streamStartedRef.current) {
+            console.log("[Participated_Outlet] Dialog opened, waiting for video element");
+            streamStartedRef.current = true;
+            
+            const checkVideoElement = () => {
+                if (videoRef.current) {
+                    console.log("[Participated_Outlet] Video element available, starting stream");
+                    watchLiveStream(selectedEvent);
+                    return true;
+                }
+                return false;
+            };
+
+            if (checkVideoElement()) {
+                return;
+            }
+
+            let attempts = 0;
+            const maxAttempts = 20;
+            const interval = setInterval(() => {
+                attempts++;
+                if (checkVideoElement() || attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    if (attempts >= maxAttempts && !videoRef.current) {
+                        console.error("[Participated_Outlet] Video element not available after polling");
+                        toast.error("Failed to initialize video element");
+                        streamStartedRef.current = false;
+                    }
+                }
+            }, 100);
+
+            return () => {
+                clearInterval(interval);
+            };
+        } else if (!isWatchLiveModalOpen) {
+            streamStartedRef.current = false;
+        }
+    }, [isWatchLiveModalOpen, selectedEvent]);
 
     useEffect(() => {
         return () => {
@@ -177,7 +270,7 @@ const Participated_Outlet = () => {
     const handleWatchLive = (event) => {
         setSelectedEvent(event);
         setIsWatchLiveModalOpen(true);
-        watchLiveStream(event);
+        // Don't call watchLiveStream here - wait for dialog to open via useEffect
     };
 
     const handleReviewEvent = (event) => {
@@ -186,7 +279,9 @@ const Participated_Outlet = () => {
     };
 
     const handleModalClose = () => {
+        console.log("[Participated_Outlet] Closing modal, cleaning up stream");
         cleanupStream();
+        streamStartedRef.current = false;
         setIsWatchLiveModalOpen(false);
         setSelectedEvent(null);
     };
@@ -575,42 +670,106 @@ const Participated_Outlet = () => {
                                                         <div className="flex gap-2">
                                                             <Dialog
                                                                 open={isWatchLiveModalOpen}
-                                                                onOpenChange={handleModalClose}
+                                                                onOpenChange={(open) => {
+                                                                    if (!open) {
+                                                                        handleModalClose();
+                                                                    }
+                                                                }}
                                                             >
                                                                 <DialogTrigger asChild>
                                                                     <Button
                                                                         size="sm"
-                                                                        variant="outline"
-                                                                        className="border-gray-600 text-black flex-1"
+                                                                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg flex-1 flex items-center gap-2 font-semibold"
                                                                         onClick={() => handleWatchLive(event)}
                                                                     >
-                                                                        Watch live
+                                                                        <Radio className="h-4 w-4" />
+                                                                        Watch Live
                                                                     </Button>
                                                                 </DialogTrigger>
 
-                                                                <DialogPortal>
-                                                                    <DialogOverlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-                                                                    <DialogContent className="bg-white text-black z-50">
-                                                                        <DialogHeader>
-                                                                            <DialogTitle>Watch Live Stream</DialogTitle>
-                                                                            <DialogDescription>
-                                                                                Join the live stream for this event.
-                                                                            </DialogDescription>
-                                                                        </DialogHeader>
-                                                                        <div
-                                                                            ref={liveStreamRef}
-                                                                            className="w-full h-[400px]"
-                                                                        />
-                                                                        <DialogFooter>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                onClick={handleModalClose}
+                                                                {isWatchLiveModalOpen && (
+                                                                    <DialogPortal>
+                                                                        <DialogOverlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
+                                                                        <DialogContent className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white z-50 border-gray-700 max-w-5xl">
+                                                                            <DialogHeader className="space-y-3">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                                                                                        <Radio className="h-5 w-5 text-red-500" />
+                                                                                        Live Stream
+                                                                                    </DialogTitle>
+                                                                                    {connectionStatus === "connected" && (
+                                                                                        <div className="flex items-center gap-2 bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/50">
+                                                                                            <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+                                                                                            <span className="text-sm font-semibold">LIVE</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <DialogDescription className="text-gray-300">
+                                                                                    {selectedEvent && (
+                                                                                        <span>Watching: <span className="text-white font-medium">{selectedEvent.event_title}</span></span>
+                                                                                    )}
+                                                                                </DialogDescription>
+                                                                            </DialogHeader>
+                                                                            <div
+                                                                                ref={liveStreamRef}
+                                                                                className="w-full h-[500px] bg-black rounded-xl overflow-hidden flex items-center justify-center relative border-2 border-gray-700 shadow-2xl"
                                                                             >
-                                                                                Close
-                                                                            </Button>
-                                                                        </DialogFooter>
-                                                                    </DialogContent>
-                                                                </DialogPortal>
+                                                                                <video
+                                                                                    ref={videoRef}
+                                                                                    autoPlay
+                                                                                    playsInline
+                                                                                    muted={false}
+                                                                                    className="w-full h-full object-cover"
+                                                                                    style={{ display: streamReady ? 'block' : 'none' }}
+                                                                                />
+                                                                                {!streamReady && (
+                                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-black">
+                                                                                        {connectionStatus === "connecting" ? (
+                                                                                            <>
+                                                                                                <Loader2 className="h-12 w-12 text-red-500 animate-spin mb-4" />
+                                                                                                <p className="text-white text-lg font-medium">Connecting to stream...</p>
+                                                                                                <p className="text-gray-400 text-sm mt-2">Please wait while we establish the connection</p>
+                                                                                                <div className="mt-4 flex items-center gap-2 text-gray-500">
+                                                                                                    <Wifi className="h-4 w-4" />
+                                                                                                    <span className="text-xs">Establishing connection</span>
+                                                                                                </div>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <div className="bg-gray-800/50 rounded-full p-6 mb-4 border-2 border-gray-700">
+                                                                                                    <Radio className="h-12 w-12 text-gray-400" />
+                                                                                                </div>
+                                                                                                <p className="text-white text-lg font-medium">Waiting for stream</p>
+                                                                                                <p className="text-gray-400 text-sm mt-2">The stream will appear here when available</p>
+                                                                                            </>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                                {streamReady && connectionStatus === "connected" && (
+                                                                                    <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                                                                                        <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
+                                                                                        <span className="text-xs font-semibold text-white">LIVE</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                {connectionStatus === "connected" && (
+                                                                                    <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                                                                                        <Wifi className="h-3 w-3 text-green-400" />
+                                                                                        <span className="text-xs font-medium text-white">Connected</span>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                            <DialogFooter className="flex flex-row justify-end mt-4">
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    onClick={handleModalClose}
+                                                                                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                                                                                >
+                                                                                    Close
+                                                                                </Button>
+                                                                            </DialogFooter>
+                                                                        </DialogContent>
+                                                                    </DialogPortal>
+                                                                )}
                                                             </Dialog>
 
                                                             <Button
