@@ -1,0 +1,99 @@
+services:
+  web:
+    image: your-dockerhub-username/event-management-backend:latest
+    container_name: event-backend-web
+    restart: unless-stopped
+    command: daphne -b 0.0.0.0 -p 8000 event_management.asgi:application
+    volumes:
+      - /home/mahaboobkoranoth/event-backend/staticfiles:/app/staticfiles
+      - /home/mahaboobkoranoth/event-backend/media:/app/media
+    ports:
+      - "127.0.0.1:8000:8000" # Only accessible from localhost (Nginx will proxy)
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - event-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:16-alpine
+    container_name: event-backend-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - event-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: event-backend-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - event-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery:
+    image: your-dockerhub-username/event-management-backend:latest
+    container_name: event-backend-celery
+    restart: unless-stopped
+    command: celery -A event_management worker --loglevel=info
+    volumes:
+      - /home/mahaboobkoranoth/event-backend/staticfiles:/app/staticfiles
+      - /home/mahaboobkoranoth/event-backend/media:/app/media
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - event-network
+
+  celery-beat:
+    image: your-dockerhub-username/event-management-backend:latest
+    container_name: event-backend-celery-beat
+    restart: unless-stopped
+    command: celery -A event_management beat --loglevel=info
+    volumes:
+      - /home/mahaboobkoranoth/event-backend/staticfiles:/app/staticfiles
+      - /home/mahaboobkoranoth/event-backend/media:/app/media
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+    networks:
+      - event-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  event-network:
+    driver: bridge
