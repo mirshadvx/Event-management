@@ -45,7 +45,8 @@ const CheckoutForm = ({
   const elements = useElements();
   const [cardError, setCardError] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const isBelowMinimum = total < 0.5;
+  const STRIPE_MINIMUM_AMOUNT = 50;
+  const isBelowMinimum = total < STRIPE_MINIMUM_AMOUNT;
 
   const formatINR = (amount) =>
     new Intl.NumberFormat("en-IN", {
@@ -177,7 +178,10 @@ const CheckoutForm = ({
       </div>
       {cardError && <p className="text-red-600 text-sm">{cardError}</p>}
       {isBelowMinimum && (
-        <p className="text-red-600 text-sm">Amount must be at least ₹0.50</p>
+        <p className="text-red-600 text-sm">
+          Payment amount is too small. Stripe requires a minimum payment of ₹{STRIPE_MINIMUM_AMOUNT}.00 
+          (approximately $0.50 USD equivalent). Please add more items to your order.
+        </p>
       )}
       <button
         type="submit"

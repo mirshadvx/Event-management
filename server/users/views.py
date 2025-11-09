@@ -657,6 +657,16 @@ class CheckoutAPIView(APIView):
                 if total < 0:
                     total = Decimal("0")
 
+                if payment_method == "stripe":
+                    from users.utils.payment_utils import validate_stripe_minimum_amount
+                    try:
+                        validate_stripe_minimum_amount(total, currency="inr")
+                    except ValidationError as e:
+                        return Response(
+                            {"error": str(e)},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
                 total_in_cents = int(total * 100)
                 track_discount = subtotal - total
 
@@ -765,22 +775,38 @@ class CheckoutAPIView(APIView):
                     status=status.HTTP_201_CREATED,
                 )
 
+        except ValidationError as e:
+            if "booking" in locals():
+                booking.delete()
+            return Response(
+                {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
+            )
         except stripe.error.CardError as e:
             if "booking" in locals():
                 booking.delete()
             return Response(
                 {"error": str(e.user_message)}, status=status.HTTP_400_BAD_REQUEST
             )
-        except stripe.error.StripeError:
+        except stripe.error.StripeError as e:
             if "booking" in locals():
                 booking.delete()
+            # Check for amount_too_small error specifically
+            error_message = str(e)
+            if "amount_too_small" in error_message.lower():
+                return Response(
+                    {
+                        "error": "Payment amount is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent). Please add more items to your order."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response(
-                {"error": "Something went wrong with the payment."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"error": f"Payment processing error: {error_message}"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
             if "booking" in locals():
                 booking.delete()
+            logger.error(f"Checkout error: {str(e)}", exc_info=True)
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -1321,24 +1347,45 @@ class SubscriptionCheckout(APIView):
         data = request.data
         try:
             if data.get("create_intent"):
-                intent = stripe.PaymentIntent.create(
-                    amount=int(plan.price * 100),
-                    currency="inr",
-                    metadata={
-                        "user_id": str(user.id),
-                        "plan_id": str(plan.id),
-                        "transaction_type": "subscription_purchase",
-                    },
-                    description=f"Subscription to {plan.name}",
-                )
-                return Response(
-                    {
-                        "success": True,
-                        "client_secret": intent.client_secret,
-                        "intent_id": intent.id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
+                # Validate minimum amount for Stripe
+                from users.utils.payment_utils import validate_stripe_minimum_amount
+                try:
+                    validate_stripe_minimum_amount(Decimal(str(plan.price)), currency="inr")
+                except ValidationError as e:
+                    return Response(
+                        {"success": False, "message": str(e)},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                
+                try:
+                    intent = stripe.PaymentIntent.create(
+                        amount=int(plan.price * 100),
+                        currency="inr",
+                        metadata={
+                            "user_id": str(user.id),
+                            "plan_id": str(plan.id),
+                            "transaction_type": "subscription_purchase",
+                        },
+                        description=f"Subscription to {plan.name}",
+                    )
+                    return Response(
+                        {
+                            "success": True,
+                            "client_secret": intent.client_secret,
+                            "intent_id": intent.id,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+                except stripe.error.InvalidRequestError as e:
+                    if "amount_too_small" in str(e):
+                        return Response(
+                            {
+                                "success": False,
+                                "message": f"Subscription price (₹{plan.price:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent)."
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    raise
             else:
                 intent_id = data.get("payment_intent_id")
                 if not intent_id:
@@ -1649,23 +1696,45 @@ class UpgradePlan(APIView):
 
     def create_stripe_payment_intent(self, user, amount):
         try:
+            # Validate minimum amount for Stripe
+            from users.utils.payment_utils import validate_stripe_minimum_amount
+            try:
+                validate_stripe_minimum_amount(Decimal(str(amount)), currency="inr")
+            except ValidationError as e:
+                return Response(
+                    {"success": False, "message": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
             stripe.api_key = settings.STRIPE_SECRET_KEY
-            intent = stripe.PaymentIntent.create(
-                amount=int(amount * 100),
-                currency="inr",
-                metadata={
-                    "user_id": str(user.id),
-                    "transaction_type": "subscription_upgrade",
-                },
-                description=f"Subscription upgrade to Premium for {user.username}",
-            )
-            logger.info(
-                f"[Stripe Intent Created]: User {user.id}, Intent {intent.id}, Amount {amount}"
-            )
-            return Response(
-                {"success": True, "client_secret": intent.client_secret},
-                status=status.HTTP_200_OK,
-            )
+            try:
+                intent = stripe.PaymentIntent.create(
+                    amount=int(amount * 100),
+                    currency="inr",
+                    metadata={
+                        "user_id": str(user.id),
+                        "transaction_type": "subscription_upgrade",
+                    },
+                    description=f"Subscription upgrade to Premium for {user.username}",
+                )
+                logger.info(
+                    f"[Stripe Intent Created]: User {user.id}, Intent {intent.id}, Amount {amount}"
+                )
+                return Response(
+                    {"success": True, "client_secret": intent.client_secret},
+                    status=status.HTTP_200_OK,
+                )
+            except stripe.error.InvalidRequestError as e:
+                if "amount_too_small" in str(e):
+                    logger.error(f"[Stripe Error]: User {user.id}, Amount too small: {amount}")
+                    return Response(
+                        {
+                            "success": False,
+                            "message": f"Payment amount (₹{amount:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent)."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                raise
         except stripe.error.StripeError as e:
             logger.error(f"[Stripe Error]: User {user.id}, Error: {str(e)}")
             return Response(
