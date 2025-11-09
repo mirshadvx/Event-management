@@ -874,16 +874,24 @@ def cancel_ticket(request):
 
         wallet = get_object_or_404(Wallet, user=user)
 
-        total_all_ticket_count = (
-            TicketPurchase.objects.filter(
-                event=event, buyer=user, booking_id=booking_id
-            ).aggregate(Sum("quantity"))["quantity__sum"]
-            or 0
+        all_ticket_purchases = TicketPurchase.objects.filter(
+            event=event, buyer=user, booking_id=booking_id
+        )
+        
+        if booking.subtotal > 0:
+            payment_ratio = booking.total / booking.subtotal
+        else:
+            payment_ratio = Decimal("1.00")
+        
+        current_subtotal_from_purchases = sum(
+            Decimal(str(tp.ticket.price)) * Decimal(str(tp.quantity)) 
+            for tp in all_ticket_purchases
         )
 
         refund_amount = Decimal("0.00")
-        total_cancel_ticket_count = 0
+        canceled_subtotal = Decimal("0.00")
         canceled_tickets = []
+        
         for ticket_data in tickets_to_cancel:
             ticket_id = ticket_data.get("ticket_id")
             cancel_quantity = ticket_data.get("quantity", 0)
@@ -914,22 +922,24 @@ def cancel_ticket(request):
                 )
 
             ticket = ticket_purchase.ticket
+            
+            ticket_price_per_unit = Decimal(str(ticket.price))
+            
+            canceled_ticket_original_subtotal = ticket_price_per_unit * Decimal(str(cancel_quantity))
+            canceled_subtotal += canceled_ticket_original_subtotal
+            
+            refund_for_ticket = (canceled_ticket_original_subtotal * payment_ratio).quantize(Decimal('0.01'))
+            refund_amount += refund_for_ticket
+
             ticket.sold_quantity = max(0, ticket.sold_quantity - cancel_quantity)
             ticket.save()
-
-            ticket_price_per_unit = (
-                ticket_purchase.total_price / ticket_purchase.quantity
-            )
-            refund_for_ticket = ticket_price_per_unit * cancel_quantity
-            refund_amount += refund_for_ticket
-            total_cancel_ticket_count += cancel_quantity
 
             ticket_purchase.quantity -= cancel_quantity
             if ticket_purchase.quantity == 0:
                 booking.ticket_purchases.remove(ticket_purchase)
                 ticket_purchase.delete()
             else:
-                ticket_purchase.total_price -= refund_for_ticket
+                ticket_purchase.total_price = ticket_price_per_unit * Decimal(str(ticket_purchase.quantity))
                 ticket_purchase.save()
 
             canceled_tickets.append(
@@ -941,24 +951,19 @@ def cancel_ticket(request):
                 }
             )
 
-        booking = get_object_or_404(
-            Booking, user=user, booking_id=booking_id, event=event_id
-        )
-        final_refund_amount = refund_amount
+        current_subtotal_before_cancel = booking.subtotal
+        
+        booking.subtotal = max(Decimal("0.00"), booking.subtotal - canceled_subtotal)
+        
+        if current_subtotal_before_cancel > 0 and booking.track_discount > 0:
+            canceled_discount = (canceled_subtotal / current_subtotal_before_cancel) * booking.track_discount
+            booking.track_discount = max(Decimal("0.00"), booking.track_discount - canceled_discount.quantize(Decimal('0.01')))
+        
+        booking.total = max(Decimal("0.00"), booking.subtotal - booking.track_discount)
+        booking.discount = booking.track_discount
+        booking.save()
 
-        if booking.track_discount > 0:
-            price_per_unit_refund_decrease = (
-                booking.track_discount / total_all_ticket_count
-            )
-            final_refund_amount = refund_amount - (
-                total_cancel_ticket_count * price_per_unit_refund_decrease
-            )
-
-            new_track_discount = booking.track_discount - round(
-                total_cancel_ticket_count * price_per_unit_refund_decrease, 2
-            )
-            booking.track_discount = max(0, new_track_discount)
-            booking.save()
+        final_refund_amount = refund_amount.quantize(Decimal('0.01'))
 
         if final_refund_amount > 0:
             wallet.balance += final_refund_amount
@@ -977,7 +982,7 @@ def cancel_ticket(request):
                     wallet_transaction=transaction,
                     ticket_type=ticket_info["ticket_type"],
                     quantity=ticket_info["quantity"],
-                    amount=Decimal(str(ticket_info["refund_amount"])),
+                    amount=Decimal(str(ticket_info["refund_amount"])).quantize(Decimal('0.01')),
                     event=event,
                     booking=booking,
                 )
