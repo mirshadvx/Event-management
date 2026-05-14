@@ -7,4 +7,3 @@ websocket_urlpatterns = [
         consumers.WebRTCConsumer.as_asgi(),
     ),
 ]
-

@@ -195,10 +195,11 @@ class OrganizerRequestUpdateStatus(APIView):
             user_profile.save()
 
             from users.tasks import send_user_notification
+
             send_user_notification.delay(user_profile.id, notification_message)
 
             from chat.socketio_server import send_status_update_to_organizer
-            
+
             status_data = {
                 "type": "organizer_status_update",
                 "status": new_status,
@@ -206,7 +207,7 @@ class OrganizerRequestUpdateStatus(APIView):
                 "organizerVerified": user_profile.organizerVerified,
                 "message": notification_message,
             }
-            
+
             async_to_sync(send_status_update_to_organizer)(user_profile.id, status_data)
 
             serializer = OrganizerRequestSerializer(organizer_request)
@@ -238,29 +239,29 @@ class OrganizerRequestBulkUpdate(APIView):
         requests = OrganizerRequest.objects.filter(id__in=ids).exclude(
             status="approved"
         )
-        
+
         from users.tasks import send_user_notification
         from chat.socketio_server import send_status_update_to_organizer
-        
+
         updated_count = 0
         for request in requests:
             request.status = new_status
             request.handled_at = timezone.now()
             request.save()
-            
+
             user_profile = request.user
-            
+
             if new_status == "approved":
                 user_profile.organizerVerified = True
                 notification_message = "Your organizer request has been approved! You can now create events."
             elif new_status == "rejected":
                 user_profile.organizerVerified = False
                 notification_message = "Your organizer request has been rejected. Please contact support for more information."
-            
+
             user_profile.save()
-            
+
             send_user_notification.delay(user_profile.id, notification_message)
-            
+
             status_data = {
                 "type": "organizer_status_update",
                 "status": new_status,
@@ -269,7 +270,7 @@ class OrganizerRequestBulkUpdate(APIView):
                 "message": notification_message,
             }
             async_to_sync(send_status_update_to_organizer)(user_profile.id, status_data)
-            
+
             updated_count += 1
 
         return Response({"message": f"Updated {updated_count} requests"})

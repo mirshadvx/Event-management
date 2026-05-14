@@ -51,7 +51,7 @@ def handle_stripe_payment(
         raise ValidationError("Stripe payment method ID required.")
 
     total_amount = Decimal(total_in_cents) / Decimal("100")
-    
+
     validate_stripe_minimum_amount(total_amount, currency="inr")
 
     try:

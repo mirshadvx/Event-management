@@ -13,10 +13,10 @@ def send_user_notification(user_id, message):
         from chat.models import Notification
         from django.conf import settings
         import socketio
-        
+
         user = Profile.objects.get(id=user_id)
         notification = Notification.objects.create(user=user, message=message)
-        
+
         notification_data = {
             "id": notification.id,
             "user": user.id,
@@ -24,44 +24,40 @@ def send_user_notification(user_id, message):
             "created_at": notification.created_at.isoformat(),
         }
 
-        redis_host = getattr(settings, 'REDIS_HOST', 'redis')
-        redis_port = getattr(settings, 'REDIS_PORT', 6379)
-        redis_db = getattr(settings, 'REDIS_DB', 0)
-        
+        redis_host = getattr(settings, "REDIS_HOST", "redis")
+        redis_port = getattr(settings, "REDIS_PORT", 6379)
+        redis_db = getattr(settings, "REDIS_DB", 0)
+
         user_id_str = str(user_id)
         room_name = f"notifications_{user_id_str}"
-        
+
         try:
             import redis
             import json
-            
+
             redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                decode_responses=False
+                host=redis_host, port=redis_port, db=redis_db, decode_responses=False
             )
-            
-            pub_message = {
-                'room': room_name,
-                'data': notification_data
-            }
-            
-            redis_client.publish('socketio_notifications', json.dumps(pub_message))
-            
+
+            pub_message = {"room": room_name, "data": notification_data}
+
+            redis_client.publish("socketio_notifications", json.dumps(pub_message))
+
             redis_client.close()
-            
+
         except Exception as pub_error:
             logger.error(f"Error publishing notification to Redis: {str(pub_error)}")
             import traceback
+
             logger.error(traceback.format_exc())
             raise
-        
+
         return f"Notification sent to user {user_id}"
 
     except Exception as e:
         logger.error(f"Error sending notification to user {user_id}: {str(e)}")
         import traceback
+
         logger.error(traceback.format_exc())
         raise
 

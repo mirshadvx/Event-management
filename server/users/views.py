@@ -659,6 +659,7 @@ class CheckoutAPIView(APIView):
 
                 if payment_method == "stripe":
                     from users.utils.payment_utils import validate_stripe_minimum_amount
+
                     try:
                         validate_stripe_minimum_amount(total, currency="inr")
                     except ValidationError as e:
@@ -778,9 +779,7 @@ class CheckoutAPIView(APIView):
         except ValidationError as e:
             if "booking" in locals():
                 booking.delete()
-            return Response(
-                {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except stripe.error.CardError as e:
             if "booking" in locals():
                 booking.delete()
@@ -903,21 +902,21 @@ def cancel_ticket(request):
         all_ticket_purchases = TicketPurchase.objects.filter(
             event=event, buyer=user, booking_id=booking_id
         )
-        
+
         if booking.subtotal > 0:
             payment_ratio = booking.total / booking.subtotal
         else:
             payment_ratio = Decimal("1.00")
-        
+
         current_subtotal_from_purchases = sum(
-            Decimal(str(tp.ticket.price)) * Decimal(str(tp.quantity)) 
+            Decimal(str(tp.ticket.price)) * Decimal(str(tp.quantity))
             for tp in all_ticket_purchases
         )
 
         refund_amount = Decimal("0.00")
         canceled_subtotal = Decimal("0.00")
         canceled_tickets = []
-        
+
         for ticket_data in tickets_to_cancel:
             ticket_id = ticket_data.get("ticket_id")
             cancel_quantity = ticket_data.get("quantity", 0)
@@ -948,13 +947,17 @@ def cancel_ticket(request):
                 )
 
             ticket = ticket_purchase.ticket
-            
+
             ticket_price_per_unit = Decimal(str(ticket.price))
-            
-            canceled_ticket_original_subtotal = ticket_price_per_unit * Decimal(str(cancel_quantity))
+
+            canceled_ticket_original_subtotal = ticket_price_per_unit * Decimal(
+                str(cancel_quantity)
+            )
             canceled_subtotal += canceled_ticket_original_subtotal
-            
-            refund_for_ticket = (canceled_ticket_original_subtotal * payment_ratio).quantize(Decimal('0.01'))
+
+            refund_for_ticket = (
+                canceled_ticket_original_subtotal * payment_ratio
+            ).quantize(Decimal("0.01"))
             refund_amount += refund_for_ticket
 
             ticket.sold_quantity = max(0, ticket.sold_quantity - cancel_quantity)
@@ -965,7 +968,9 @@ def cancel_ticket(request):
                 booking.ticket_purchases.remove(ticket_purchase)
                 ticket_purchase.delete()
             else:
-                ticket_purchase.total_price = ticket_price_per_unit * Decimal(str(ticket_purchase.quantity))
+                ticket_purchase.total_price = ticket_price_per_unit * Decimal(
+                    str(ticket_purchase.quantity)
+                )
                 ticket_purchase.save()
 
             canceled_tickets.append(
@@ -978,18 +983,23 @@ def cancel_ticket(request):
             )
 
         current_subtotal_before_cancel = booking.subtotal
-        
+
         booking.subtotal = max(Decimal("0.00"), booking.subtotal - canceled_subtotal)
-        
+
         if current_subtotal_before_cancel > 0 and booking.track_discount > 0:
-            canceled_discount = (canceled_subtotal / current_subtotal_before_cancel) * booking.track_discount
-            booking.track_discount = max(Decimal("0.00"), booking.track_discount - canceled_discount.quantize(Decimal('0.01')))
-        
+            canceled_discount = (
+                canceled_subtotal / current_subtotal_before_cancel
+            ) * booking.track_discount
+            booking.track_discount = max(
+                Decimal("0.00"),
+                booking.track_discount - canceled_discount.quantize(Decimal("0.01")),
+            )
+
         booking.total = max(Decimal("0.00"), booking.subtotal - booking.track_discount)
         booking.discount = booking.track_discount
         booking.save()
 
-        final_refund_amount = refund_amount.quantize(Decimal('0.01'))
+        final_refund_amount = refund_amount.quantize(Decimal("0.01"))
 
         if final_refund_amount > 0:
             wallet.balance += final_refund_amount
@@ -1008,7 +1018,9 @@ def cancel_ticket(request):
                     wallet_transaction=transaction,
                     ticket_type=ticket_info["ticket_type"],
                     quantity=ticket_info["quantity"],
-                    amount=Decimal(str(ticket_info["refund_amount"])).quantize(Decimal('0.01')),
+                    amount=Decimal(str(ticket_info["refund_amount"])).quantize(
+                        Decimal("0.01")
+                    ),
                     event=event,
                     booking=booking,
                 )
@@ -1349,14 +1361,17 @@ class SubscriptionCheckout(APIView):
             if data.get("create_intent"):
                 # Validate minimum amount for Stripe
                 from users.utils.payment_utils import validate_stripe_minimum_amount
+
                 try:
-                    validate_stripe_minimum_amount(Decimal(str(plan.price)), currency="inr")
+                    validate_stripe_minimum_amount(
+                        Decimal(str(plan.price)), currency="inr"
+                    )
                 except ValidationError as e:
                     return Response(
                         {"success": False, "message": str(e)},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                
+
                 try:
                     intent = stripe.PaymentIntent.create(
                         amount=int(plan.price * 100),
@@ -1381,7 +1396,7 @@ class SubscriptionCheckout(APIView):
                         return Response(
                             {
                                 "success": False,
-                                "message": f"Subscription price (₹{plan.price:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent)."
+                                "message": f"Subscription price (₹{plan.price:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent).",
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
@@ -1698,6 +1713,7 @@ class UpgradePlan(APIView):
         try:
             # Validate minimum amount for Stripe
             from users.utils.payment_utils import validate_stripe_minimum_amount
+
             try:
                 validate_stripe_minimum_amount(Decimal(str(amount)), currency="inr")
             except ValidationError as e:
@@ -1705,7 +1721,7 @@ class UpgradePlan(APIView):
                     {"success": False, "message": str(e)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             stripe.api_key = settings.STRIPE_SECRET_KEY
             try:
                 intent = stripe.PaymentIntent.create(
@@ -1726,11 +1742,13 @@ class UpgradePlan(APIView):
                 )
             except stripe.error.InvalidRequestError as e:
                 if "amount_too_small" in str(e):
-                    logger.error(f"[Stripe Error]: User {user.id}, Amount too small: {amount}")
+                    logger.error(
+                        f"[Stripe Error]: User {user.id}, Amount too small: {amount}"
+                    )
                     return Response(
                         {
                             "success": False,
-                            "message": f"Payment amount (₹{amount:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent)."
+                            "message": f"Payment amount (₹{amount:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent).",
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )

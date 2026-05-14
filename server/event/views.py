@@ -59,14 +59,47 @@ class EventCreateView(APIView):
                         status=status.HTTP_403_FORBIDDEN,
                     )
             except UserSubscription.DoesNotExist:
-                return Response(
-                    {
-                        "success": False,
-                        "message": "You need an active subscription to create events.",
-                        "subscription_required": True,
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                from users.models import SubscriptionPlan
+
+                trial_plan = SubscriptionPlan.objects.filter(
+                    name__iexact="Trial"
+                ).first()
+                if not trial_plan:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "You need an active subscription to create events.",
+                            "subscription_required": True,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+                existing_trial = UserSubscription.objects.filter(
+                    user=request.user, plan=trial_plan
+                ).first()
+                if existing_trial and not existing_trial.can_organize_event():
+                    return Response(
+                        {
+                            "success": False,
+                            "message": f"You have reached your monthly event creation limit ({existing_trial.plan.event_creation_limit}). Upgrade your plan to create more events.",
+                            "subscription_limit_reached": True,
+                            "current_usage": existing_trial.events_organized_current_month,
+                            "limit": existing_trial.plan.event_creation_limit,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                elif not existing_trial:
+                    from Admin.models import UserSubscription
+                    import datetime
+
+                    UserSubscription.objects.create(
+                        user=request.user,
+                        plan=trial_plan,
+                        start_date=datetime.date.today(),
+                        end_date=datetime.date.today()
+                        + datetime.timedelta(days=trial_plan.duration_days),
+                        is_active=True,
+                    )
 
         try:
             if event_id:
@@ -88,7 +121,6 @@ class EventCreateView(APIView):
 
                 event = serializer.save()
 
-                # Increment subscription counter for new events
                 if not event_id:
                     try:
                         from Admin.models import UserSubscription
@@ -98,7 +130,7 @@ class EventCreateView(APIView):
                         )
                         subscription.inc_organized_count()
                     except UserSubscription.DoesNotExist:
-                        pass  # Handle gracefully if subscription not found
+                        pass
 
                 if not event_id:
                     group_chat = GroupConversation.objects.create(

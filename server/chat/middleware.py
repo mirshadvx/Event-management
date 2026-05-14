@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class TokenAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "")
-        
+
         query_string = scope.get("query_string", b"").decode()
         query_params = dict(x.split("=") for x in query_string.split("&") if x)
         token = query_params.get("token")
@@ -27,7 +27,9 @@ class TokenAuthMiddleware(BaseMiddleware):
             else:
                 logger.warning(f"[TokenAuthMiddleware] Invalid or expired token")
         else:
-            logger.warning(f"[TokenAuthMiddleware] No token provided in WebSocket connection for path: {path}")
+            logger.warning(
+                f"[TokenAuthMiddleware] No token provided in WebSocket connection for path: {path}"
+            )
 
         return await super().__call__(scope, receive, send)
 
@@ -39,10 +41,14 @@ class TokenAuthMiddleware(BaseMiddleware):
             if user_id:
                 try:
                     user = Profile.objects.get(id=user_id)
-                    logger.info(f"[TokenAuthMiddleware] User found: {user.id} ({user.username})")
+                    logger.info(
+                        f"[TokenAuthMiddleware] User found: {user.id} ({user.username})"
+                    )
                     return user
                 except Profile.DoesNotExist:
-                    logger.error(f"[TokenAuthMiddleware] User with ID {user_id} does not exist")
+                    logger.error(
+                        f"[TokenAuthMiddleware] User with ID {user_id} does not exist"
+                    )
                     return AnonymousUser()
             else:
                 logger.warning(f"[TokenAuthMiddleware] No user_id in token")
@@ -50,5 +56,8 @@ class TokenAuthMiddleware(BaseMiddleware):
         except TokenError as e:
             logger.error(f"[TokenAuthMiddleware] Token error: {str(e)}")
         except Exception as e:
-            logger.error(f"[TokenAuthMiddleware] Unexpected error validating token: {str(e)}", exc_info=True)
+            logger.error(
+                f"[TokenAuthMiddleware] Unexpected error validating token: {str(e)}",
+                exc_info=True,
+            )
         return AnonymousUser()
