@@ -8,20 +8,18 @@ import dj_database_url
 
 load_dotenv()
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECRET_KEY = os.getenv("SECRET_KEY")
-
-# DEBUG = os.getenv('DEBUG')
-DEBUG = True
-
-# ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-# ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 CSRF_TRUSTED_ORIGINS = [
     "https://api.evenxo.xyz",
 ]
+
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+).split(",")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
@@ -97,19 +95,33 @@ TEMPLATES = [
 WSGI_APPLICATION = "event_management.wsgi.application"
 ASGI_APPLICATION = "event_management.asgi.application"
 
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [("redis", 6379)],
+#         },
+#     },
+# }
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
+            "hosts": [os.getenv("REDIS_URL")],
         },
     },
 }
 
-
 SECRET_KEY = config('SECRET_KEY')
-# DEBUG = config('DEBUG', default=False, cast=bool)
-DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL'))}
+
+# DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL'))}
+DATABASES = {
+    "default": dj_database_url.parse(
+        os.getenv("DATABASE_URL")
+    )
+}
+
 CELERY_BROKER_URL = config('REDIS_URL')
 CELERY_RESULT_BACKEND = config('REDIS_URL')
 
@@ -119,7 +131,6 @@ CELERY_RESULT_BACKEND = config('REDIS_URL')
 
 # CELERY_BROKER_URL = os.environ.get('REDIS_URL')
 # CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
-ALLOWED_HOSTS = ['*']
 
 # DATABASES = {
 #     "default": {
@@ -157,7 +168,7 @@ USE_TZ = True
 
 # STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = "/static/"
-STATIC_ROOT = "/app/staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -198,7 +209,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_COOKIE": "access_token",
     "AUTH_COOKIE_REFRESH": "refresh_token",
-    "AUTH_COOKIE_SECURE": False,
+    "AUTH_COOKIE_SECURE": True,
     "AUTH_COOKIE_HTTP_ONLY": True,
     "AUTH_COOKIE_PATH": "/",
     "AUTH_COOKIE_SAMESITE": "Lax",
