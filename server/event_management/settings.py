@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 from pathlib import Path
-from decouple import config
+from decouple import os.getenv
 from celery.schedules import crontab
 import dj_database_url
 
@@ -98,7 +98,7 @@ ASGI_APPLICATION = "event_management.asgi.application"
 # CHANNEL_LAYERS = {
 #     "default": {
 #         "BACKEND": "channels_redis.core.RedisChannelLayer",
-#         "CONFIG": {
+#         "os.getenv": {
 #             "hosts": [("redis", 6379)],
 #         },
 #     },
@@ -107,23 +107,23 @@ ASGI_APPLICATION = "event_management.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
+        "os.getenv": {
             "hosts": [os.getenv("REDIS_URL")],
         },
     },
 }
 
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL'))}
+# DATABASES = {'default': dj_database_url.parse(os.getenv('DATABASE_URL'))}
 DATABASES = {
     "default": dj_database_url.parse(
         os.getenv("DATABASE_URL")
     )
 }
 
-CELERY_BROKER_URL = config('REDIS_URL')
-CELERY_RESULT_BACKEND = config('REDIS_URL')
+CELERY_BROKER_URL = os.getenv('REDIS_URL')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL')
 
 # DATABASES = {
 #     'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
@@ -226,7 +226,7 @@ CLOUDINARY_STORAGE = {
 
 import cloudinary
 
-cloudinary.config(
+cloudinary.os.getenv(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
     api_secret=os.getenv("CLOUDINARY_API_SECRET"),
@@ -243,9 +243,9 @@ CELERY_RESULT_SERIALIZER = "json"
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-REDIS_HOST = config("REDIS_HOST", default="localhost")
-REDIS_PORT = config("REDIS_PORT", default=6379, cast=int)
-REDIS_DB = config("REDIS_DB", default=0, cast=int)
+REDIS_HOST = os.getenv("REDIS_HOST", default="localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", default=6379, cast=int)
+REDIS_DB = os.getenv("REDIS_DB", default=0, cast=int)
 
 LOGGING = {
     "version": 1,
