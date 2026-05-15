@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from celery.schedules import crontab
@@ -18,10 +19,26 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv(
+def csv_env(name, default=""):
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
+
+ALLOWED_HOSTS = csv_env(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,.onrender.com"
-).split(",")
+    "localhost,127.0.0.1,.onrender.com,evenxo-backend.onrender.com",
+)
+
+render_external_url = os.getenv("RENDER_EXTERNAL_URL")
+render_hosts = [
+    ".onrender.com",
+    "evenxo-backend.onrender.com",
+    os.getenv("RENDER_EXTERNAL_HOSTNAME"),
+    urlparse(render_external_url).hostname if render_external_url else None,
+]
+
+for host in render_hosts:
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 CSRF_TRUSTED_ORIGINS = [
     "https://evenxo.xyz",

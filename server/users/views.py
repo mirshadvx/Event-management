@@ -47,7 +47,7 @@ from event.models import Event, TicketPurchase, Ticket
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from rest_framework_simplejwt.tokens import RefreshToken
-from .firebase import auth as firebase_auth
+from .firebase import FirebaseNotConfigured, verify_id_token
 import jwt
 import cloudinary.uploader
 from datetime import date
@@ -273,7 +273,7 @@ def google_login(request):
                 "verify_iat": False,
             },
         )
-        test = firebase_auth.verify_id_token(token)
+        verify_id_token(token)
 
         email = decoded_token.get("email")
         name = decoded_token.get("name", email.split("@")[0])
@@ -319,6 +319,12 @@ def google_login(request):
         )
 
         return response
+    except FirebaseNotConfigured as e:
+        logger.error("Firebase login is not configured: %s", e)
+        return Response(
+            {"success": False, "error": "Google login is not configured"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     except Exception as e:
         return Response(
             {"success": False, "error": "Invalid token"},
