@@ -19,7 +19,6 @@ from .serializers import (
     SubscriptionPlanSerializer,
     ProfileEventJoinedSerializer,
     UserPlanDetailsSerializer,
-    SubscriptionTransactionSerializer,
 )
 from rest_framework import status
 import redis
@@ -48,7 +47,7 @@ from event.models import Event, TicketPurchase, Ticket
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from rest_framework_simplejwt.tokens import RefreshToken
-from .firebase import auth as firebase_auth
+from .firebase import FirebaseNotConfigured, verify_id_token
 import jwt
 import cloudinary.uploader
 from datetime import date
@@ -247,28 +246,6 @@ def verify_otp(request):
 
         Wallet.objects.create(user=user)
 
-        try:
-            trial_plan = SubscriptionPlan.objects.get(name="trial", active=True)
-            end_date = timezone.now() + timedelta(days=30)
-            UserSubscription.objects.create(
-                user=user,
-                plan=trial_plan,
-                start_date=timezone.now(),
-                end_date=end_date,
-                is_active=True,
-            )
-        except SubscriptionPlan.DoesNotExist:
-            SubscriptionPlan.ensure_default_plans()
-            trial_plan = SubscriptionPlan.objects.get(name="trial", active=True)
-            end_date = timezone.now() + timedelta(days=30)
-            UserSubscription.objects.create(
-                user=user,
-                plan=trial_plan,
-                start_date=timezone.now(),
-                end_date=end_date,
-                is_active=True,
-            )
-
         redis_client.delete(temp_user_key)
 
         return Response({"success": True, "message": "email varified!"})
@@ -296,7 +273,7 @@ def google_login(request):
                 "verify_iat": False,
             },
         )
-        test = firebase_auth.verify_id_token(token)
+        verify_id_token(token)
 
         email = decoded_token.get("email")
         name = decoded_token.get("name", email.split("@")[0])
@@ -342,6 +319,12 @@ def google_login(request):
         )
 
         return response
+    except FirebaseNotConfigured as e:
+        logger.error("Firebase login is not configured: %s", e)
+        return Response(
+            {"success": False, "error": "Google login is not configured"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     except Exception as e:
         return Response(
             {"success": False, "error": "Invalid token"},
@@ -601,31 +584,6 @@ class CheckoutAPIView(APIView):
             event = get_object_or_404(Event, id=event_id, is_published=True)
             user = request.user
 
-            # Check subscription limits for event joining
-            try:
-                subscription = UserSubscription.objects.get(user=user, is_active=True)
-
-                if not subscription.can_join_event():
-                    return Response(
-                        {
-                            "success": False,
-                            "message": f"You have reached your monthly event joining limit ({subscription.plan.event_join_limit}). Upgrade your plan to join more events.",
-                            "subscription_limit_reached": True,
-                            "current_usage": subscription.events_joined_current_month,
-                            "limit": subscription.plan.event_join_limit,
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-            except UserSubscription.DoesNotExist:
-                return Response(
-                    {
-                        "success": False,
-                        "message": "You need an active subscription to join events.",
-                        "subscription_required": True,
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
             with transaction.atomic():
                 subtotal = Decimal("0")
                 ticket_purchases = []
@@ -656,17 +614,6 @@ class CheckoutAPIView(APIView):
                 total = subtotal - discount
                 if total < 0:
                     total = Decimal("0")
-
-                if payment_method == "stripe":
-                    from users.utils.payment_utils import validate_stripe_minimum_amount
-
-                    try:
-                        validate_stripe_minimum_amount(total, currency="inr")
-                    except ValidationError as e:
-                        return Response(
-                            {"error": str(e)},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
 
                 total_in_cents = int(total * 100)
                 track_discount = subtotal - total
@@ -757,15 +704,6 @@ class CheckoutAPIView(APIView):
                     message=f"Booking successful for {event.event_title}",
                 )
 
-                # Increment subscription counter for event joining
-                try:
-                    subscription = UserSubscription.objects.get(
-                        user=user, is_active=True
-                    )
-                    subscription.inc_joined_count()
-                except UserSubscription.DoesNotExist:
-                    pass  # Handle gracefully if subscription not found
-
                 return Response(
                     {
                         "message": "Payment successful!",
@@ -776,36 +714,22 @@ class CheckoutAPIView(APIView):
                     status=status.HTTP_201_CREATED,
                 )
 
-        except ValidationError as e:
-            if "booking" in locals():
-                booking.delete()
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except stripe.error.CardError as e:
             if "booking" in locals():
                 booking.delete()
             return Response(
                 {"error": str(e.user_message)}, status=status.HTTP_400_BAD_REQUEST
             )
-        except stripe.error.StripeError as e:
+        except stripe.error.StripeError:
             if "booking" in locals():
                 booking.delete()
-            # Check for amount_too_small error specifically
-            error_message = str(e)
-            if "amount_too_small" in error_message.lower():
-                return Response(
-                    {
-                        "error": "Payment amount is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent). Please add more items to your order."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
             return Response(
-                {"error": f"Payment processing error: {error_message}"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Something went wrong with the payment."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         except Exception as e:
             if "booking" in locals():
                 booking.delete()
-            logger.error(f"Checkout error: {str(e)}", exc_info=True)
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -899,24 +823,16 @@ def cancel_ticket(request):
 
         wallet = get_object_or_404(Wallet, user=user)
 
-        all_ticket_purchases = TicketPurchase.objects.filter(
-            event=event, buyer=user, booking_id=booking_id
-        )
-
-        if booking.subtotal > 0:
-            payment_ratio = booking.total / booking.subtotal
-        else:
-            payment_ratio = Decimal("1.00")
-
-        current_subtotal_from_purchases = sum(
-            Decimal(str(tp.ticket.price)) * Decimal(str(tp.quantity))
-            for tp in all_ticket_purchases
+        total_all_ticket_count = (
+            TicketPurchase.objects.filter(
+                event=event, buyer=user, booking_id=booking_id
+            ).aggregate(Sum("quantity"))["quantity__sum"]
+            or 0
         )
 
         refund_amount = Decimal("0.00")
-        canceled_subtotal = Decimal("0.00")
+        total_cancel_ticket_count = 0
         canceled_tickets = []
-
         for ticket_data in tickets_to_cancel:
             ticket_id = ticket_data.get("ticket_id")
             cancel_quantity = ticket_data.get("quantity", 0)
@@ -947,30 +863,22 @@ def cancel_ticket(request):
                 )
 
             ticket = ticket_purchase.ticket
-
-            ticket_price_per_unit = Decimal(str(ticket.price))
-
-            canceled_ticket_original_subtotal = ticket_price_per_unit * Decimal(
-                str(cancel_quantity)
-            )
-            canceled_subtotal += canceled_ticket_original_subtotal
-
-            refund_for_ticket = (
-                canceled_ticket_original_subtotal * payment_ratio
-            ).quantize(Decimal("0.01"))
-            refund_amount += refund_for_ticket
-
             ticket.sold_quantity = max(0, ticket.sold_quantity - cancel_quantity)
             ticket.save()
+
+            ticket_price_per_unit = (
+                ticket_purchase.total_price / ticket_purchase.quantity
+            )
+            refund_for_ticket = ticket_price_per_unit * cancel_quantity
+            refund_amount += refund_for_ticket
+            total_cancel_ticket_count += cancel_quantity
 
             ticket_purchase.quantity -= cancel_quantity
             if ticket_purchase.quantity == 0:
                 booking.ticket_purchases.remove(ticket_purchase)
                 ticket_purchase.delete()
             else:
-                ticket_purchase.total_price = ticket_price_per_unit * Decimal(
-                    str(ticket_purchase.quantity)
-                )
+                ticket_purchase.total_price -= refund_for_ticket
                 ticket_purchase.save()
 
             canceled_tickets.append(
@@ -982,24 +890,24 @@ def cancel_ticket(request):
                 }
             )
 
-        current_subtotal_before_cancel = booking.subtotal
+        booking = get_object_or_404(
+            Booking, user=user, booking_id=booking_id, event=event_id
+        )
+        final_refund_amount = refund_amount
 
-        booking.subtotal = max(Decimal("0.00"), booking.subtotal - canceled_subtotal)
-
-        if current_subtotal_before_cancel > 0 and booking.track_discount > 0:
-            canceled_discount = (
-                canceled_subtotal / current_subtotal_before_cancel
-            ) * booking.track_discount
-            booking.track_discount = max(
-                Decimal("0.00"),
-                booking.track_discount - canceled_discount.quantize(Decimal("0.01")),
+        if booking.track_discount > 0:
+            price_per_unit_refund_decrease = (
+                booking.track_discount / total_all_ticket_count
+            )
+            final_refund_amount = refund_amount - (
+                total_cancel_ticket_count * price_per_unit_refund_decrease
             )
 
-        booking.total = max(Decimal("0.00"), booking.subtotal - booking.track_discount)
-        booking.discount = booking.track_discount
-        booking.save()
-
-        final_refund_amount = refund_amount.quantize(Decimal("0.01"))
+            new_track_discount = booking.track_discount - round(
+                total_cancel_ticket_count * price_per_unit_refund_decrease, 2
+            )
+            booking.track_discount = max(0, new_track_discount)
+            booking.save()
 
         if final_refund_amount > 0:
             wallet.balance += final_refund_amount
@@ -1018,9 +926,7 @@ def cancel_ticket(request):
                     wallet_transaction=transaction,
                     ticket_type=ticket_info["ticket_type"],
                     quantity=ticket_info["quantity"],
-                    amount=Decimal(str(ticket_info["refund_amount"])).quantize(
-                        Decimal("0.01")
-                    ),
+                    amount=Decimal(str(ticket_info["refund_amount"])),
                     event=event,
                     booking=booking,
                 )
@@ -1169,22 +1075,11 @@ class ResetPasswordView(APIView):
 
 
 class SubscriptionCheckout(APIView):
-    def get_permissions(self):
-        if self.request.method == "GET":
-            return [AllowAny()]
-        return [IsAuthenticated()]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            include_trial = (
-                request.query_params.get("include_trial", "false").lower() == "true"
-            )
-
-            plans_query = SubscriptionPlan.objects.filter(active=True)
-            if not include_trial:
-                plans_query = plans_query.exclude(name="trial")
-
-            plans = plans_query
+            plans = SubscriptionPlan.objects.all()
             serializer = SubscriptionPlanSerializer(plans, many=True)
             return Response(
                 {"success": True, "plans": serializer.data}, status=status.HTTP_200_OK
@@ -1213,51 +1108,24 @@ class SubscriptionCheckout(APIView):
 
         try:
             plan = SubscriptionPlan.objects.get(id=plan_id)
-            logger.info(
-                f"Found plan: {plan.name}, price: {plan.price}, active: {plan.active}"
-            )
-
-            if plan.name == "trial":
-                return Response(
-                    {
-                        "success": False,
-                        "message": "Trial plan cannot be purchased. It is automatically assigned to new users.",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if not plan.active:
-                return Response(
-                    {
-                        "success": False,
-                        "message": "This subscription plan is not currently available",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
             existing = UserSubscription.objects.filter(
                 user=user, is_active=True, end_date__gt=timezone.now()
             ).first()
 
-            if existing and existing.plan.name != "trial":
+            if existing:
                 return Response(
                     {
                         "success": False,
-                        "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}. Please wait for it to expire or upgrade through the upgrade page.",
+                        "message": f"You already have an active {existing.plan.name} subscription until {existing.end_date.strftime('%Y-%m-%d')}.",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            payment_intent_id = None
 
             if payment_method == "stripe":
                 result = self.handle_stripe_payment(request, plan, user)
                 if result is not None:
                     return result
-                payment_intent_id = request.data.get("payment_intent_id")
-                logger.info(
-                    f"Processing Stripe payment with intent ID: {payment_intent_id}"
-                )
 
             elif payment_method == "wallet":
                 result = self.handle_wallet_payment(plan, user)
@@ -1271,58 +1139,16 @@ class SubscriptionCheckout(APIView):
                 )
 
             end_date = timezone.now() + timedelta(days=30)
+            subscription, _ = UserSubscription.objects.update_or_create(
+                user=user,
+                defaults={
+                    "plan": plan,
+                    "start_date": timezone.now(),
+                    "end_date": end_date,
+                    "is_active": True,
+                },
+            )
 
-            if existing and existing.plan.name == "trial":
-
-                subscription = existing
-                subscription.plan = plan
-                subscription.start_date = timezone.now()
-                subscription.end_date = end_date
-                subscription.is_active = True
-                subscription.payment_method = payment_method
-                subscription.payment_id = (
-                    payment_intent_id if payment_method == "stripe" else None
-                )
-                subscription.events_joined_current_month = 0
-                subscription.events_organized_current_month = 0
-                subscription.save()
-                logger.info(
-                    f"Replaced trial subscription with {plan.name} plan for user {user.id}"
-                )
-            else:
-
-                subscription, created = UserSubscription.objects.update_or_create(
-                    user=user,
-                    defaults={
-                        "plan": plan,
-                        "start_date": timezone.now(),
-                        "end_date": end_date,
-                        "is_active": True,
-                        "payment_method": payment_method,
-                        "payment_id": (
-                            payment_intent_id if payment_method == "stripe" else None
-                        ),
-                    },
-                )
-                logger.info(
-                    f"Created/updated subscription for user {user.id}: {subscription.id}, plan: {plan.name}"
-                )
-
-            try:
-                SubscriptionTransaction.objects.create(
-                    subscription=subscription,
-                    amount=plan.price,
-                    transaction_type="purchase",
-                    payment_method=payment_method,
-                    transaction_id=(
-                        payment_intent_id if payment_method == "stripe" else None
-                    ),
-                )
-                logger.info(
-                    f"Created subscription transaction for user {user.id}, plan {plan.name}"
-                )
-            except Exception as e:
-                logger.error(f"Error creating subscription transaction: {str(e)}")
             return Response(
                 {
                     "success": True,
@@ -1349,7 +1175,7 @@ class SubscriptionCheckout(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
-            logger.error(f"Unhandled subscription error: {str(e)}", exc_info=True)
+            logger.error(f"Unhandled subscription error: {str(e)}")
             return Response(
                 {"success": False, "message": "An unexpected error occurred"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1359,48 +1185,20 @@ class SubscriptionCheckout(APIView):
         data = request.data
         try:
             if data.get("create_intent"):
-                # Validate minimum amount for Stripe
-                from users.utils.payment_utils import validate_stripe_minimum_amount
-
-                try:
-                    validate_stripe_minimum_amount(
-                        Decimal(str(plan.price)), currency="inr"
-                    )
-                except ValidationError as e:
-                    return Response(
-                        {"success": False, "message": str(e)},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                try:
-                    intent = stripe.PaymentIntent.create(
-                        amount=int(plan.price * 100),
-                        currency="inr",
-                        metadata={
-                            "user_id": str(user.id),
-                            "plan_id": str(plan.id),
-                            "transaction_type": "subscription_purchase",
-                        },
-                        description=f"Subscription to {plan.name}",
-                    )
-                    return Response(
-                        {
-                            "success": True,
-                            "client_secret": intent.client_secret,
-                            "intent_id": intent.id,
-                        },
-                        status=status.HTTP_200_OK,
-                    )
-                except stripe.error.InvalidRequestError as e:
-                    if "amount_too_small" in str(e):
-                        return Response(
-                            {
-                                "success": False,
-                                "message": f"Subscription price (₹{plan.price:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent).",
-                            },
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                    raise
+                intent = stripe.PaymentIntent.create(
+                    amount=int(plan.price * 100),
+                    currency="inr",
+                    metadata={"user_id": str(user.id), "plan_id": str(plan.id)},
+                    description=f"Subscription to {plan.name}",
+                )
+                return Response(
+                    {
+                        "success": True,
+                        "client_secret": intent.client_secret,
+                        "intent_id": intent.id,
+                    },
+                    status=status.HTTP_200_OK,
+                )
             else:
                 intent_id = data.get("payment_intent_id")
                 if not intent_id:
@@ -1711,48 +1509,23 @@ class UpgradePlan(APIView):
 
     def create_stripe_payment_intent(self, user, amount):
         try:
-            # Validate minimum amount for Stripe
-            from users.utils.payment_utils import validate_stripe_minimum_amount
-
-            try:
-                validate_stripe_minimum_amount(Decimal(str(amount)), currency="inr")
-            except ValidationError as e:
-                return Response(
-                    {"success": False, "message": str(e)},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             stripe.api_key = settings.STRIPE_SECRET_KEY
-            try:
-                intent = stripe.PaymentIntent.create(
-                    amount=int(amount * 100),
-                    currency="inr",
-                    metadata={
-                        "user_id": str(user.id),
-                        "transaction_type": "subscription_upgrade",
-                    },
-                    description=f"Subscription upgrade to Premium for {user.username}",
-                )
-                logger.info(
-                    f"[Stripe Intent Created]: User {user.id}, Intent {intent.id}, Amount {amount}"
-                )
-                return Response(
-                    {"success": True, "client_secret": intent.client_secret},
-                    status=status.HTTP_200_OK,
-                )
-            except stripe.error.InvalidRequestError as e:
-                if "amount_too_small" in str(e):
-                    logger.error(
-                        f"[Stripe Error]: User {user.id}, Amount too small: {amount}"
-                    )
-                    return Response(
-                        {
-                            "success": False,
-                            "message": f"Payment amount (₹{amount:.2f}) is too small. Stripe requires a minimum payment of ₹50.00 (approximately $0.50 USD equivalent).",
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                raise
+            intent = stripe.PaymentIntent.create(
+                amount=int(amount * 100),
+                currency="inr",
+                metadata={
+                    "user_id": str(user.id),
+                    "transaction_type": "subscription_upgrade",
+                },
+                description=f"Subscription upgrade to Premium for {user.username}",
+            )
+            logger.info(
+                f"[Stripe Intent Created]: User {user.id}, Intent {intent.id}, Amount {amount}"
+            )
+            return Response(
+                {"success": True, "client_secret": intent.client_secret},
+                status=status.HTTP_200_OK,
+            )
         except stripe.error.StripeError as e:
             logger.error(f"[Stripe Error]: User {user.id}, Error: {str(e)}")
             return Response(
@@ -2035,266 +1808,3 @@ class RenewSubscription(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
-
-class RenewSubscription(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Get renewal information for current subscription"""
-        user = request.user
-        try:
-            current_subscription = UserSubscription.objects.get(
-                user=user, is_active=True
-            )
-
-            if not current_subscription.is_expired():
-                return Response(
-                    {
-                        "success": False,
-                        "message": "Your subscription is still active. No renewal needed.",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            return Response(
-                {
-                    "success": True,
-                    "subscription": UserPlanDetailsSerializer(
-                        current_subscription
-                    ).data,
-                    "renewal_price": float(current_subscription.plan.price),
-                }
-            )
-
-        except UserSubscription.DoesNotExist:
-            return Response(
-                {"success": False, "message": "No subscription found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    def post(self, request):
-        """Renew expired subscription"""
-        user = request.user
-        payment_method = request.data.get("payment_method")
-
-        try:
-            current_subscription = UserSubscription.objects.get(
-                user=user, is_active=True
-            )
-
-            if not current_subscription.is_expired():
-                return Response(
-                    {
-                        "success": False,
-                        "message": "Your subscription is still active. No renewal needed.",
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if payment_method == "stripe":
-                result = self.handle_stripe_renewal(request, current_subscription, user)
-                if result is not None:
-                    return result
-            elif payment_method == "wallet":
-                result = self.handle_wallet_renewal(current_subscription, user)
-                if result is not None:
-                    return result
-            else:
-                return Response(
-                    {"success": False, "message": "Invalid payment method"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Extend subscription by 30 days
-            current_subscription.end_date = timezone.now() + timedelta(days=30)
-            current_subscription.is_active = True
-            current_subscription.payment_method = payment_method
-            current_subscription.save()
-
-            # Create renewal transaction
-            SubscriptionTransaction.objects.create(
-                subscription=current_subscription,
-                amount=current_subscription.plan.price,
-                transaction_type="renewal",
-                payment_method=payment_method,
-                transaction_id=(
-                    request.data.get("payment_intent_id")
-                    if payment_method == "stripe"
-                    else None
-                ),
-            )
-
-            return Response(
-                {
-                    "success": True,
-                    "message": "Subscription renewed successfully",
-                    "subscription": UserPlanDetailsSerializer(
-                        current_subscription
-                    ).data,
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        except UserSubscription.DoesNotExist:
-            return Response(
-                {"success": False, "message": "No subscription found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except Exception as e:
-            logger.error(f"Renewal error: {str(e)}")
-            return Response(
-                {"success": False, "message": "An error occurred during renewal"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    def handle_stripe_renewal(self, request, subscription, user):
-        """Handle Stripe payment for renewal"""
-        data = request.data
-        try:
-            if data.get("create_intent"):
-                intent = stripe.PaymentIntent.create(
-                    amount=int(subscription.plan.price * 100),
-                    currency="inr",
-                    metadata={
-                        "user_id": str(user.id),
-                        "subscription_id": str(subscription.id),
-                        "transaction_type": "subscription_renewal",
-                    },
-                    description=f"Renewal for {subscription.plan.name} subscription",
-                )
-                return Response(
-                    {
-                        "success": True,
-                        "client_secret": intent.client_secret,
-                        "intent_id": intent.id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                intent_id = data.get("payment_intent_id")
-                if not intent_id:
-                    return Response(
-                        {"success": False, "message": "Missing payment intent ID"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                intent = stripe.PaymentIntent.retrieve(intent_id)
-                if intent.status != "succeeded":
-                    return Response(
-                        {
-                            "success": False,
-                            "message": "Payment not completed",
-                            "intent_status": intent.status,
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe renewal error: {str(e)}")
-            return Response(
-                {"success": False, "message": f"Stripe error: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    def handle_wallet_renewal(self, subscription, user):
-        """Handle wallet payment for renewal"""
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.balance < subscription.plan.price:
-                return Response(
-                    {"success": False, "message": "Insufficient wallet balance"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            wallet.balance -= subscription.plan.price
-            wallet.save()
-
-            WalletTransaction.objects.create(
-                wallet=wallet,
-                transaction_type="PAYMENT",
-                amount=subscription.plan.price,
-                description=f"Subscription renewal for {subscription.plan.name}",
-            )
-        except Wallet.DoesNotExist:
-            return Response(
-                {"success": False, "message": "Wallet not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-
-class UserPlanDetails(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Get user's subscription details"""
-        user = request.user
-        try:
-            subscription = UserSubscription.objects.get(user=user, is_active=True)
-            serializer = UserPlanDetailsSerializer(subscription)
-
-            return Response(
-                {
-                    "success": True,
-                    "subscription": serializer.data,
-                }
-            )
-        except UserSubscription.DoesNotExist:
-            return Response(
-                {
-                    "success": False,
-                    "message": "No active subscription found",
-                    "subscription": None,
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except Exception as e:
-            logger.error(f"Error fetching subscription details: {str(e)}")
-            return Response(
-                {
-                    "success": False,
-                    "message": "An error occurred while fetching subscription details",
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
-class SubscriptionTransactions(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Get user's subscription transaction history"""
-        user = request.user
-        try:
-            subscription = UserSubscription.objects.get(user=user, is_active=True)
-            transactions = SubscriptionTransaction.objects.filter(
-                subscription=subscription
-            ).order_by("-transaction_date")
-
-            serializer = SubscriptionTransactionSerializer(transactions, many=True)
-
-            return Response(
-                {
-                    "success": True,
-                    "transactions": serializer.data,
-                }
-            )
-        except UserSubscription.DoesNotExist:
-            return Response(
-                {
-                    "success": False,
-                    "message": "No active subscription found",
-                    "transactions": [],
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except Exception as e:
-            logger.error(f"Error fetching subscription transactions: {str(e)}")
-            return Response(
-                {
-                    "success": False,
-                    "message": "An error occurred while fetching transaction history",
-                    "transactions": [],
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )

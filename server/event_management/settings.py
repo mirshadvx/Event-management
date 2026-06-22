@@ -1,28 +1,57 @@
 import os
 from datetime import timedelta
-from dotenv import load_dotenv
 from pathlib import Path
-from decouple import config
+from urllib.parse import urlparse
+
+from dotenv import load_dotenv
 from celery.schedules import crontab
+import dj_database_url
+import cloudinary
 
 load_dotenv()
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "temporary-secret-key-for-build"
+)
 
-DEBUG = os.getenv("DEBUT", "TRUE") == "TRUE"
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["13.62.4.143", "api.evenxo.xyz", "localhost", "127.0.0.1"]
+def csv_env(name, default=""):
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+ALLOWED_HOSTS = csv_env(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1,.onrender.com,evenxo-backend.onrender.com",
+)
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+render_external_url = os.getenv("RENDER_EXTERNAL_URL")
+render_hosts = [
+    ".onrender.com",
+    "evenxo-backend.onrender.com",
+    os.getenv("RENDER_EXTERNAL_HOSTNAME"),
+    urlparse(render_external_url).hostname if render_external_url else None,
+]
 
-REDIS_TEMP_USER_KEEP_TIME = int(os.getenv("REDIS_TEMP_USER_KEEP_TIME", 140))
+for host in render_hosts:
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://evenxo.xyz",
+    "https://www.evenxo.xyz",
+    "https://api.evenxo.xyz",
+    "https://*.onrender.com",
+]
+
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:5173"
+)
+
 
 INSTALLED_APPS = [
     "daphne",
@@ -36,44 +65,36 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt",
-    "users",
-    "Admin",
-    "chat",
-    "cloudinary",
-    "cloudinary_storage",
-    "event",
     "django_rest_passwordreset",
     "django_celery_beat",
     "django_filters",
+    "cloudinary",
+    "cloudinary_storage",
+    "users",
+    "Admin",
+    "chat",
+    "event",
     "organizer",
     "Profile",
 ]
 
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
-REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-        "users.permissions.IsActiveUser",
-        "Admin.permissions.IsAdminUser",
-    ),
-    "DEFAULT_AUTHENTICATION_CLASSES": ("users.authentication.CookieJWTAuthentication",),
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
-}
-
-AUTH_USER_MODEL = "users.Profile"
 
 ROOT_URLCONF = "event_management.urls"
+WSGI_APPLICATION = "event_management.wsgi.application"
+ASGI_APPLICATION = "event_management.asgi.application"
 
 TEMPLATES = [
     {
@@ -91,28 +112,86 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "event_management.wsgi.application"
-ASGI_APPLICATION = "event_management.asgi.application"
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(DATABASE_URL)
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+REDIS_URL = os.getenv("REDIS_URL")
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
+            "hosts": [REDIS_URL],
         },
     },
 }
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": "5432",
-    }
+
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+CELERY_BEAT_SCHEDULE = {
+    "distribute-revenue-every-midnight": {
+        "task": "users.tasks.distribute_event_revenue",
+        "schedule": crontab(hour=0, minute=0),
+    },
 }
+
+
+AUTH_USER_MODEL = "users.Profile"
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "users.permissions.IsActiveUser",
+        "Admin.permissions.IsAdminUser",
+    ),
+
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "users.authentication.CookieJWTAuthentication",
+    ),
+
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend"
+    ],
+}
+
+
+SIMPLE_JWT = {
+    "LEEWAY": 100,
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_COOKIE": "access_token",
+    "AUTH_COOKIE_REFRESH": "refresh_token",
+    "AUTH_COOKIE_SECURE": True,
+    "AUTH_COOKIE_HTTP_ONLY": True,
+    "AUTH_COOKIE_PATH": "/",
+    "AUTH_COOKIE_SAMESITE": "None",
+}
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -137,11 +216,36 @@ USE_I18N = True
 
 USE_TZ = True
 
-# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = "/static/"
-STATIC_ROOT = "/app/staticfiles"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+STATIC_URL = "/static/"
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_STORAGE = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
+
+
+MEDIA_URL = "/media/"
+
+MEDIA_ROOT = BASE_DIR / "media"
+
+DEFAULT_FILE_STORAGE = (
+    "cloudinary_storage.storage.MediaCloudinaryStorage"
+)
+
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
+    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
+}
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+)
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
@@ -158,122 +262,66 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-# CSRF_COOKIE_SAMESITE = "None"
-# SESSION_COOKIE_SAMESITE = "None"
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-CSRF_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SAMESITE = "Lax"
-
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://evenxo.xyz",
-#     "https://www.evenxo.xyz",
-#     "https://api.evenxo.xyz",
-# ]
-
-SIMPLE_JWT = {
-    "LEEWAY": 100,
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_COOKIE": "access_token",
-    "AUTH_COOKIE_REFRESH": "refresh_token",
-    "AUTH_COOKIE_SECURE": False,
-    "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_PATH": "/",
-    "AUTH_COOKIE_SAMESITE": "Lax",
-}
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "")
-
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
-    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
-}
-
-import cloudinary
-
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-)
-
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
-
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-
-REDIS_HOST = config("REDIS_HOST", default="localhost")
-REDIS_PORT = config("REDIS_PORT", default=6379, cast=int)
-REDIS_DB = config("REDIS_DB", default=0, cast=int)
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "None"
 
 LOGGING = {
     "version": 1,
+
     "disable_existing_loggers": False,
+
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
         },
+
         "file": {
             "class": "logging.FileHandler",
             "filename": "general.log",
             "formatter": "verbose",
         },
     },
+
     "formatters": {
         "verbose": {
             "format": "{asctime} ({levelname})- {name}- {message}",
             "style": "{",
         }
     },
+
     "loggers": {
         "": {
             "handlers": ["console", "file"],
             "level": "INFO",
             "propagate": False,
         },
-        "chat.socketio_server": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "users.tasks": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
+
         "django": {
             "handlers": ["console", "file"],
             "level": "INFO",
             "propagate": False,
         },
+
+        "chat.socketio_server": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+
+        "users.tasks": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 
-CELERY_BEAT_SCHEDULE = {
-    "distribute-revenue-every-midnight": {
-        "task": "users.tasks.distribute_event_revenue",
-        "schedule": crontab(hour=0, minute=0),
-    },
-}
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
