@@ -19,6 +19,7 @@ from .serializers import (
     SubscriptionPlanSerializer,
     ProfileEventJoinedSerializer,
     UserPlanDetailsSerializer,
+    SubscriptionTransactionSerializer,
 )
 from rest_framework import status
 import redis
@@ -1808,3 +1809,37 @@ class RenewSubscription(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class SubscriptionTransactions(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return the authenticated user's subscription transaction history."""
+        try:
+            subscription = UserSubscription.objects.get(user=request.user, is_active=True)
+            transactions = SubscriptionTransaction.objects.filter(
+                subscription=subscription
+            ).order_by("-transaction_date")
+            serializer = SubscriptionTransactionSerializer(transactions, many=True)
+
+            return Response({"success": True, "transactions": serializer.data,})
+        except UserSubscription.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "No active subscription found",
+                    "transactions": [],
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            logger.error("Error fetching subscription transactions: %s", e)
+            return Response(
+                {
+                    "success": False,
+                    "message": "An error occurred while fetching transaction history",
+                    "transactions": [],
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
