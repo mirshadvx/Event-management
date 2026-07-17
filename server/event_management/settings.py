@@ -23,6 +23,24 @@ def csv_env(name, default=""):
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
+def redis_url_env():
+    raw_url = os.getenv("REDIS_URL", "").strip()
+    redis_db = os.getenv("REDIS_DB", "0").strip() or "0"
+
+    if raw_url:
+        if raw_url.startswith(("redis://", "rediss://", "unix://")):
+            return raw_url
+        if "://" not in raw_url:
+            if "/" not in raw_url:
+                raw_url = f"{raw_url}/{redis_db}"
+            return f"redis://{raw_url}"
+        return raw_url
+
+    redis_host = os.getenv("REDIS_HOST", "redis").strip() or "redis"
+    redis_port = os.getenv("REDIS_PORT", "6379").strip() or "6379"
+    return f"redis://{redis_host}:{redis_port}/{redis_db}"
+
+
 ALLOWED_HOSTS = csv_env(
     "ALLOWED_HOSTS",
     "localhost,127.0.0.1,.onrender.com,evenxo-backend.onrender.com",
@@ -129,7 +147,7 @@ else:
         }
     }
 
-REDIS_URL = os.getenv("REDIS_URL")
+REDIS_URL = redis_url_env()
 
 CHANNEL_LAYERS = {
     "default": {
@@ -320,7 +338,6 @@ LOGGING = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
-
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+REDIS_TEMP_USER_KEEP_TIME = os.getenv("REDIS_TEMP_USER_KEEP_TIME")

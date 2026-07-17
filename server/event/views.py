@@ -23,6 +23,8 @@ from rest_framework.decorators import permission_classes
 from users.tasks import send_user_notification
 from users.models import Booking
 import logging
+from Admin.models import SubscriptionPlan
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ class EventCreateView(APIView):
                         status=status.HTTP_403_FORBIDDEN,
                     )
             except UserSubscription.DoesNotExist:
-                from users.models import SubscriptionPlan
+                # from users.models import SubscriptionPlan
 
                 trial_plan = SubscriptionPlan.objects.filter(
                     name__iexact="Trial"
@@ -90,14 +92,12 @@ class EventCreateView(APIView):
                     )
                 elif not existing_trial:
                     from Admin.models import UserSubscription
-                    import datetime
 
                     UserSubscription.objects.create(
                         user=request.user,
                         plan=trial_plan,
-                        start_date=datetime.date.today(),
-                        end_date=datetime.date.today()
-                        + datetime.timedelta(days=trial_plan.duration_days),
+                        start_date=timezone.now(),
+                        end_date=timezone.now() + timedelta(days=30),
                         is_active=True,
                     )
 

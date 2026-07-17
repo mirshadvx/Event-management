@@ -192,6 +192,9 @@ class OrganizerRequestUpdateStatus(APIView):
                     notification_message = f"Your organizer request has been rejected. Reason: {admin_notes}"
                 else:
                     notification_message = "Your organizer request has been rejected. Please contact support for more information."
+            elif new_status == "pending":
+                user_profile.organizerVerified = False
+                notification_message = "Your organizer request is pending review."
             user_profile.save()
 
             from users.tasks import send_user_notification
