@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "event",
     "organizer",
     "Profile",
+    "gatekeeper",
 ]
 
 
