@@ -30,6 +30,7 @@ import DraftedEventCard from "@/components/user/Dashboard/DraftedEventCard";
 const OrganizedModal = lazy(() => import("@/components/user/Dashboard/OrganizedModal"));
 const OngoingModal = lazy(() => import("@/components/user/Dashboard/OngoingModal"));
 const DraftedModal = lazy(() => import("@/components/user/Dashboard/DraftedModal"));
+const UserManagementModal = lazy(() => import("@/components/user/Dashboard/UserManagementModal"));
 
 const Organized_Outlet = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -59,6 +60,7 @@ const Organized_Outlet = () => {
     const [isOrganizedModalOpen, setIsOrganizedModalOpen] = useState(false);
     const [isOngoingModalOpen, setIsOngoingModalOpen] = useState(false);
     const [isDraftedModalOpen, setIsDraftedModalOpen] = useState(false);
+    const [isUserManagementOpen, setUserManagementModalOpen] = useState(false);
 
     const categories = ["Conference", "Workshop", "Seminar"];
     const timeFilters = ["All", "Today", "Week", "Month", "Custom"];
@@ -361,6 +363,15 @@ const Organized_Outlet = () => {
         setShowMobileFilters(!showMobileFilters);
     };
 
+    const handleOpenUserManagementModal = (eventId) => {
+        setSelectedEventId(eventId);
+        setUserManagementModalOpen(true);
+    };
+
+    const handleCloseUserManagementModal = () => {
+        setUserManagementModalOpen(false);
+    };
+
     const renderEventCard = (event, index) => {
         const isLastElement = events.length === index + 1;
         const isExpanded = expandedEventId === event.id;
@@ -390,6 +401,7 @@ const Organized_Outlet = () => {
                         {...commonProps}
                         onAnalyticsClick={() => handleOpenOngoingModal(event.id)}
                         onGoLiveClick={handleGoLive}
+                        onManageUsersClick={() => handleOpenUserManagementModal(event.id)}
                     />
                 );
             case "drafted":
@@ -861,6 +873,7 @@ const Organized_Outlet = () => {
                 />
                 <OngoingModal isOpen={isOngoingModalOpen} onClose={handleCloseOngoingModal} eventId={selectedEventId} />
                 <DraftedModal isOpen={isDraftedModalOpen} onClose={handleCloseDraftedModal} />
+                <UserManagementModal isOpen={isUserManagementOpen} onClose={handleCloseUserManagementModal} eventId={selectedEventId}/>                
             </Suspense>
         </div>
     );

@@ -3,6 +3,7 @@ import { MapPin, X, Users, Clock, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HiChevronDoubleUp } from "react-icons/hi";
 import { format } from "date-fns";
+import { ShieldCheck } from "lucide-react";
 
 const OngoingEventCard = ({
     event,
@@ -10,6 +11,7 @@ const OngoingEventCard = ({
     onToggleDetails,
     onAnalyticsClick,
     onGoLiveClick,
+    onManageUsersClick,
     isLastElement,
     lastEventElementRef,
 }) => {
@@ -124,6 +126,14 @@ const OngoingEventCard = ({
                                     onClick={onAnalyticsClick}
                                 >
                                     Analytics
+                                </Button>
+                                <Button
+                                    onClick={onManageUsersClick}
+                                    variant="outline"
+                                    className="h-8 px-3 rounded-lg border border-sky-500/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500 hover:text-white transition-all duration-200 flex items-center gap-1.5"
+                                >
+                                    <ShieldCheck className="h-4 w-4" />
+                                    <span className="text-xs font-medium">Manage</span>
                                 </Button>
 
                                 <Button

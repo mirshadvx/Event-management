@@ -32,3 +32,17 @@ export const formatTime = (date) => {
     hour12: true
   });
 };
+
+export const formatDate = (date) => {
+  if (!date) return "-";
+
+  const parsedDate = date instanceof Date ? date : new Date(date);
+
+  if (isNaN(parsedDate.getTime())) return "-";
+
+  return parsedDate.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
