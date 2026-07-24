@@ -4,6 +4,7 @@ import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { setApiDispatch } from "@/services/api";
 import ticketReducer from "./user/ticketSlicer";
+import guardAuthReducer from "./GuardTicketValidator/guardAuthSlice"
 
 // console.log("userReducer:", userReducer); // Debug log
 
@@ -18,6 +19,7 @@ export const store = configureStore({
   reducer: {
     user: persistReducer(persistConfig, userReducer),
     tickets: ticketReducer,
+    guardAuth: guardAuthReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

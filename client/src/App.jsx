@@ -21,6 +21,8 @@ import RenewSubscription from "./pages/User/Checkout/RenewSubscription";
 import MainLayout from "./components/layout/user/chat/MainLayout";
 import GlobalProfile from "./pages/User/home/GlobalProfile";
 import UserSearch from "./pages/User/UserSearch";
+import TicketValidatorProtectedRoute from "./routes/TicketValidator/TicketValidatorProtectedRoute"
+import ValidatorLogin from "./components/TicketValidator/ValidatorLogin";
 
 function App() {
   const dispatch = useDispatch();
@@ -66,6 +68,8 @@ function App() {
           <Route path="/chat" element={<MainLayout />} />
           <Route path="user/:username" element={<GlobalProfile />} />
           <Route path="search" element={<UserSearch />} />
+          <Route path="event/:event_id/guard/login" element={<ValidatorLogin />} />
+          <Route path="event/:event_id/guard/scanner" element={<TicketValidatorProtectedRoute />}/>
           {AuthRoutes()}
           {DashboardRoutes()}
           {AdminRoutes()}
