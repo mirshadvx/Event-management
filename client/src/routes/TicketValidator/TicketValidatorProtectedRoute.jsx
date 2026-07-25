@@ -1,13 +1,15 @@
 import { Navigate, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { lazy, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import ValidatorPage from "@/pages/TicketValidator/ValidatorPage";
 import { getGuardSession } from "@/services/TickerValidator/guardApi";
 import {
   loginFailure,
   loginStart,
   loginSuccess,
 } from "@/store/GuardTicketValidator/guardAuthSlice";
+import LoadingScreen from "@/components/common/LoadingScreen";
+
+const ValidatorPage = lazy(() => import("@/pages/TicketValidator/ValidatorPage"));
 
 export default function TicketValidatorProtectedRoute() {
   const { event_id } = useParams();
@@ -33,11 +35,7 @@ export default function TicketValidatorProtectedRoute() {
   }, [dispatch, event_id, isAuthenticated]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen w-full bg-[#0b0a17] flex items-center justify-center text-sm text-gray-400">
-        Checking validator access...
-      </div>
-    );
+    return <LoadingScreen message="Checking validator access" />;
   }
 
   if (!isAuthenticated || !staff) {

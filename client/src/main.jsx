@@ -6,10 +6,11 @@ import { store } from "./store/store.js";
 import { Provider } from "react-redux";
 import { persistor } from "./store/store.js";
 import { PersistGate } from "redux-persist/integration/react";
+import LoadingScreen from "./components/common/LoadingScreen.jsx";
 
 createRoot(document.getElementById("root")).render(
     <Provider store={store}>
-        <PersistGate loading={<div>Loading...</div>} persistor={persistor}>
+        <PersistGate loading={<LoadingScreen message="Restoring your session" />} persistor={persistor}>
             <App />
         </PersistGate>
     </Provider>

@@ -8,3 +8,10 @@
 .playfair {
   font-family: "Playfair Display";
 }
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #121120;
+}

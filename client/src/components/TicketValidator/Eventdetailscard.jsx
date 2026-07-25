@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { Calendar, MapPin, DoorOpen, Users } from "lucide-react";
 
-export default function EventDetailsCard({ event }) {
+function EventDetailsCard({ event }) {
   return (
     <div className="bg-[#131226] border border-white/10 rounded-2xl overflow-hidden">
       <div className="h-5 w-full relative">
@@ -46,3 +47,5 @@ export default function EventDetailsCard({ event }) {
     </div>
   );
 }
+
+export default memo(EventDetailsCard);

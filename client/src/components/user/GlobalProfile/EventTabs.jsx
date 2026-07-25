@@ -1,6 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarDays, Users } from "lucide-react";
+import LoadingScreen from "@/components/common/LoadingScreen";
 
 const EventCard = lazy(() => import("./EventCard"));
 
@@ -34,7 +35,7 @@ const EventTabs = ({ userData }) => {
                 </TabsList>
 
                 <TabsContent value="organized" className="mt-0">
-                    <Suspense fallback={<div className="text-center py-8">Loading events...</div>}>
+                    <Suspense fallback={<LoadingScreen fullScreen={false} message="Loading events" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                             {userData.organizedEvents.map((event) => (
                                 <EventCard key={event.id} event={event} />
@@ -44,7 +45,7 @@ const EventTabs = ({ userData }) => {
                 </TabsContent>
 
                 <TabsContent value="participated" className="mt-0">
-                    <Suspense fallback={<div className="text-center py-8">Loading events...</div>}>
+                    <Suspense fallback={<LoadingScreen fullScreen={false} message="Loading events" />}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                             {userData.participatedEvents.map((event) => (
                                 <EventCard key={event.id} event={event} />

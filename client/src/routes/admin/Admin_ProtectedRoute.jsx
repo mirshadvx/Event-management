@@ -1,12 +1,13 @@
 import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
+import LoadingScreen from "@/components/common/LoadingScreen";
 
 const Admin_ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading, role } = useSelector((state) => state.user);
   console.log("Admin protect route test", { isAuthenticated, role, loading });
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen message="Checking admin access" />;
   }
 
   if (!isAuthenticated) {

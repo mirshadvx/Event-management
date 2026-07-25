@@ -1,32 +1,38 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { verifyAuth, get_ProfileData } from "./store/user/userSlice";
-import Home from "./pages/User/home/Home";
-import Test from "./pages/User/Test";
 import AuthRoutes from "./routes/user/AuthRoutes";
 import DashboardRoutes from "./routes/user/DashboardRoutes";
 import { Toaster } from "sonner";
 import AdminRoutes from "./routes/admin/AdminRoutes";
-import Login from "./pages/Admin/Login";
 import ProfileRoutes from "./routes/user/ProfileRoutes";
-import Explore from "./pages/User/Explore/Explore";
-import { HashLoader } from "react-spinners";
-import CheckoutPage from "./pages/User/Checkout/CheckoutPage";
-import ForgotPassword from "./pages/User/Auth/ForgotPassword";
-import ResetPassword from "./pages/User/Auth/ResetPassword";
-import SubscriptionCheckout from "./pages/User/Checkout/SubscriptionCheckout";
-import RenewSubscription from "./pages/User/Checkout/RenewSubscription";
-import MainLayout from "./components/layout/user/chat/MainLayout";
-import GlobalProfile from "./pages/User/home/GlobalProfile";
-import UserSearch from "./pages/User/UserSearch";
-import TicketValidatorProtectedRoute from "./routes/TicketValidator/TicketValidatorProtectedRoute"
-import ValidatorLogin from "./components/TicketValidator/ValidatorLogin";
+import LoadingScreen from "./components/common/LoadingScreen";
+
+const Home = lazy(() => import("./pages/User/home/Home"));
+const AdminLogin = lazy(() => import("./pages/Admin/Login"));
+const Explore = lazy(() => import("./pages/User/Explore/Explore"));
+const ForgotPassword = lazy(() => import("./pages/User/Auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/User/Auth/ResetPassword"));
+const CheckoutPage = lazy(() => import("./pages/User/Checkout/CheckoutPage"));
+const SubscriptionCheckout = lazy(() =>
+  import("./pages/User/Checkout/SubscriptionCheckout")
+);
+const RenewSubscription = lazy(() =>
+  import("./pages/User/Checkout/RenewSubscription")
+);
+const MainLayout = lazy(() => import("./components/layout/user/chat/MainLayout"));
+const GlobalProfile = lazy(() => import("./pages/User/home/GlobalProfile"));
+const UserSearch = lazy(() => import("./pages/User/UserSearch"));
+const TicketValidatorProtectedRoute = lazy(() =>
+  import("./routes/TicketValidator/TicketValidatorProtectedRoute")
+);
+const ValidatorLogin = lazy(() => import("./components/TicketValidator/ValidatorLogin"));
 
 function App() {
   const dispatch = useDispatch();
-  const { isAuthenticated, role, user, loading } = useSelector(
+  const { isAuthenticated, user, loading } = useSelector(
     (state) => state.user
   );
 
@@ -45,36 +51,36 @@ function App() {
       <div className="relative">
         <Toaster richColors position="top-right" />
         {loading && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <HashLoader color="#00ff20" />
-          </div>
+          <LoadingScreen overlay message="Checking your session" />
         )}
-        <Routes>
-          <Route path="/test" element={<></>} />
-          <Route path="/" element={<Home />} />
-          <Route path="/admin/login" element={<Login />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/checkout/:eventId" element={<CheckoutPage />} />
-          <Route
-            path="/checkout/subscription"
-            element={<SubscriptionCheckout />}
-          />
-          <Route
-            path="/checkout/renew-subscription"
-            element={<RenewSubscription />}
-          />
-          <Route path="/chat" element={<MainLayout />} />
-          <Route path="user/:username" element={<GlobalProfile />} />
-          <Route path="search" element={<UserSearch />} />
-          <Route path="event/:event_id/guard/login" element={<ValidatorLogin />} />
-          <Route path="event/:event_id/guard/scanner" element={<TicketValidatorProtectedRoute />}/>
-          {AuthRoutes()}
-          {DashboardRoutes()}
-          {AdminRoutes()}
-          {ProfileRoutes()}
-        </Routes>
+        <Suspense fallback={<LoadingScreen message="Preparing your page" />}>
+          <Routes>
+            <Route path="/test" element={<></>} />
+            <Route path="/" element={<Home />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/checkout/:eventId" element={<CheckoutPage />} />
+            <Route
+              path="/checkout/subscription"
+              element={<SubscriptionCheckout />}
+            />
+            <Route
+              path="/checkout/renew-subscription"
+              element={<RenewSubscription />}
+            />
+            <Route path="/chat" element={<MainLayout />} />
+            <Route path="user/:username" element={<GlobalProfile />} />
+            <Route path="search" element={<UserSearch />} />
+            <Route path="event/:event_id/guard/login" element={<ValidatorLogin />} />
+            <Route path="event/:event_id/guard/scanner" element={<TicketValidatorProtectedRoute />}/>
+            {AuthRoutes()}
+            {DashboardRoutes()}
+            {AdminRoutes()}
+            {ProfileRoutes()}
+          </Routes>
+        </Suspense>
       </div>
     </BrowserRouter>
   );

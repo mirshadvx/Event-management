@@ -1,20 +1,21 @@
-import React from "react";
-import { Route, Routes } from "react-router-dom";
-import Dashboard from "../../pages/Admin/Dashboard";
-import Users_outlet from "@/components/layout/admin/Users_outlet";
+import { lazy } from "react";
+import { Route } from "react-router-dom";
 import Admin_ProtectedRoute from "./Admin_ProtectedRoute";
-import Organizer_Request from "@/components/layout/admin/Organizer_Request";
-import Coupon_layout from "@/components/layout/admin/Coupon_layout";
-import Achievements_layout from "@/components/layout/admin/Achivements_layout";
-import Revenue_Overview from "@/components/layout/admin/finance/Revenue_Overview";
-import Transaction_History from "@/components/layout/admin/finance/Transaction_History";
-import Refund_History from "@/components/layout/admin/finance/Refund_History";
-import Ticket_Purchases from "@/components/layout/admin/Ticket_Purchases";
-import Plan from "@/components/layout/admin/subscription/Plan";
-import SubsOverview from "@/components/layout/admin/subscription/SubsOverview";
-import SubscriptionAnalytics from "@/components/layout/admin/subscription/SubscriptionAnalytics";
-import Events from "@/components/layout/admin/Events";
-import LandingPage from "@/components/layout/admin/LandingPage";
+
+const Dashboard = lazy(() => import("../../pages/Admin/Dashboard"));
+const Users_outlet = lazy(() => import("@/components/layout/admin/Users_outlet"));
+const Organizer_Request = lazy(() => import("@/components/layout/admin/Organizer_Request"));
+const Coupon_layout = lazy(() => import("@/components/layout/admin/Coupon_layout"));
+const Achievements_layout = lazy(() => import("@/components/layout/admin/Achivements_layout"));
+const Revenue_Overview = lazy(() => import("@/components/layout/admin/finance/Revenue_Overview"));
+const Transaction_History = lazy(() => import("@/components/layout/admin/finance/Transaction_History"));
+const Refund_History = lazy(() => import("@/components/layout/admin/finance/Refund_History"));
+const Ticket_Purchases = lazy(() => import("@/components/layout/admin/Ticket_Purchases"));
+const Plan = lazy(() => import("@/components/layout/admin/subscription/Plan"));
+const SubsOverview = lazy(() => import("@/components/layout/admin/subscription/SubsOverview"));
+const SubscriptionAnalytics = lazy(() => import("@/components/layout/admin/subscription/SubscriptionAnalytics"));
+const Events = lazy(() => import("@/components/layout/admin/Events"));
+const LandingPage = lazy(() => import("@/components/layout/admin/LandingPage"));
 
 const AdminRoutes = () => {
     return (

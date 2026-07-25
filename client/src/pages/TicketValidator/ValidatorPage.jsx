@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "@/store/GuardTicketValidator/guardAuthSlice";
 import {
@@ -22,7 +22,7 @@ export default function ValidatorPage() {
   const navigate = useNavigate();
   const { event_id } = useParams();
 
-  const loadScanHistory = async () => {
+  const loadScanHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryError("");
     try {
@@ -39,13 +39,13 @@ export default function ValidatorPage() {
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, [event_id]);
 
   useEffect(() => {
     loadScanHistory();
-  }, [event_id]);
+  }, [loadScanHistory]);
 
-  const handleScanLogged = (entry) => {
+  const handleScanLogged = useCallback((entry) => {
     setLog((prev) => [
       { ...entry, time: entry.time || new Date() },
       ...prev,
@@ -61,15 +61,15 @@ export default function ValidatorPage() {
       denied: prev.denied + (entry.status === "valid" ? 0 : 1),
       total: prev.total + 1,
     }));
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await logoutGuard();
     dispatch(logout());
     navigate(`/event/${event_id}/guard/login`, {
       replace: true,
     });
-  };
+  }, [dispatch, event_id, navigate]);
 
   return (
     <div className="min-h-screen w-full bg-[#0b0a17]">

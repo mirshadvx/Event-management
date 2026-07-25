@@ -1,11 +1,12 @@
-import React from "react";
+import { lazy } from "react";
 import { Route } from "react-router-dom";
-import Profile from "@/pages/Admin/Profile";
-import Event_outlet from "@/components/layout/user/Profile/Event_outlet";
-import Profile_outlet from "@/components/layout/user/Profile/Profile_outlet";
 import ProtectedRoute from "../ProtectedRoute";
-import Wallet_outlet from "@/components/layout/user/Profile/Wallet_outlet";
-import Subscription from "@/components/layout/user/Profile/Subscription";
+
+const Profile = lazy(() => import("@/pages/Admin/Profile"));
+const Event_outlet = lazy(() => import("@/components/layout/user/Profile/Event_outlet"));
+const Profile_outlet = lazy(() => import("@/components/layout/user/Profile/Profile_outlet"));
+const Wallet_outlet = lazy(() => import("@/components/layout/user/Profile/Wallet_outlet"));
+const Subscription = lazy(() => import("@/components/layout/user/Profile/Subscription"));
 
 const ProfileRoutes = () => {
     return (

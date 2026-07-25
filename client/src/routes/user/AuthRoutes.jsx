@@ -1,7 +1,10 @@
+import { lazy } from "react";
 import { Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import Login from "../../pages/User/Auth/Login";
-import Register from "../../pages/User/Auth/Register";
+import LoadingScreen from "@/components/common/LoadingScreen";
+
+const Login = lazy(() => import("../../pages/User/Auth/Login"));
+const Register = lazy(() => import("../../pages/User/Auth/Register"));
 
 const UnauthenticatedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useSelector((state) => state.user);
@@ -13,7 +16,7 @@ const UnauthenticatedRoute = ({ children }) => {
   );
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen message="Checking your session" />;
   }
 
   return isAuthenticated ? <Navigate to="/" replace /> : children;

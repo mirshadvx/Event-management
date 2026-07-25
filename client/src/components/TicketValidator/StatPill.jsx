@@ -1,4 +1,4 @@
-import React from "react";
+import { memo } from "react";
 
 const StatPill = ({ label, value, tone = "neutral" }) => {
   const toneClasses = {
@@ -15,4 +15,4 @@ const StatPill = ({ label, value, tone = "neutral" }) => {
   );
 };
 
-export default StatPill;
+export default memo(StatPill);
