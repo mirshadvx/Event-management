@@ -58,12 +58,7 @@ for host in render_hosts:
     if host and host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(host)
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://evenxo.xyz",
-    "https://www.evenxo.xyz",
-    "https://api.evenxo.xyz",
-    "https://*.onrender.com",
-]
+CSRF_TRUSTED_ORIGINS = csv_env("CSRF_TRUSTED_ORIGINS", "")
 
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
