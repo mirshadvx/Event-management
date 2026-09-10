@@ -12,15 +12,22 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "temporary-secret-key-for-build"
-)
 
-DEBUG = os.getenv("DEBUG", "False") == "True"
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set")
+
+
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+
 
 def csv_env(name, default=""):
-    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+    return [
+        item.strip()
+        for item in os.getenv(name, default).split(",")
+        if item.strip()
+    ]
 
 
 def redis_url_env():
@@ -30,39 +37,35 @@ def redis_url_env():
     if raw_url:
         if raw_url.startswith(("redis://", "rediss://", "unix://")):
             return raw_url
+
         if "://" not in raw_url:
             if "/" not in raw_url:
                 raw_url = f"{raw_url}/{redis_db}"
             return f"redis://{raw_url}"
+
         return raw_url
 
     redis_host = os.getenv("REDIS_HOST", "redis").strip() or "redis"
     redis_port = os.getenv("REDIS_PORT", "6379").strip() or "6379"
+
     return f"redis://{redis_host}:{redis_port}/{redis_db}"
 
 
 ALLOWED_HOSTS = csv_env(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,.onrender.com,evenxo-backend.onrender.com",
+    "api.evenxo.space,localhost,127.0.0.1",
 )
 
-render_external_url = os.getenv("RENDER_EXTERNAL_URL")
-render_hosts = [
-    ".onrender.com",
-    "evenxo-backend.onrender.com",
-    os.getenv("RENDER_EXTERNAL_HOSTNAME"),
-    urlparse(render_external_url).hostname if render_external_url else None,
-]
 
-for host in render_hosts:
-    if host and host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(host)
+CSRF_TRUSTED_ORIGINS = csv_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "https://api.evenxo.space,https://evenxo.space,https://www.evenxo.space",
+)
 
-CSRF_TRUSTED_ORIGINS = csv_env("CSRF_TRUSTED_ORIGINS", "")
 
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "http://localhost:5173"
+    "http://localhost:5173",
 )
 
 
@@ -131,6 +134,7 @@ if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(DATABASE_URL)
     }
+
 else:
     DATABASES = {
         "default": {
@@ -138,12 +142,14 @@ else:
             "NAME": os.getenv("POSTGRES_DB"),
             "USER": os.getenv("POSTGRES_USER"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": "db",
+            "HOST": os.getenv("DB_HOST", "db"),
             "PORT": "5432",
         }
     }
 
+
 REDIS_URL = redis_url_env()
+
 
 CHANNEL_LAYERS = {
     "default": {
@@ -238,7 +244,6 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
@@ -270,8 +275,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "https://evenxo.xyz",
-    "https://www.evenxo.xyz",
+    "https://evenxo.space",
+    "https://www.evenxo.space",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -336,4 +341,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-REDIS_TEMP_USER_KEEP_TIME = os.getenv("REDIS_TEMP_USER_KEEP_TIME")
+
+
+
+REDIS_TEMP_USER_KEEP_TIME = os.getenv(
+    "REDIS_TEMP_USER_KEEP_TIME"
+)
