@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from celery.schedules import crontab
 import dj_database_url
 import cloudinary
+from .logging_config import LOGGING
 
 load_dotenv()
 
@@ -284,57 +285,6 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_SAMESITE = "None"
-
-LOGGING = {
-    "version": 1,
-
-    "disable_existing_loggers": False,
-
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-        },
-
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": "general.log",
-            "formatter": "verbose",
-        },
-    },
-
-    "formatters": {
-        "verbose": {
-            "format": "{asctime} ({levelname})- {name}- {message}",
-            "style": "{",
-        }
-    },
-
-    "loggers": {
-        "": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-
-        "django": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-
-        "chat.socketio_server": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-
-        "users.tasks": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
