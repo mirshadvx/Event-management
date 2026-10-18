@@ -11,18 +11,25 @@ class FirebaseNotConfigured(Exception):
 
 def initialize_firebase():
     firebase_json = os.getenv("FIREBASE_CREDENTIALS")
-    if not firebase_json:
+    credentials_file = os.getenv("FIREBASE_CREDENTIALS_FILE")
+
+    if not firebase_json and not credentials_file:
         return False
 
     if firebase_admin._apps:
         return True
 
-    try:
-        data = json.loads(firebase_json)
-    except json.JSONDecodeError as exc:
-        raise FirebaseNotConfigured("FIREBASE_CREDENTIALS must be valid JSON") from exc
+    if credentials_file:
+        if not os.path.isfile(credentials_file):
+            raise FirebaseNotConfigured("Firebase credentials file does not exist")
+        cred = credentials.Certificate(credentials_file)
+    else:
+        try:
+            data = json.loads(firebase_json)
+        except json.JSONDecodeError as exc:
+            raise FirebaseNotConfigured("FIREBASE_CREDENTIALS must be valid JSON") from exc
+        cred = credentials.Certificate(data)
 
-    cred = credentials.Certificate(data)
     firebase_admin.initialize_app(cred)
     return True
 

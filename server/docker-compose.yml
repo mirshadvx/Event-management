@@ -2,13 +2,17 @@ services:
   web:
     build:
       context: .
-    command: daphne -b 0.0.0.0 -p 8000 event_management.asgi:application
+    command: uv run daphne -b 0.0.0.0 -p 8000 event_management.asgi:application
     volumes:
       - .:/app
+      - ./users/evenxo-g-auth-firebase-adminsdk.json:/run/secrets/firebase-service-account.json:ro
+      # - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
     depends_on:
       - db
       - redis
@@ -32,11 +36,14 @@ services:
   celery:
     build:
       context: .
-    command: celery -A event_management worker --loglevel=info
+    command: uv run celery -A event_management worker --loglevel=info
     volumes:
       - .:/app
+      - ./users/evenxo-g-auth-firebase-adminsdk.json:/run/secrets/firebase-service-account.json:ro
     env_file:
       - .env
+    environment:
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
     depends_on:
       - redis
       - db
@@ -44,14 +51,28 @@ services:
   celery-beat:
     build:
       context: .
-    command: celery -A event_management beat --loglevel=info
+    command: uv run celery -A event_management beat --loglevel=info
     volumes:
       - .:/app
+      - ./users/evenxo-g-auth-firebase-adminsdk.json:/run/secrets/firebase-service-account.json:ro
     env_file:
       - .env
+    environment:
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
     depends_on:
       - redis
       - db
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./staticfiles:/usr/share/nginx/html:ro
+      - ./media:/var/www/media:ro
+    depends_on:
+      - web
 
 volumes:
   postgres_data:
