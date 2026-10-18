@@ -32,7 +32,11 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const isAuthEndpoint = /\/users\/(token|token\/refresh|authenticated|register|verify-otp|password-reset)(\/|$)/.test(
+            originalRequest?.url || ""
+        );
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
             originalRequest._retry = true;
 
             try {
@@ -46,7 +50,6 @@ api.interceptors.response.use(
                 if (dispatch) {
                     dispatch({ type: "user/setAuthenticated", payload: false });
                 }
-                window.location.href = "/login";
                 return Promise.reject(refreshError);
             }
         }

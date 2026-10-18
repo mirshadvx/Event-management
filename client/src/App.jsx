@@ -9,6 +9,7 @@ import { Toaster } from "sonner";
 import AdminRoutes from "./routes/admin/AdminRoutes";
 import ProfileRoutes from "./routes/user/ProfileRoutes";
 import LoadingScreen from "./components/common/LoadingScreen";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 const Home = lazy(() => import("./pages/User/home/Home"));
 const AdminLogin = lazy(() => import("./pages/Admin/Login"));
@@ -64,7 +65,11 @@ function App() {
             <Route path="/checkout/:eventId" element={<CheckoutPage />} />
             <Route
               path="/checkout/subscription"
-              element={<SubscriptionCheckout />}
+              element={
+                <ProtectedRoute>
+                  <SubscriptionCheckout />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/checkout/renew-subscription"

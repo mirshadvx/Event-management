@@ -21,7 +21,7 @@ const SubscriptionCheckout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const { user, loading: userLoading } = useSelector((state) => state.user);
+  const { user, loading: userLoading, isAuthenticated, error: profileError } = useSelector((state) => state.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -43,12 +43,6 @@ const SubscriptionCheckout = () => {
       });
     }
   }, [user, userLoading, navigate]);
-
-  useEffect(() => {
-    if (!user && !userLoading) {
-      dispatch(get_ProfileData());
-    }
-  }, [user, userLoading, dispatch]);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -122,6 +116,20 @@ const SubscriptionCheckout = () => {
   };
 
   const selectedPlanData = plans.find((p) => p.id === selectedPlan);
+
+  if (!userLoading && !user && isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-indigo-950 text-white flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <h1 className="text-2xl font-semibold">Could not load your account</h1>
+        <p className="max-w-lg text-indigo-200">
+          {profileError || "Please refresh the page or sign in again."}
+        </p>
+        <button className="rounded-lg bg-green-500 px-5 py-3 font-semibold text-black" onClick={() => navigate("/login")}>
+          Go to login
+        </button>
+      </div>
+    );
+  }
 
   if (success) {
     return (
