@@ -79,6 +79,10 @@ def admin_login(request):
             )
 
         user = authenticate(request, username=username, password=password)
+        
+        if user is None:
+            return Response({"success": False, "error": "Invalid username or password"},status=status.HTTP_401_UNAUTHORIZED)
+        
         if not user.is_staff:
             return Response(
                 {
@@ -91,7 +95,7 @@ def admin_login(request):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
-        response = Response({"success": True, "role": "admin"})
+        response = Response({"success": True, "role": "admin"}, status=status.HTTP_200_OK,)
         response.set_cookie(
             "access_token",
             access_token,
