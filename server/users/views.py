@@ -822,7 +822,7 @@ def cancel_ticket(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        wallet = get_object_or_404(Wallet, user=user)
+        wallet, _ = Wallet.objects.get_or_create(user=user)
 
         total_all_ticket_count = (
             TicketPurchase.objects.filter(
