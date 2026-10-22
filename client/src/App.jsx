@@ -30,6 +30,7 @@ const TicketValidatorProtectedRoute = lazy(() =>
   import("./routes/TicketValidator/TicketValidatorProtectedRoute")
 );
 const ValidatorLogin = lazy(() => import("./components/TicketValidator/ValidatorLogin"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 function App() {
   const dispatch = useDispatch();
@@ -85,6 +86,7 @@ function App() {
             {DashboardRoutes()}
             {AdminRoutes()}
             {ProfileRoutes()}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </div>
