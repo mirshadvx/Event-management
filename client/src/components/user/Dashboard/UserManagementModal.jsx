@@ -19,6 +19,7 @@ import {
   X,
   Loader2,
   AlertTriangle,
+  Copy,
 } from "lucide-react";
 import { getManagedUsers, toggleUserStatus, deleteManagedUser, createManagedUser } from "@/services/userManagement";
 import { formatDate } from "@/utils/dateUtils";
@@ -35,6 +36,7 @@ const UserManagementModal = ({ isOpen, onClose, eventId }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const [userPendingDelete, setUserPendingDelete] = useState(null);
   const isDeleteDialogOpen = Boolean(userPendingDelete);
@@ -54,6 +56,20 @@ const UserManagementModal = ({ isOpen, onClose, eventId }) => {
   });
 
   const passwordValue = watch("password");
+  const validatorLoginUrl = eventId
+    ? `${window.location.origin}/event/${encodeURIComponent(eventId)}/guard/login`
+    : "";
+
+  const copyLoginLink = async () => {
+    try {
+      await navigator.clipboard.writeText(validatorLoginUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch (error) {
+      console.error("Unable to copy validator login link", error);
+      setErrorMessage("Unable to copy the login link. Please copy it manually.");
+    }
+  };
 
   const loadUsers = useCallback(async () => {
     if (!eventId) return;
@@ -280,6 +296,26 @@ const UserManagementModal = ({ isOpen, onClose, eventId }) => {
                 </div>
 
                 <div className="bg-gray-800 rounded-lg p-5 shadow h-fit">
+                  <h3 className="text-lg font-semibold mb-2">Validator login link</h3>
+                  <p className="text-gray-400 text-sm mb-3">
+                    Share this event-specific link with ticket validation users.
+                  </p>
+                  <div className="flex gap-2 mb-6">
+                    <input
+                      readOnly
+                      aria-label="Validator login link"
+                      value={validatorLoginUrl}
+                      className="min-w-0 flex-1 rounded-lg bg-gray-700 border border-gray-600 px-3 py-2 text-xs text-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={copyLoginLink}
+                      className="shrink-0 rounded-lg bg-gray-700 px-3 py-2 text-sm hover:bg-gray-600 inline-flex items-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      {linkCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
                   <h3 className="text-xl font-semibold flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-[#34D399]" />
                     Create User

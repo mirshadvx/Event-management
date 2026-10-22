@@ -78,6 +78,7 @@ function App() {
             <Route path="/chat" element={<MainLayout />} />
             <Route path="user/:username" element={<GlobalProfile />} />
             <Route path="search" element={<UserSearch />} />
+            
             <Route path="event/:event_id/guard/login" element={<ValidatorLogin />} />
             <Route path="event/:event_id/guard/scanner" element={<TicketValidatorProtectedRoute />}/>
             {AuthRoutes()}
