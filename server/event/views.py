@@ -22,6 +22,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import permission_classes
 from users.tasks import send_user_notification
 from users.models import Booking
+from users.permissions import IsActiveUser
 import logging
 from Admin.models import SubscriptionPlan
 from datetime import timedelta
@@ -376,13 +377,13 @@ class GetEvent(APIView):
 
 
 class BookedTicketDetails(APIView):
+    permission_classes = [IsAuthenticated, IsActiveUser]
+
     def get(self, request, booking_id):
-        try:
-            booking = get_object_or_404(Booking, booking_id=booking_id)
-            serializer = BookingSerializer(booking)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"message": "failed to fetch the ticket details", "error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        booking = get_object_or_404(
+            Booking,
+            booking_id=booking_id,
+            user=request.user,
+        )
+        serializer = BookingSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
